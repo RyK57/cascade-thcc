@@ -26,7 +26,7 @@ describe("draftReadyReply", () => {
     });
     expect(reply).toContain("$150.00");
     expect(reply).toContain("YES");
-    expect(reply).toContain("Drafts are free");
+    expect(reply.toLowerCase()).toContain("drafts are free");
   });
 
   it("still asks for confirmation when pricing is pending", () => {

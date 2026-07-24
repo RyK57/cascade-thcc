@@ -1,31 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { draftReply } from "@/libs/agent";
-import type { TriageResult } from "@/utils/schema/agent";
 
-const base: TriageResult = {
-  tier: "ai",
-  jobSummary: "summarize this article",
-  reason: "answerable directly",
+const base = {
+  jobSummary: "summarize this brief",
+  reason: "general knowledge",
   needsClarification: false,
-};
+} as const;
 
 describe("draftReply", () => {
   it("asks the clarifying question when one is needed", () => {
     const reply = draftReply({
       ...base,
+      tier: "ai",
       needsClarification: true,
-      clarifyingQuestion: "What's your budget?",
+      clarifyingQuestion: "Which city?",
     });
-    expect(reply).toBe("What's your budget?");
+    expect(reply).toBe("Which city?");
   });
 
   it("acknowledges an ai-tier job", () => {
-    expect(draftReply({ ...base, tier: "ai" })).toContain("summarize this article");
+    expect(draftReply({ ...base, tier: "ai" })).toContain("summarize this");
   });
 
-  it("routes a crowd-tier job to real people", () => {
-    const reply = draftReply({ ...base, tier: "crowd" });
-    expect(reply.toLowerCase()).toContain("real people");
+  it("routes a peer-tier job to Cascade peers", () => {
+    const reply = draftReply({ ...base, tier: "peer" });
+    expect(reply.toLowerCase()).toContain("peer");
   });
 
   it("promises cost confirmation for an expert-tier job", () => {

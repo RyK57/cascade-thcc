@@ -4,22 +4,24 @@ export interface PricingPoint {
 }
 
 export const PRICING = {
-  headline: "Pay for verified work, not seats.",
+  headline: "Pay only when humans work.",
   support:
-    "There is no SaaS tier maze. You confirm Terac cost in chat, then settle through Dynamic when the work is approved.",
+    "AI is free. Peer and expert quotes show in chat. Sandbox Dynamic USDC escrow — never real dollars in this demo.",
   points: [
     {
-      title: "Drafts are free",
-      description: "Scoping an expert opportunity on Terac costs nothing until you launch.",
+      title: "AI is free",
+      description: "Cascade answers capable tasks in-thread at $0.",
     },
     {
-      title: "Launch on confirm",
-      description: "The agent shows estimate + ETA in iMessage before any budget is spent.",
+      title: "Peers + credits",
+      description:
+        "Seeded peers claim jobs; earn credits that stay in a closed loop (never convert to crypto).",
     },
     {
-      title: "Settle on approval",
-      description: "Dynamic coordinates wallet payment when you accept a submission.",
+      title: "Experts on confirm",
+      description:
+        "Terac drafts are free; launch spends only after you tapback YES. Billed on approval.",
     },
   ] as PricingPoint[],
-  cta: "Try the operator view",
+  cta: "Open Cascade",
 } as const;

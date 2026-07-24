@@ -36,8 +36,8 @@ export async function handleInbound(raw: unknown): Promise<HandleInboundResult> 
   // Reply on the same thread: our Linq number sends back to the person who texted.
   await sendTextMessage({ from: event.to, to: [event.from], text: reply });
 
-  // TODO(next stage): if triage.tier is "crowd"/"expert" and !needsClarification,
-  // create a Terac opportunity here and persist chat<->job<->opportunity IDs.
+  // Live webhook uses runAgentTurn (triage → ai/peer/expert). This helper remains
+  // for isolated triage experiments only.
 
   return { status: "handled", triage, reply };
 }

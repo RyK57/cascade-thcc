@@ -4,10 +4,8 @@ import { isLinqConfigured, parseInboundMessage } from "@/libs/linq";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 /**
- * Inbound Linq webhook. Single live path: SDK parse → `runAgentTurn`
- * (persist job/message, Terac draft/launch/review, Dynamic payment state).
- * The LLM triage helpers in `libs/agent` are composed into that turn — not a
- * parallel webhook orchestrator.
+ * Inbound Linq webhook. Single live path: parse text/reaction → `runAgentTurn`
+ * (Cascade triage → AI / peer / Terac expert).
  */
 export async function POST(request: Request) {
   if (!isLinqConfigured()) {
@@ -18,7 +16,10 @@ export async function POST(request: Request) {
   }
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
+      {
+        error:
+          "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY.",
+      },
       { status: 503 }
     );
   }

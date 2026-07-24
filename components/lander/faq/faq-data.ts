@@ -5,28 +5,28 @@ export interface FaqItem {
 
 export const FAQ_ITEMS: FaqItem[] = [
   {
-    question: "Do I hire people by texting?",
+    question: "What is Cascade?",
     answer:
-      "Yes. You message the Linq Number, describe the job, and the agent runs the hiring loop in that same iMessage thread — with RCS/SMS fallback when needed.",
+      "An iMessage agent that routes every task to the cheapest capable worker: AI (free), a seeded peer, or a verified Terac expert — paid with sandbox Dynamic USDC.",
   },
   {
-    question: "Where do the experts come from?",
+    question: "Where do experts come from?",
     answer:
-      "Terac. The agent drafts a verified-expert opportunity, shows estimated cost, and only launches after you confirm. You can approve or reject submissions from the conversation.",
+      "Terac. Cascade drafts a verified-expert opportunity, shows the live quote, and only launches after you tapback or reply YES. Billed on approval.",
   },
   {
-    question: "How do payments work?",
+    question: "How do sandbox payments work?",
     answer:
-      "Dynamic coordinates wallets and settlement. After you accept work, payment is tied to that approval — not a separate back-office process.",
+      "Dynamic sandbox + Base Sepolia testnet only — no real dollars. Escrow to the Cascade treasury, then instant sandbox payout on approve (simulated when server-wallet keys are missing).",
   },
   {
     question: "Will this spam people cold?",
     answer:
-      "No. Linq is built for two-way conversation. The product is inbound-first and opt-in — not blast lists or cold outreach.",
+      "No. Linq is two-way and inbound-first. Peer claim pings only go to seeded teammates who already texted the line.",
   },
   {
-    question: "What’s the operator app for?",
+    question: "What’s the /main app for?",
     answer:
-      "The web app at /main shows integration status and Dynamic login while you build. The primary product surface is still the iMessage thread.",
+      "Sandbox wallet pay for a job (?job=), open job list, and integration status. The primary product surface is still iMessage.",
   },
 ] as const;
