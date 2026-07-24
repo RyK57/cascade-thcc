@@ -5,10 +5,13 @@ export const MESSAGE_DIRECTION = {
   outbound: "outbound",
 } as const;
 
+export type MessageDirection =
+  (typeof MESSAGE_DIRECTION)[keyof typeof MESSAGE_DIRECTION];
+
 interface RecordJobMessageInput {
   jobId: string;
   linqMessageId: string;
-  direction: (typeof MESSAGE_DIRECTION)[keyof typeof MESSAGE_DIRECTION];
+  direction: MessageDirection;
   body: string;
 }
 

@@ -1,4 +1,5 @@
 import { createAnthropicClient, createOpenAIClient } from "@/libs/ai";
+import { appendUserTurn, type ConversationTurn } from "./conversation";
 import { aiFollowUpSuggest } from "./reply-templates";
 
 export interface AiAnswerResult {
@@ -6,11 +7,21 @@ export interface AiAnswerResult {
   followUp: string;
 }
 
+const ANSWER_SYSTEM = `You are Cascade, an iMessage task agent. Answer the latest task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).
+
+Rules:
+- Do NOT ask clarifying questions. Make reasonable assumptions and state them in one short line if needed.
+- Earlier messages from this thread come first — the same person you are replying to now. Treat a short follow-up as a continuation.
+- If the user pasted content (a poem, draft, list), it is in the conversation — never claim it is missing or cut off.
+- End with a useful answer, not a question.`;
+
 export async function answerAiTask(params: {
   title: string;
   description: string;
   /** Newest inbound text — the part the answer must actually address. */
   latestMessage?: string;
+  /** Prior turns from job_messages. */
+  history?: ConversationTurn[];
 }): Promise<AiAnswerResult> {
   const latest = params.latestMessage?.trim();
   const conversation =
@@ -18,17 +29,8 @@ export async function answerAiTask(params: {
       ? `${params.description}\n\nUser: ${latest}`
       : params.description;
 
-  const prompt = `You are Cascade, an iMessage task agent. Answer the task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).
-
-Rules:
-- Do NOT ask clarifying questions. Make reasonable assumptions and state them in one short line if needed.
-- The full conversation is below. If the user pasted content (a poem, draft, list), it is in there — never claim it is missing or cut off.
-- End with a useful answer, not a question.
-
-Task: ${params.title}
-
-Conversation so far:
-${conversation}`;
+  const task = `Task: ${params.title}\n\nConversation so far:\n${conversation}`;
+  const messages = appendUserTurn(params.history ?? [], task);
 
   let answer: string | undefined;
 
@@ -38,7 +40,8 @@ ${conversation}`;
       const response = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 800,
-        messages: [{ role: "user", content: prompt }],
+        system: ANSWER_SYSTEM,
+        messages,
       });
       answer = response.content
         .filter((b) => b.type === "text")
@@ -55,7 +58,7 @@ ${conversation}`;
       const client = createOpenAIClient();
       const response = await client.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "system", content: ANSWER_SYSTEM }, ...messages],
       });
       answer = response.choices[0]?.message?.content?.trim();
     } catch (error) {

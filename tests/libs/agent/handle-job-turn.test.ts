@@ -181,6 +181,8 @@ describe("ai triage", () => {
     expect(outcome.reply).toContain("Here is your plan.");
     // The answer is the product — no routing debug line in the thread.
     expect(outcome.reply).not.toContain("Cascade →");
+    // Free instant answers must not fire confetti; reserve it for real work.
+    expect(outcome.effect).toBeUndefined();
   });
 
   it("marks awaiting_clarification and keeps the thread in intake", async () => {

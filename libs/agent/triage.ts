@@ -1,5 +1,6 @@
 import { createAnthropicClient } from "@/libs/ai";
 import { TIER_VALUES, toTriageResult, type TriageResult } from "@/utils/schema/agent";
+import { appendUserTurn, type ConversationTurn } from "./conversation";
 import { comparePeerExpertEv, EV_TIEBREAK_GAP_USD } from "./routing-ev";
 
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
@@ -17,7 +18,8 @@ Hard rules:
 - "Plan my week…", fundraising advice, movie recs → ai, needs_clarification=false.
 - "Have someone test/text my signup on a real phone" → peer even if URL/code is messy; put whatever they gave in job_summary.
 - needs_clarification=true ONLY when the task is impossible without ONE missing fact (e.g. no phone number at all for a "text this number" job). Never ask follow-up interviews. Never ask genre/mood/stage chains.
-- If prior context + latest message already describe a task, route it. Always call route_job.`;
+- Earlier messages from this iMessage thread come before the latest one. Classify the LATEST request in thread context: a short follow-up ("make it usage-based", "the second one") continues the previous task; job_summary should reflect the whole request.
+- Always call route_job.`;
 
 const triageTool = {
   name: "route_job",
@@ -70,6 +72,8 @@ export interface TriageJobInput {
   priorContext?: string;
   /** True when we already asked one clarifying question — never ask again. */
   alreadyClarified?: boolean;
+  /** Prior turns from job_messages, oldest-first. */
+  history?: ConversationTurn[];
 }
 
 /**
@@ -99,7 +103,7 @@ export async function triageJob(input: TriageJobInput | string): Promise<TriageR
       system: TRIAGE_SYSTEM,
       tools: [triageTool],
       tool_choice: { type: "tool", name: "route_job" },
-      messages: [{ role: "user", content: prompt }],
+      messages: appendUserTurn(params.history ?? [], prompt),
     });
 
     const toolUse = response.content.find((block) => block.type === "tool_use");
@@ -229,7 +233,7 @@ function mergeTriage(
   if (
     llm.needsClarification &&
     latest.length < 80 &&
-    prompt.toLowerCase().includes("prior context")
+    (prompt.toLowerCase().includes("prior context") || latest.length < 40)
   ) {
     return {
       ...llm,

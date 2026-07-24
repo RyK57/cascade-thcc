@@ -7,8 +7,17 @@ export { getJobById } from "./get-job-by-id";
 export { getJobByStatusCardMessageId } from "./get-job-by-status-card";
 export { getLatestJobByHandle } from "./get-latest-job-by-handle";
 export { getOldestClaimablePeerJob } from "./get-oldest-claimable-job";
+export {
+  JOB_HISTORY_LIMIT,
+  listJobMessages,
+  type JobMessage,
+} from "./list-job-messages";
 export { listJobsByStatus } from "./list-jobs-by-status";
 export { listRecentJobs } from "./list-recent-jobs";
 export { listOpenJobs } from "./list-open-jobs";
-export { MESSAGE_DIRECTION, recordJobMessage } from "./record-job-message";
+export {
+  MESSAGE_DIRECTION,
+  recordJobMessage,
+  type MessageDirection,
+} from "./record-job-message";
 export { updateJob } from "./update-job";

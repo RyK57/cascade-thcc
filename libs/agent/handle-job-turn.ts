@@ -5,6 +5,7 @@ import type { Job } from "@/utils/schema/job";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { JOB_TIER, type TriageResult } from "@/utils/schema/agent";
 import { answerAiTask } from "./answer-ai";
+import type { ConversationTurn } from "./conversation";
 import { draftExpertJob, handleExpertTurn } from "./handle-expert-turn";
 import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
 import { interpretPayAsset } from "./interpret-message";
@@ -21,6 +22,8 @@ export interface JobTurn {
   chatId: string;
   /** Set when this turn starts with a fresh triage. */
   triage?: TriageResult;
+  /** Earlier turns on this thread, oldest first. Excludes `text`. */
+  history?: ConversationTurn[];
 }
 
 export interface JobTurnOutcome {
@@ -91,6 +94,8 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   const description = accumulateDescription(turn.job.description, turn.text);
 
   if (triage.needsClarification && triage.clarifyingQuestion) {
+    // Merge, don't overwrite: a second clarifying round used to drop the
+    // original request, leaving the brief as just the last answer given.
     await updateJob(turn.job.id, {
       title: clipTitle(triage.jobSummary),
       description,
@@ -134,22 +139,22 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   });
 
   job = await updateJob(job.id, { evSummary: evLine });
-  // Card-first: HUD carries EV/stage; chat stays short.
-  const routeLine = `${routingReply(triage.tier, triage.reason)}`;
+  const routeLine = routingReply(triage.tier, triage.reason);
 
   if (triage.tier === JOB_TIER.ai) {
     const { answer } = await answerAiTask({
       title: triage.jobSummary,
       description,
       latestMessage: turn.text,
+      history: turn.history,
     });
     await updateJob(job.id, {
       status: JOB_STATUS.paid,
       priceUsdCents: 0,
       evSummary: evLine,
     });
-    // No HUD card for AI: a free in-thread answer is the whole deliverable,
-    // and a "Cascade · AI done · free" card on top of it is just noise.
+    // No HUD card for AI: a free in-thread answer is the whole deliverable.
+    // No confetti either — reserved for a job that finishes real work.
     return {
       action: AGENT_ACTION.answeredAi,
       reply: answer,
