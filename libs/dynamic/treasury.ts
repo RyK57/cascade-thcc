@@ -54,7 +54,6 @@ async function createServerWalletAccount(): Promise<{
   // Use a runtime specifier so Vitest/Vite does not eagerly resolve optional deps.
   const specifier = "@dynamic-labs-wallet/" + "node-evm";
   const mod = await import(/* webpackIgnore: true */ specifier);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const DynamicEvmWalletClient =
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mod as any).DynamicEvmWalletClient ?? (mod as any).default;

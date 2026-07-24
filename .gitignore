@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .cursor/
+
+# Impeccable design-tool state (critique snapshots, hook cache)
+.impeccable/

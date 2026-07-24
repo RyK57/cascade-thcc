@@ -5,6 +5,21 @@ export const HERO = {
     "AI answers free. Peers handle real-world checks. Verified experts come from Terac — escrowed with sandbox Dynamic USDC.",
   primaryCta: "Open the app",
   secondaryCta: "See how it works",
+  trust: "Base Sepolia sandbox USDC — never real dollars in this demo.",
+} as const;
+
+/** Chrome for the thread artifact. Kept beside the messages it annotates. */
+export const THREAD = {
+  channel: "Live on iMessage",
+  agent: "Cascade",
+  stamp: "Today 9:41",
+  notes: ["AI free", "Quote first", "Sandbox USDC"],
+} as const;
+
+/** Speaker names, announced to screen readers before each message. */
+export const THREAD_SPEAKERS = {
+  user: "You",
+  agent: "Cascade",
 } as const;
 
 export const HERO_THREAD = [

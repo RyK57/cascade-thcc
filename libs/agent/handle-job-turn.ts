@@ -82,7 +82,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   }
 
   const priceUsdCents = Math.round((triage.priceEstimateUsd ?? 0) * 100);
-  let job = await updateJob(turn.job.id, {
+  const job = await updateJob(turn.job.id, {
     title: clipTitle(triage.jobSummary),
     description: turn.job.description ?? turn.text,
     tier: triage.tier,

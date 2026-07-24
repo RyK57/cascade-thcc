@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { initializeClient } from "@dynamic-labs-sdk/client";
 import {
   useGetWalletAccounts,
   useInitStatus,
   useUser,
 } from "@dynamic-labs-sdk/react-hooks";
-import { DynamicAuthPanel } from "@/components/dynamic";
+import { DynamicLogin } from "@/components/dynamic/dynamic-login";
+import { DynamicPending, DynamicStatus } from "@/components/dynamic/dynamic-status";
+import { WalletAddress } from "@/components/dynamic/wallet-address";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BRAND } from "@/lib/constants/branding";
+import { cn } from "@/lib/utils";
 
 interface CascadePayPanelProps {
   jobId: string;
@@ -19,6 +21,24 @@ interface CascadePayPanelProps {
   status: string;
 }
 
+interface Result {
+  tone: "ok" | "error";
+  text: string;
+}
+
+const FUNDED_STATUSES = new Set(["settled", "paid", "funded"]);
+
+function humanize(status: string): string {
+  return status.replace(/_/g, " ");
+}
+
+/**
+ * Funding confirmation for one job. Money is involved, so every branch says
+ * where the funds are, which wallet they leave from, and what has and hasn't
+ * happened yet.
+ *
+ * Must be rendered inside `DynamicProvider`.
+ */
 export function CascadePayPanel({
   jobId,
   title,
@@ -26,18 +46,22 @@ export function CascadePayPanel({
   treasuryAddress,
   status,
 }: CascadePayPanelProps) {
-  const { data: initStatus } = useInitStatus();
+  const { data: initStatus, error: initError } = useInitStatus();
   const { data: user } = useUser();
   const { data: accounts = [] } = useGetWalletAccounts();
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
 
   const amount = (amountCents / 100).toFixed(2);
   const address = accounts[0]?.address;
+  const alreadyFunded = FUNDED_STATUSES.has(status);
+  // The simulated treasury is a readable placeholder, not a real address —
+  // don't offer an explorer link that would 404.
+  const onChain = /^0x[0-9a-fA-F]{40}$/.test(treasuryAddress);
 
   async function confirmSandboxPayment() {
     setBusy(true);
-    setMessage(null);
+    setResult(null);
     try {
       const res = await fetch(`/api/jobs/${jobId}/fund`, {
         method: "POST",
@@ -48,66 +72,142 @@ export function CascadePayPanel({
         }),
       });
       const data = (await res.json()) as { error?: string; ok?: boolean };
-      if (!res.ok) throw new Error(data.error ?? "Fund failed");
-      setMessage(
-        "Sandbox escrow recorded. Cascade will text your iMessage thread."
-      );
+      if (!res.ok) throw new Error(data.error ?? "The request was rejected.");
+      setResult({
+        tone: "ok",
+        text: "Escrow recorded. You’ll get a confirmation in your iMessage thread.",
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Fund failed");
+      setResult({
+        tone: "error",
+        text: `${
+          error instanceof Error ? error.message : "The request failed."
+        } Nothing was moved — you can try again.`,
+      });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">{BRAND.name} sandbox pay</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <p>
-          Job: <span className="font-medium text-foreground">{title}</span>
-        </p>
-        <p>
-          Amount:{" "}
-          <span className="font-medium text-foreground">${amount} USDC</span>{" "}
-          on Base Sepolia (testnet — no real dollars).
-        </p>
-        <p className="text-muted-foreground">
-          Treasury: <code className="text-foreground">{treasuryAddress}</code>
-        </p>
-        <p className="text-muted-foreground">Status: {status}</p>
+    <section
+      aria-labelledby="pay-heading"
+      className="rounded-xl border border-hairline p-6 sm:p-8"
+    >
+      <p className="label-caps text-accent-ink">Escrow · sandbox</p>
+      <h2 id="pay-heading" className="mt-6 font-secondary text-2xl sm:text-3xl">
+        {title}
+      </h2>
 
-        {initStatus !== "finished" ? (
-          <p className="text-muted-foreground">Loading Dynamic…</p>
+      <dl className="mt-6 grid gap-5 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <dt className="label-caps text-muted-foreground">Amount</dt>
+          <dd className="font-mono text-xl text-foreground">${amount} USDC</dd>
+        </div>
+        <div className="space-y-1.5">
+          <dt className="label-caps text-muted-foreground">Status</dt>
+          <dd className="text-sm text-foreground">{humanize(status)}</dd>
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <dt className="label-caps text-muted-foreground">
+            Escrow address — where the funds are held
+          </dt>
+          <dd className="text-sm">
+            <WalletAddress
+              address={treasuryAddress}
+              label="Copy escrow address"
+              explorer={onChain}
+            />
+          </dd>
+        </div>
+      </dl>
+
+      <p className="mt-6 border-t border-hairline pt-4 text-sm leading-relaxed text-muted-foreground">
+        Base Sepolia testnet — no real dollars move. The funds sit in escrow
+        until the work is delivered, and nothing is charged until you confirm
+        below.
+      </p>
+
+      <div className="mt-6 border-t border-hairline pt-6">
+        {initStatus === "failed" ? (
+          <DynamicStatus
+            tone="error"
+            title="Couldn’t reach the wallet service"
+            description="You can’t confirm escrow until the wallet loads. Nothing has been charged."
+            detail={initError?.message ?? null}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void initializeClient()}
+              >
+                Try again
+              </Button>
+            }
+          />
+        ) : initStatus !== "finished" ? (
+          <DynamicPending label="Connecting to your wallet…" />
         ) : !user ? (
-          <div className="space-y-2">
-            <p>
-              Fastest way to pay: your Cascade wallet — email only, no seed
-              phrase.
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Sign in to pay. Email only — a wallet is created for you, with no
+              seed phrase to keep.
             </p>
-            <DynamicAuthPanel />
+            <DynamicLogin />
           </div>
         ) : (
-          <div className="space-y-2">
-            <p>
-              Signed in as{" "}
-              <span className="font-medium text-foreground">{user.email}</span>
-            </p>
-            <p className="text-muted-foreground">
-              Wallet: <code className="text-foreground">{address ?? "creating…"}</code>
-            </p>
-            <Button
-              onClick={confirmSandboxPayment}
-              disabled={busy || status === "settled" || status === "paid"}
-            >
-              {busy ? "Recording…" : "Confirm sandbox escrow"}
-            </Button>
+          <div className="space-y-4">
+            <dl className="space-y-4">
+              <div className="space-y-1">
+                <dt className="label-caps text-muted-foreground">Paying as</dt>
+                <dd className="text-sm break-all text-foreground">
+                  {user.email ?? "Signed in"}
+                </dd>
+              </div>
+              <div className="space-y-1.5">
+                <dt className="label-caps text-muted-foreground">
+                  From wallet
+                </dt>
+                <dd className="text-sm">
+                  {address ? (
+                    <WalletAddress address={address} />
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Creating your wallet… this usually takes a few seconds.
+                    </span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={confirmSandboxPayment}
+                disabled={busy || alreadyFunded}
+              >
+                {busy ? "Recording…" : "Confirm escrow"}
+              </Button>
+              {alreadyFunded ? (
+                <p className="text-sm text-muted-foreground">
+                  Already funded — nothing left to confirm.
+                </p>
+              ) : null}
+            </div>
           </div>
         )}
 
-        {message ? <p className="text-muted-foreground">{message}</p> : null}
-      </CardContent>
-    </Card>
+        {result ? (
+          <p
+            role="status"
+            className={cn(
+              "mt-4 text-sm leading-relaxed",
+              result.tone === "error" ? "text-destructive" : "text-accent-ink"
+            )}
+          >
+            {result.text}
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }

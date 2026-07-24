@@ -8,9 +8,9 @@ import { StackSection } from "@/components/lander/stack";
 
 export default function HomePage() {
   return (
-    <div className="dark flex min-h-full flex-col bg-background text-foreground">
+    <div className="flex min-h-full flex-col bg-background text-foreground">
       <Navbar />
-      <main className="flex flex-1 flex-col">
+      <main id="main-content" className="flex flex-1 flex-col">
         <Hero />
         <HowItWorksSection />
         <StackSection />

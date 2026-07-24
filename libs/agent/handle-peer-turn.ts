@@ -294,7 +294,7 @@ async function handlePeerApproved(turn: PeerTurn): Promise<PeerOutcome> {
 
 export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
   const amount = job.priceUsdCents ?? job.quotedTotalCents ?? 0;
-  let wallet =
+  const wallet =
     (job.assigneeUserId &&
       (await getUserByIdAdmin(job.assigneeUserId))?.walletAddress) ||
     `0xpeer${(job.assigneeUserId ?? "unknown").replace(/-/g, "").slice(0, 32)}`;

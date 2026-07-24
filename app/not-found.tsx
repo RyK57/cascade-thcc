@@ -1,20 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { StatusPage } from "@/components/app/status-page";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
 
+export const metadata: Metadata = {
+  title: "Page not found",
+};
+
 export default function NotFound() {
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-6 px-4 py-16 text-center">
-      <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-widest text-primary">404</p>
-        <h1 className="font-secondary text-3xl">Page not found</h1>
-        <p className="max-w-md text-muted-foreground">
-          The page you are looking for does not exist or was moved.
-        </p>
-      </div>
-      <Button asChild>
-        <Link href={ROUTES.home}>Back to home</Link>
-      </Button>
-    </div>
+    <StatusPage
+      marker="404"
+      title="There’s nothing at this address"
+      description="The page you asked for doesn’t exist, or it moved. If you followed a link from an iMessage thread, the job it pointed at may already be settled."
+      actions={
+        <>
+          <Button asChild>
+            <Link href={ROUTES.main}>Go to your workspace</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={ROUTES.home}>Back to home</Link>
+          </Button>
+        </>
+      }
+    />
   );
 }
