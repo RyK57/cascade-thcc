@@ -1,5 +1,9 @@
 import { DashboardShell } from "@/components/app/dashboard-shell";
+import { AccountSignOut } from "@/components/app/main/account-sign-out";
+import { Button } from "@/components/ui/button";
+import { getAccountSession } from "@/libs/account";
 import { isInternalOperator } from "@/libs/auth";
+import { signOutAction } from "@/libs/auth/sign-out";
 import { createClient } from "@/utils/supabase/server";
 
 /**
@@ -20,11 +24,31 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const email = await getSignedInEmail();
+  const [email, accountSession] = await Promise.all([
+    getSignedInEmail(),
+    getAccountSession().catch(() => null),
+  ]);
   const showInternal = isInternalOperator(email);
+  // Two doors into the same chrome. A phone-verified customer sees the number
+  // their thread runs on; an operator sees the address they signed in with.
+  const identityLabel = email ?? accountSession?.phone ?? null;
+
+  const signOut = email ? (
+    <form action={signOutAction}>
+      <Button variant="outline" size="sm" type="submit" className="w-full md:w-auto">
+        Sign out
+      </Button>
+    </form>
+  ) : accountSession ? (
+    <AccountSignOut />
+  ) : null;
 
   return (
-    <DashboardShell email={email} showInternal={showInternal}>
+    <DashboardShell
+      identityLabel={identityLabel}
+      showInternal={showInternal}
+      signOut={signOut}
+    >
       {children}
     </DashboardShell>
   );
