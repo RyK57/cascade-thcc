@@ -13,6 +13,11 @@ export {
 export { getOpportunity } from "./get-opportunity";
 export { launchOpportunity } from "./launch-opportunity";
 export {
+  expertFiltersForJob,
+  listTeracFilters,
+  type TeracFilter,
+} from "./list-filters";
+export {
   listOpportunities,
   type TeracOpportunitySummary,
 } from "./list-opportunities";
