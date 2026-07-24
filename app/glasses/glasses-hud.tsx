@@ -29,6 +29,21 @@ export function GlassesHud() {
   const [selected, setSelected] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const busy = useRef(false);
+  const approved = useRef(new Set<string>());
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showFlash = useCallback((message: string) => {
+    setFlash(message);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 2500);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    },
+    []
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -50,23 +65,35 @@ export function GlassesHud() {
 
   const approve = useCallback(async () => {
     const job = jobs[selected];
-    if (!job || busy.current || !ACTIONABLE.has(job.status)) return;
+    if (
+      !job ||
+      busy.current ||
+      approved.current.has(job.id) ||
+      !ACTIONABLE.has(job.status)
+    ) {
+      return;
+    }
     busy.current = true;
-    setFlash(`Approving "${job.title}"…`);
+    showFlash(`Approving "${job.title}"…`);
     try {
       const res = await fetch(
         `/api/glasses/jobs/${job.id}/approve${tokenQuery()}`,
         { method: "POST" }
       );
-      setFlash(res.ok ? "Approved ✓" : "Failed — try in iMessage");
+      // The approve route runs the full tapback state machine (launch quote /
+      // release payout) with no server-side idempotency, so a second pinch
+      // must never reach it. Latch the id before the feed catches up.
+      if (res.ok) approved.current.add(job.id);
+      showFlash(res.ok ? "Approved ✓" : "Failed — try in iMessage");
     } catch {
-      setFlash("Failed — try in iMessage");
+      showFlash("Failed — try in iMessage");
     } finally {
+      // Stay busy until the feed reflects the new status, otherwise the next
+      // keypress re-enters against a stale ACTIONABLE status.
+      await refresh();
       busy.current = false;
-      setTimeout(() => setFlash(null), 2500);
-      void refresh();
     }
-  }, [jobs, selected, refresh]);
+  }, [jobs, selected, refresh, showFlash]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
