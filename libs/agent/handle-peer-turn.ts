@@ -32,6 +32,7 @@ import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import { PAYOUT_STATUS } from "@/utils/schema/payout";
 import { USER_ROLE } from "@/utils/schema/user";
 import { broadcastJobToPeers } from "./broadcast-peers";
+import { isDerivedPlaceholder } from "./link-requester-wallet";
 import { getPayUrl } from "./pay-url";
 import {
   agentPayOfferReply,
@@ -505,7 +506,7 @@ async function recordedPayoutUrl(jobId: string): Promise<string | null> {
 function paidOutcome(explorerUrl: string | null): PeerOutcome {
   return {
     action: AGENT_ACTION.paid,
-    reply: peerPaidReply(explorerUrl ?? "sandbox payout already sent"),
+    reply: peerPaidReply(explorerUrl ?? "payout already sent"),
     effect: "confetti",
   };
 }
@@ -516,14 +517,11 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
   const payment = await getPaymentByJobId(job.id);
 
   // Idempotent: iMessage approve + Mission Control release must not double-pay.
+  // Prefer PR18's evidence gate: escrow_released_at alone is not proof of pay.
   if (job.status === JOB_STATUS.paid) {
     return paidOutcome(await recordedPayoutUrl(job.id));
   }
 
-  // escrow_released_at only means someone claimed the release slot — it is not
-  // proof the transfer happened. A payout row is. Without one, a previous
-  // release threw partway through (or is still in flight), so re-broadcasting
-  // could double-pay and reporting success would be a lie.
   if (payment?.escrowReleasedAt) {
     const payoutUrl = await recordedPayoutUrl(job.id);
     if (!payoutUrl) {
@@ -566,9 +564,12 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     assignee?.walletAddress ||
     `0xpeer${(job.assigneeUserId ?? "unknown").replace(/-/g, "").slice(0, 32)}`;
 
+  // A derived address has no key holder — sending real USDC there burns it.
+  const payoutIsRealAddress = !isDerivedPlaceholder(assignee?.phone, wallet);
+
   // Prefer Cascade agent wallet release; fall back to treasury stack.
   let explorerUrl: string;
-  if (isAgentWalletConfigured() && getAgentWalletAddress()) {
+  if (payoutIsRealAddress && isAgentWalletConfigured() && getAgentWalletAddress()) {
     try {
       const payout = await payWorkerUsdc({ to: wallet, amountCents: amount });
       explorerUrl = payout.explorerUrl;
@@ -623,7 +624,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     try {
       await sendChatMessage({
         chatId: job.claimChatId,
-        text: `Payout complete (sandbox): ${explorerUrl}`,
+        text: `Payout complete: ${explorerUrl}`,
         effect: "confetti",
         idempotencyKey: `payout-peer-${job.id}`,
       });

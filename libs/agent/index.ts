@@ -13,6 +13,11 @@ export {
   quotePeerJob,
 } from "./handle-peer-turn";
 export { interpretMessage } from "./interpret-message";
+export {
+  derivedPlaceholderAddress,
+  isDerivedPlaceholder,
+  linkRequesterWallet,
+} from "./link-requester-wallet";
 export { getPayUrl } from "./pay-url";
 export { parseTrustRating } from "./parse-trust-rating";
 export { pollTrustAudits } from "./poll-trust-audits";
