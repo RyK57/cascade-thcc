@@ -1,4 +1,5 @@
 export * from "./agent";
+export * from "./checkout";
 export * from "./job";
 export * from "./ledger";
 export * from "./payment";

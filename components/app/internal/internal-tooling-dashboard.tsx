@@ -1,5 +1,6 @@
 import { InternalEnvPanel } from "./internal-env-panel";
 import { InternalHealthPanel } from "./internal-health-panel";
+import { InternalSeedJobButton } from "./internal-seed-job-button";
 import { InternalSeedPanel } from "./internal-seed-panel";
 import { InternalSupabasePanel } from "./internal-supabase-panel";
 
@@ -10,6 +11,7 @@ export function InternalToolingDashboard() {
       <InternalEnvPanel />
       <InternalHealthPanel />
       <InternalSeedPanel />
+      <InternalSeedJobButton />
     </div>
   );
 }

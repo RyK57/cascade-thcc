@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:seed": "node --import tsx scripts/db-seed.ts"
+    "db:seed": "node --import tsx scripts/db-seed.ts",
+    "agent:create-wallet": "node --import tsx scripts/create-agent-wallet.ts"
   },
   "dependencies": {
     "@ai-sdk/xai": "^4.0.10",
