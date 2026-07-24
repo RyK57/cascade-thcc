@@ -67,17 +67,33 @@ export async function handleJobTurn(turn: JobTurn): Promise<JobTurnOutcome> {
   return handleExpertTurn(turn);
 }
 
+const AWAITING_CLARIFICATION = "awaiting_clarification:";
+
+export function isAwaitingClarification(triageReason?: string): boolean {
+  return Boolean(triageReason?.startsWith(AWAITING_CLARIFICATION));
+}
+
+function accumulateDescription(prior: string | undefined, latest: string): string {
+  const next = latest.trim();
+  const prev = prior?.trim();
+  if (!prev) return next;
+  if (prev === next || prev.endsWith(next)) return prev;
+  return `${prev}\n\nUser: ${next}`;
+}
+
 async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   const triage = turn.triage;
   if (!triage) {
     return { action: AGENT_ACTION.fallback, reply: fallbackReply() };
   }
 
+  const description = accumulateDescription(turn.job.description, turn.text);
+
   if (triage.needsClarification && triage.clarifyingQuestion) {
     await updateJob(turn.job.id, {
       title: clipTitle(triage.jobSummary),
-      description: turn.text,
-      triageReason: triage.reason,
+      description,
+      triageReason: `${AWAITING_CLARIFICATION}${triage.reason}`,
     });
     return {
       action: AGENT_ACTION.clarified,
@@ -88,7 +104,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   const priceUsdCents = Math.round((triage.priceEstimateUsd ?? 0) * 100);
   let job = await updateJob(turn.job.id, {
     title: clipTitle(triage.jobSummary),
-    description: turn.job.description ?? turn.text,
+    description,
     tier: triage.tier,
     triageReason: triage.reason,
     priceUsdCents,
