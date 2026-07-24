@@ -5,13 +5,20 @@ import {
   getAgentWalletAddress,
   isAgentWalletConfigured,
 } from "@/libs/dynamic/agent-wallet";
+import { ensureSandboxTreasury } from "@/libs/dynamic/treasury";
 
 /**
  * Agent + worker (+ optional `?extra=<requester>`) addresses and live Base
  * Sepolia balances in one batched call — Mission Control's poll target.
  */
 export async function GET(request: Request) {
-  const agentAddress = getAgentWalletAddress();
+  // Fall back to the treasury escrow address so checkout still has a
+  // destination when the dedicated agent wallet isn't configured.
+  let agentAddress = getAgentWalletAddress();
+  if (!agentAddress) {
+    const treasury = await ensureSandboxTreasury().catch(() => null);
+    if (treasury && isAddress(treasury.address)) agentAddress = treasury.address;
+  }
   const workerAddress = process.env.WORKER_WALLET_ADDRESS?.trim() || undefined;
 
   const url = new URL(request.url);
