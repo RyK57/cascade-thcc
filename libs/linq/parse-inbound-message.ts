@@ -33,7 +33,12 @@ function getLinqWebhookSecret(): string | undefined {
   return process.env.LINQ_WEBHOOK_SECRET?.trim() || undefined;
 }
 
-function unwrapEvent(
+/**
+ * Verifies the Linq webhook signature and returns the decoded event. Every
+ * webhook branch must go through this — dispatching off a raw `JSON.parse` of
+ * the body lets an unsigned request reach money and PII handlers.
+ */
+export function unwrapLinqEvent(
   body: string,
   headers: Record<string, string>
 ): LinqAPIV3.UnwrapWebhookEvent {
@@ -50,8 +55,13 @@ export function parseInboundMessage(
   body: string,
   headers: Record<string, string>
 ): InboundLinqEvent | null {
-  const event = unwrapEvent(body, headers);
+  return parseInboundEvent(unwrapLinqEvent(body, headers));
+}
 
+/** Same as `parseInboundMessage` for an already-verified event. */
+export function parseInboundEvent(
+  event: LinqAPIV3.UnwrapWebhookEvent
+): InboundLinqEvent | null {
   if (event.event_type === "reaction.added") {
     const { data } = event as LinqAPIV3.ReactionAddedWebhookEvent;
     if (data.is_from_me) return null;

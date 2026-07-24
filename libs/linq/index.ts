@@ -7,7 +7,9 @@ export {
   retrieveLocation,
 } from "./location";
 export {
+  parseInboundEvent,
   parseInboundMessage,
+  unwrapLinqEvent,
   type InboundLinqEvent,
   type InboundLinqMessage,
   type InboundLinqReaction,

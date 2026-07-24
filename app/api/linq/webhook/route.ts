@@ -5,8 +5,9 @@ import { upsertUserByPhone } from "@/db/users";
 import { runAgentTurn, settlePayment } from "@/libs/agent";
 import {
   isLinqConfigured,
-  parseInboundMessage,
+  parseInboundEvent,
   retrieveLocation,
+  unwrapLinqEvent,
 } from "@/libs/linq";
 import { FUNDED_VIA } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
@@ -38,12 +39,26 @@ export async function POST(request: Request) {
   const body = await request.text();
   const headers = Object.fromEntries(request.headers.entries());
 
+  // Verify the signature once, before any branch. The payment and location
+  // handlers mutate money and PII state, so they must sit behind the same
+  // check as inbound messages.
+  let event;
   try {
-    const raw = JSON.parse(body) as {
-      event_type?: string;
-      data?: Record<string, unknown>;
-    };
+    event = unwrapLinqEvent(body, headers);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Invalid webhook payload";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
+  const raw = event as unknown as {
+    event_type?: string;
+    data?: Record<string, unknown>;
+  };
+
+  // Handler failures must surface as 5xx so Linq retries — these events carry
+  // no idempotency key of their own and are lost if we answer 200.
+  try {
     if (raw.event_type === "payment.succeeded") {
       const settled = await handleAgentPaySucceeded(raw.data ?? {});
       return NextResponse.json({ ok: true, agentPay: settled });
@@ -59,18 +74,12 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ ok: true, location: true });
     }
-  } catch {
-    // fall through to normal inbound parse
+  } catch (error) {
+    console.error(`Linq ${raw.event_type} handler failed:`, error);
+    return NextResponse.json({ error: "Handler failed" }, { status: 502 });
   }
 
-  let inbound;
-  try {
-    inbound = parseInboundMessage(body, headers);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Invalid webhook payload";
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
+  const inbound = parseInboundEvent(event);
 
   if (!inbound) {
     return NextResponse.json({ ok: true, ignored: true });
