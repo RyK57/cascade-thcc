@@ -1,7 +1,7 @@
 export const BRAND = {
   name: "Cascade",
   tagline:
-    "Text a task. AI does it or hires a professional — paid in stablecoin when you approve.",
+    "Text a task. AI does it free, or a real person does it for stablecoin — paid when you approve.",
   // Kept in step with the --brand-* tokens in app/globals.css, which are the
   // real source of truth for anything rendered. These are the FILL stops:
   // white on them measures 4.65:1 / 4.64:1. The brighter ink stops used for

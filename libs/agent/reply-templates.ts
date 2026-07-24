@@ -209,7 +209,7 @@ export function errorReply(): string {
 }
 
 export function fallbackReply(): string {
-  return `${BRAND.name} answers what it can for free and hires a vetted professional for the rest — paid only when you approve. Text what you need done.`;
+  return `${BRAND.name} answers what it can for free and hires a real person for the rest — someone on the network, or a vetted Terac professional when the task needs a credential. Paid only when you approve. Text what you need done.`;
 }
 
 export function alreadyHaveBalanceNudge(): string {

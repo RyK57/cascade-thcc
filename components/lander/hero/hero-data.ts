@@ -2,7 +2,7 @@ export const HERO = {
   headlineLead: "Cascade routes every task",
   headlineAccent: "over iMessage.",
   support:
-    "AI answers free. Anything it can't do goes to a vetted professional through Terac — who gets paid in USDC or ETH the moment you approve.",
+    "AI answers free. Hands-on work goes to someone on the Cascade network — and to a vetted Terac professional only when the task needs a credential. Whoever does it is paid in USDC or ETH the moment you approve.",
   primaryCta: "Open the app",
   secondaryCta: "See how it works",
   trust: "Escrow held until you approve in Messages.",

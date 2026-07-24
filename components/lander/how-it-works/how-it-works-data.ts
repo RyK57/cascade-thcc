@@ -28,14 +28,14 @@ export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
     system: "Linq",
     title: "Text the task",
     description:
-      "Message Cascade like you'd message a person. One triage call decides whether it answers itself or hires someone.",
+      "Message Cascade like you'd message a person. One triage call decides whether it answers itself, posts the job to the network, or brings in a credentialed professional.",
   },
   {
     step: "02",
     system: "Confirm",
     title: "Confirm the quote",
     description:
-      "AI answers free. Hiring a professional shows a price card first — tapback or YES before anything spends.",
+      "AI answers free. Hiring a person shows a price card first — tapback or YES before anything spends.",
   },
   {
     step: "03",

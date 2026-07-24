@@ -102,5 +102,7 @@ function suggestFollowUp(title: string, description: string): string {
   if (blob.includes("plan") || blob.includes("draft")) {
     return "Need a peer to review this with fresh eyes?";
   }
-  return "Want me to find a verified expert to go deeper?";
+  // Generic fallback: don't promise an expert. Triage biases to peer, and
+  // only routes to Terac when the task actually needs a credential.
+  return "Want me to get a real person on this?";
 }

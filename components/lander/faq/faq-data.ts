@@ -7,12 +7,12 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "What is Cascade?",
     answer:
-      "An agent you text like a person. It answers what it can itself, and hires a vetted professional through Terac for everything else — with the money handled end to end by Dynamic.",
+      "An agent you text like a person. It answers what it can itself and hires a human for the rest — with the money handled end to end by Dynamic.",
   },
   {
-    question: "Where do the professionals come from?",
+    question: "Who actually does the work?",
     answer:
-      "Terac. Cascade drafts the brief, shows you the live quote, and only hires after you tapback or reply YES. Their rating moves with what they actually deliver.",
+      "One of three. AI handles anything it can do outright, free. Most hands-on work — errands, phone checks, user testing, second opinions — goes to the Cascade network, which anyone can join by texting the line; no credential needed, and you're paid in crypto for what you deliver. Only tasks that genuinely need a qualified professional, like legal, medical, financial, or senior engineering review, are routed to a vetted Terac specialist.",
   },
   {
     question: "How do payments work?",
@@ -35,7 +35,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       "USDC or ETH. Prices are quoted in dollars either way — pick ETH and Cascade converts at the live rate and shows you the exact amount, the rate it used, and the network fee before you confirm.",
   },
   {
-    question: "How long does a professional take?",
+    question: "How long does a person take?",
     answer:
       "Longer than AI, and Cascade says so before quoting. Hiring a person takes two confirmations: one for the turnaround estimate, then one for the price. Nothing is charged at the first.",
   },
