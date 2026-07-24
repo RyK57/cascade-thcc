@@ -1,8 +1,16 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { getAuthRedirectPath, isProtectedPath } from "@/libs/auth/route-guards";
-import { ROUTES } from "@/lib/constants/routes";
-import { getSupabasePublicConfig } from "@/utils/supabase/config";
 import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import {
+  PROTECTED_ROUTE_PREFIXES,
+  ROUTES,
+} from "../../lib/constants/routes";
+import { getSupabasePublicConfig } from "./config";
+
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_ROUTE_PREFIXES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
 
 export async function updateSession(request: NextRequest) {
   const config = getSupabasePublicConfig();
