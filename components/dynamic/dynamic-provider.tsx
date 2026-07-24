@@ -1,27 +1,32 @@
 "use client";
 
-import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
-import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
-import { getDynamicEnvironmentId } from "@/libs/dynamic";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { isDynamicConfigured } from "@/libs/dynamic";
 
 interface DynamicProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function DynamicProvider({ children }: DynamicProviderProps) {
-  const environmentId = getDynamicEnvironmentId();
+  const [ClientProvider, setClientProvider] = useState<ComponentType<{
+    children: ReactNode;
+  }> | null>(null);
 
-  if (!environmentId) return <>{children}</>;
+  useEffect(() => {
+    if (!isDynamicConfigured()) return;
 
-  return (
-    <DynamicContextProvider
-      theme="auto"
-      settings={{
-        environmentId,
-        walletConnectors: [EthereumWalletConnectors],
-      }}
-    >
-      {children}
-    </DynamicContextProvider>
-  );
+    let cancelled = false;
+
+    void import("./dynamic-provider-client").then((module) => {
+      if (!cancelled) setClientProvider(() => module.DynamicProviderClient);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!isDynamicConfigured() || !ClientProvider) return <>{children}</>;
+
+  return <ClientProvider>{children}</ClientProvider>;
 }
