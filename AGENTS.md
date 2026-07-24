@@ -7,9 +7,12 @@ Read before implementing:
 1. `agents/rules/product.mdc` — product loop + channel constraints
 2. `agents/rules/architecture.mdc` — layering + domain folders
 3. `agents/rules/styling.mdc` — UI conventions
-4. `.cursor/rules/*` — same rules mirrored for Cursor
+4. `agents/rules/git-commits.mdc` — **split commits on every teammate PR** (no squash blobs)
+5. `.cursor/rules/*` — local Cursor mirror of `agents/rules/*` (gitignored)
 
 **Primary skill:** `agents/skills/imessage-agent/SKILL.md`
+
+**Before every PR:** follow `agents/skills/split-commit/SKILL.md` — default **one commit per file**, prefixed `(feature)` / `(bug)` / `(test)` / … Never one mega-commit; a multi-kLOC PR with ~10–20 commits is too coarse.
 
 ## Stack
 
@@ -40,6 +43,7 @@ Integrations: **Linq** · **Terac** · **Dynamic**
 | `terac` | Expert opportunities, drafts vs launch, submissions |
 | `dynamic-payments` | Wallets, payouts, payment state |
 | `supabase` | Auth, migrations, CRUD |
+| `split-commit` | **Every PR** — split into categorized commits before push |
 | `implementation-auditor` | After features/migrations/backend work |
 | `zod-schemas` / `vitest` / `shadcn-ui` | As needed |
 
