@@ -4,6 +4,7 @@ import { useGetWalletAccounts, useInitStatus, useUser } from "@dynamic-labs-sdk/
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DynamicLogin } from "@/components/dynamic/dynamic-login";
+import { JOB_STATUS } from "@/utils/schema/job";
 import type { Job } from "@/utils/schema/job";
 import type { Payment } from "@/utils/schema/payment";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
@@ -13,10 +14,7 @@ interface CheckoutCardProps {
   job: Job;
   payment: Payment | null;
   agentAddress?: string;
-  workerAddress?: string;
   onEscrowTx: (txHash: string) => void;
-  onPayoutTx: (txHash: string) => void;
-  onPayingOut: (paying: boolean) => void;
 }
 
 function statusVariant(status: string): "default" | "secondary" | "outline" {
@@ -29,10 +27,7 @@ export function CheckoutCard({
   job,
   payment,
   agentAddress,
-  workerAddress,
   onEscrowTx,
-  onPayoutTx,
-  onPayingOut,
 }: CheckoutCardProps) {
   const { data: initStatus } = useInitStatus();
   const { data: user } = useUser();
@@ -40,6 +35,14 @@ export function CheckoutCard({
 
   const amountCents = payment?.amountCents ?? job.quotedTotalCents ?? 0;
   const amountLabel = `$${(amountCents / 100).toFixed(2)}`;
+  const escrowHeld =
+    payment?.status === PAYMENT_STATUS.authorized ||
+    payment?.status === PAYMENT_STATUS.settled ||
+    job.status === JOB_STATUS.funded ||
+    job.status === JOB_STATUS.claimed ||
+    job.status === JOB_STATUS.delivered ||
+    job.status === JOB_STATUS.approved;
+  const jobPaid = job.status === JOB_STATUS.paid;
 
   return (
     <Card>
@@ -60,19 +63,26 @@ export function CheckoutCard({
           <span className="font-medium text-foreground">{amountLabel} USDC</span>{" "}
           <span className="text-muted-foreground">(Base Sepolia testnet)</span>
         </p>
+        <p className="text-xs text-muted-foreground">
+          Cascade agent wallet holds escrow. Worker payout releases only after approve.
+        </p>
 
         {initStatus !== "finished" ? (
           <p className="text-sm text-muted-foreground">Loading wallet…</p>
         ) : !user ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Sign in to pay from your embedded wallet:
+              Sign in to fund escrow from your embedded wallet:
             </p>
             <DynamicLogin />
           </div>
-        ) : payment && payment.status === PAYMENT_STATUS.settled ? (
+        ) : jobPaid ? (
           <p className="text-sm text-muted-foreground">
             This job is paid and closed. ✓
+          </p>
+        ) : escrowHeld ? (
+          <p className="text-sm text-muted-foreground">
+            Escrow held in the agent wallet. Approve the deliverable in iMessage to release payout.
           </p>
         ) : payment ? (
           <div className="space-y-2">
@@ -87,10 +97,7 @@ export function CheckoutCard({
               paymentId={payment.id}
               amountCents={amountCents}
               agentAddress={agentAddress}
-              workerAddress={workerAddress}
               onEscrowTx={onEscrowTx}
-              onPayoutTx={onPayoutTx}
-              onPayingOut={onPayingOut}
             />
           </div>
         ) : (

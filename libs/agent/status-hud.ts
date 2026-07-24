@@ -18,9 +18,16 @@ export const HUD_STAGE = {
 
 export type HudStage = (typeof HUD_STAGE)[keyof typeof HUD_STAGE];
 
+function jobStatusUrl(jobId: string): string {
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
+  return `${site.replace(/\/$/, "")}/job/${jobId}`;
+}
+
 function stageCopy(job: Job, stage: HudStage): {
   caption: string;
   subcaption: string;
+  trailingCaption: string;
   fallbackText: string;
 } {
   const price =
@@ -29,60 +36,70 @@ function stageCopy(job: Job, stage: HudStage): {
       : job.quotedTotalCents !== undefined
         ? formatCents(job.quotedTotalCents, job.quotedCurrency)
         : "quoting";
+  const ev = job.evSummary ? ` · ${job.evSummary.replace(/^Cascade EV:\s*/i, "EV ")}` : "";
 
   switch (stage) {
     case HUD_STAGE.quoted:
       return {
         caption: "Cascade · Quoted",
-        subcaption: `${job.title} · ${price}`,
-        fallbackText: `Quote ready — tapback heart to approve or thumbs-down to reject. ${price}.`,
+        subcaption: `${job.title}${ev}`,
+        trailingCaption: price,
+        fallbackText: `Quote ready — ❤️ approve / 👎 reject. ${price}.${ev}`,
       };
     case HUD_STAGE.funded:
       return {
         caption: "Cascade · Funded",
-        subcaption: `${job.title} · escrow locked`,
-        fallbackText: `Escrow funded for "${job.title}". First peer tapback claims it.`,
+        subcaption: `Agent wallet holding escrow${ev}`,
+        trailingCaption: price,
+        fallbackText: `Escrow held in Cascade agent wallet for "${job.title}". First peer ❤️ claims it.`,
       };
     case HUD_STAGE.claimed:
       return {
         caption: "Cascade · Claimed",
         subcaption: job.title,
+        trailingCaption: "in progress",
         fallbackText: `A peer claimed "${job.title}". Deliverable coming next.`,
       };
     case HUD_STAGE.delivered:
       return {
         caption: "Cascade · Delivered",
         subcaption: "Awaiting your approval",
-        fallbackText: `Deliverable in — tapback heart to approve or thumbs-down to reject.`,
+        trailingCaption: "review",
+        fallbackText: `Deliverable in — ❤️ approve / 👎 reject.`,
       };
     case HUD_STAGE.paid:
       return {
         caption: "Cascade · Paid",
         subcaption: job.title,
-        fallbackText: `Paid — "${job.title}" complete.`,
+        trailingCaption: "released",
+        fallbackText: `Paid — agent wallet released escrow for "${job.title}".`,
       };
     case HUD_STAGE.launched:
       return {
         caption: "Cascade · Expert live",
-        subcaption: `${job.title} · ${price}`,
+        subcaption: `${job.title}${ev}`,
+        trailingCaption: price,
         fallbackText: `Terac search live for "${job.title}".`,
       };
     case HUD_STAGE.inReview:
       return {
         caption: "Cascade · Review",
         subcaption: "Expert deliverable ready",
-        fallbackText: `Expert work ready — tapback heart to accept (billed on approval).`,
+        trailingCaption: "review",
+        fallbackText: `Expert work ready — ❤️ accept (billed on approval).`,
       };
     case HUD_STAGE.paymentPending:
       return {
         caption: "Cascade · Pay",
-        subcaption: `${price} sandbox USDC`,
-        fallbackText: `Sandbox payment pending for "${job.title}" — ${price}.`,
+        subcaption: `Fund agent wallet · ${price}`,
+        trailingCaption: price,
+        fallbackText: `Sandbox escrow pending for "${job.title}" — ${price}.`,
       };
     case HUD_STAGE.answered:
       return {
         caption: "Cascade · AI done",
         subcaption: job.title,
+        trailingCaption: "free",
         fallbackText: `AI answered "${job.title}" for free.`,
       };
   }
@@ -99,6 +116,7 @@ export async function syncJobHud(
   if (!isLinqConfigured()) return job;
 
   const copy = stageCopy(job, stage);
+  const url = jobStatusUrl(job.id);
 
   // Runware hero art — deterministic seed per job keeps the same artwork
   // across HUD updates. Best-effort; cards render fine without it.
@@ -120,9 +138,11 @@ export async function syncJobHud(
         previousMessageId: job.statusCardMessageId,
         chatId: job.linqChatId,
         handle: job.requesterHandle,
+        url,
         layout: {
           caption: copy.caption,
           subcaption: copy.subcaption,
+          trailingCaption: copy.trailingCaption,
           imageUrl,
         },
         fallbackText: copy.fallbackText,
@@ -132,9 +152,11 @@ export async function syncJobHud(
       ({ messageId, usedCard } = await sendStatusCard({
         chatId: job.linqChatId,
         handle: job.requesterHandle,
+        url,
         layout: {
           caption: copy.caption,
           subcaption: copy.subcaption,
+          trailingCaption: copy.trailingCaption,
           imageUrl,
         },
         fallbackText: copy.fallbackText,

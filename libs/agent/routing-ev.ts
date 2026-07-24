@@ -33,12 +33,18 @@ export function computeTierEv(params: {
   };
 }
 
-export function bestEvLine(params: {
+export function comparePeerExpertEv(params: {
   valueUsd: number;
   peerCostUsd: number;
   expertCostUsd: number;
   avgPeerTrust?: number;
-}): string {
+}): {
+  peer: EvResult;
+  expert: EvResult;
+  winner: "peer" | "expert";
+  gapUsd: number;
+  line: string;
+} {
   const peer = computeTierEv({
     tier: "peer",
     valueUsd: params.valueUsd,
@@ -52,8 +58,27 @@ export function bestEvLine(params: {
   });
   const winner =
     peer.expectedValueUsd >= expert.expectedValueUsd ? "peer" : "expert";
-  return `Cascade EV: ${winner} wins (peer $${peer.expectedValueUsd.toFixed(2)} vs expert $${expert.expectedValueUsd.toFixed(2)}).`;
+  const gapUsd = Math.abs(peer.expectedValueUsd - expert.expectedValueUsd);
+  return {
+    peer,
+    expert,
+    winner,
+    gapUsd,
+    line: `Cascade EV: ${winner} wins (peer $${peer.expectedValueUsd.toFixed(2)} vs expert $${expert.expectedValueUsd.toFixed(2)}).`,
+  };
 }
+
+export function bestEvLine(params: {
+  valueUsd: number;
+  peerCostUsd: number;
+  expertCostUsd: number;
+  avgPeerTrust?: number;
+}): string {
+  return comparePeerExpertEv(params).line;
+}
+
+/** Large EV gap used only for heuristic triage tie-breaks. */
+export const EV_TIEBREAK_GAP_USD = 8;
 
 export function claimExpectedCredits(params: {
   priceUsdCents: number;

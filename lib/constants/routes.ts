@@ -2,6 +2,7 @@ export const ROUTES = {
   home: "/",
   main: "/main",
   internal: "/internal",
+  job: (jobId: string) => `/job/${jobId}` as const,
   auth: {
     login: "/auth/login",
     signUp: "/auth/sign-up",
@@ -18,7 +19,9 @@ export const ROUTES = {
     teracOpportunities: "/api/terac/opportunities",
     jobs: "/api/jobs",
     agentWallet: "/api/agent-wallet",
+    treasuryBalances: "/api/treasury/balances",
     internalSeedDemoJob: "/api/internal/seed-demo-job",
+    internalDemoMetrics: "/api/internal/demo-metrics",
   },
 } as const;
 

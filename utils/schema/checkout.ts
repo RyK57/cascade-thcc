@@ -21,5 +21,16 @@ export const agentWalletResponseSchema = z.object({
   balances: z.record(z.string(), addressBalancesSchema),
 });
 
+/** GET /api/treasury/balances response (Mission Control canvas poll). */
+export const treasuryBalancesResponseSchema = z.object({
+  treasuryAddress: z.string(),
+  agentWalletConfigured: z.boolean().optional(),
+  agentAddress: z.string().nullable().optional(),
+  balances: z.record(z.string(), addressBalancesSchema),
+});
+
 export type JobCheckoutResponse = z.infer<typeof jobCheckoutResponseSchema>;
 export type AgentWalletResponse = z.infer<typeof agentWalletResponseSchema>;
+export type TreasuryBalancesResponse = z.infer<
+  typeof treasuryBalancesResponseSchema
+>;

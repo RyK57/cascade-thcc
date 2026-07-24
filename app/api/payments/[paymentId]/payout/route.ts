@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { settlePayment } from "@/libs/agent";
+import { getJobById } from "@/db/jobs";
+import { getPaymentByJobId } from "@/db/payments";
+import { finalizePeerPayout } from "@/libs/agent";
 import { isAgentWalletConfigured } from "@/libs/dynamic/agent-wallet";
 import { payWorkerUsdc } from "@/libs/dynamic/pay-worker";
-import { getPaymentByJobId } from "@/db/payments";
+import { settlePayment } from "@/libs/agent";
+import { JOB_TIER } from "@/utils/schema/agent";
+import { JOB_STATUS } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
@@ -15,9 +19,9 @@ const bodySchema = z.object({
 });
 
 /**
- * Autonomous agent payout (Dynamic track): the agent's own server wallet sends
- * testnet USDC to the worker, then settles the payment — which closes the job
- * and confirms on the original iMessage thread.
+ * Release escrow from the agent wallet to the worker — only after approve.
+ * Peer jobs: prefer finalizePeerPayout (credits + HUD + peer notify).
+ * Never pays at fund/escrow time.
  */
 export async function POST(
   request: Request,
@@ -26,15 +30,6 @@ export async function POST(
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
       { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
-      { status: 503 }
-    );
-  }
-  if (!isAgentWalletConfigured()) {
-    return NextResponse.json(
-      {
-        error:
-          "Agent wallet is not configured. Set DYNAMIC_API_TOKEN and AGENT_WALLET_ADDRESS.",
-      },
       { status: 503 }
     );
   }
@@ -60,18 +55,57 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    const amountCents = payment?.amountCents;
-    if (!amountCents) {
+    if (!payment) {
       return NextResponse.json(
-        { error: "Pass jobId so the payout amount can be loaded." },
+        { error: "Pass jobId so the payout can be loaded." },
         { status: 400 }
+      );
+    }
+
+    const job = await getJobById(payment.jobId);
+    if (!job) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    if (job.status === JOB_STATUS.paid) {
+      return NextResponse.json({ ok: true, alreadyPaid: true, payment });
+    }
+
+    // Escrow hold must not release until approve (peer) or explicit payment_pending expert path.
+    const canRelease =
+      job.status === JOB_STATUS.approved ||
+      (job.tier === JOB_TIER.expert && job.status === JOB_STATUS.paymentPending) ||
+      (!job.tier && job.status === JOB_STATUS.paymentPending);
+
+    if (!canRelease) {
+      return NextResponse.json(
+        {
+          error:
+            "Escrow is held in the agent wallet. Release only after the requester approves the work.",
+          jobStatus: job.status,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (job.tier === JOB_TIER.peer || job.status === JOB_STATUS.approved) {
+      const outcome = await finalizePeerPayout(job);
+      return NextResponse.json({ ok: true, outcome, payment });
+    }
+
+    if (!isAgentWalletConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "Agent wallet is not configured. Set DYNAMIC_API_TOKEN (or DYNAMIC_API_KEY), AGENT_WALLET_METADATA, and optionally AGENT_WALLET_PASSWORD.",
+        },
+        { status: 503 }
       );
     }
 
     const payout = await payWorkerUsdc({
       to: parsed.data.workerAddress,
-      amountCents,
+      amountCents: payment.amountCents,
     });
 
     const settled = await settlePayment({

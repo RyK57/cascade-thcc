@@ -1,8 +1,10 @@
 /**
- * Launch a short Terac feedback opportunity for Cascade demos:
- * "Use Cascade 10 min; rank AI / peer / expert".
+ * Launch / ingest a Terac GP feedback opportunity for Cascade demos.
  *
- * Usage: pnpm exec tsx scripts/terac-feedback-job.ts
+ * Usage:
+ *   pnpm exec tsx scripts/terac-feedback-job.ts
+ *   pnpm exec tsx scripts/terac-feedback-job.ts --phase=ingest --opportunity=<id>
+ *
  * Requires TERAC_API_KEY + TERAC_PROJECT_ID (and optionally Supabase for metrics).
  */
 import { createAdminClient } from "@/utils/supabase/admin";
@@ -11,9 +13,15 @@ import {
   getTeracProjectId,
   isTeracConfigured,
   launchOpportunity,
+  listSubmissions,
 } from "@/libs/terac";
 
-async function main() {
+function argValue(flag: string): string | undefined {
+  const hit = process.argv.find((a) => a.startsWith(`${flag}=`));
+  return hit?.slice(flag.length + 1);
+}
+
+async function baseline() {
   if (!isTeracConfigured()) {
     console.error("Terac is not configured. Set TERAC_API_KEY.");
     process.exit(1);
@@ -60,14 +68,110 @@ async function main() {
     JSON.stringify(
       {
         ok: true,
+        phase: "baseline",
         opportunityId: opportunity.id,
         pricing: opportunity.pricing,
-        next: "After results, tweak triage/copy once and set demo_metrics.after_value for the slide.",
+        next: `pnpm exec tsx scripts/terac-feedback-job.ts --phase=ingest --opportunity=${opportunity.id}`,
       },
       null,
       2
     )
   );
+}
+
+function parseRanks(text: string): { ai?: number; peer?: number; expert?: number } {
+  const ai = text.match(/\bAI\s*=\s*([1-3])\b/i);
+  const peer = text.match(/\bpeer\s*=\s*([1-3])\b/i);
+  const expert = text.match(/\bexpert\s*=\s*([1-3])\b/i);
+  return {
+    ai: ai ? Number(ai[1]) : undefined,
+    peer: peer ? Number(peer[1]) : undefined,
+    expert: expert ? Number(expert[1]) : undefined,
+  };
+}
+
+async function ingest(opportunityId: string) {
+  if (!isTeracConfigured()) {
+    console.error("Terac is not configured. Set TERAC_API_KEY.");
+    process.exit(1);
+  }
+
+  const { data } = await listSubmissions({ opportunityId, limit: 25 });
+  const ranks = (data ?? []).map((s) => {
+    const raw = s as { answer?: string; response?: string; content?: string };
+    const text = raw.answer ?? raw.response ?? raw.content ?? JSON.stringify(s);
+    return parseRanks(text);
+  });
+
+  const scored = ranks.filter((r) => r.ai || r.peer || r.expert);
+  const avg = (key: "ai" | "peer" | "expert") => {
+    const vals = scored.map((r) => r[key]).filter((n): n is number => n !== undefined);
+    if (!vals.length) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
+
+  const preference =
+    [
+      ["ai", avg("ai")],
+      ["peer", avg("peer")],
+      ["expert", avg("expert")],
+    ] as const;
+  const best = preference
+    .filter(([, v]) => v !== null)
+    .sort((a, b) => (a[1] ?? 99) - (b[1] ?? 99))[0];
+
+  const afterValue = best?.[1] ?? scored.length;
+
+  try {
+    const supabase = createAdminClient();
+    await supabase.from("demo_metrics").upsert(
+      {
+        key: "feedback_job_baseline",
+        label: "Cascade feedback job (lower rank = better)",
+        after_value: afterValue,
+        notes: JSON.stringify({
+          opportunity: opportunityId,
+          submissions: scored.length,
+          averages: { ai: avg("ai"), peer: avg("peer"), expert: avg("expert") },
+          preferred: best?.[0] ?? null,
+        }),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    );
+  } catch (error) {
+    console.warn("Could not write demo_metrics (Supabase optional):", error);
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        phase: "ingest",
+        opportunityId,
+        submissions: scored.length,
+        averages: { ai: avg("ai"), peer: avg("peer"), expert: avg("expert") },
+        preferred: best?.[0] ?? null,
+        afterValue,
+      },
+      null,
+      2
+    )
+  );
+}
+
+async function main() {
+  const phase = argValue("--phase") ?? "baseline";
+  if (phase === "ingest") {
+    const opportunity = argValue("--opportunity");
+    if (!opportunity) {
+      console.error("Pass --opportunity=<id> for ingest.");
+      process.exit(1);
+    }
+    await ingest(opportunity);
+    return;
+  }
+  await baseline();
 }
 
 main().catch((error) => {

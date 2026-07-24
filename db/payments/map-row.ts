@@ -9,12 +9,14 @@ export interface PaymentRow {
   status: string;
   dynamic_wallet_address: string | null;
   escrow_tx_hash: string | null;
+  escrow_held_at: string | null;
+  escrow_released_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export const PAYMENT_ROW_COLUMNS =
-  "id, job_id, terac_submission_id, amount_cents, currency, status, dynamic_wallet_address, escrow_tx_hash, created_at, updated_at";
+  "id, job_id, terac_submission_id, amount_cents, currency, status, dynamic_wallet_address, escrow_tx_hash, escrow_held_at, escrow_released_at, created_at, updated_at";
 
 export function mapPaymentRow(row: PaymentRow): Payment {
   return {
@@ -26,6 +28,8 @@ export function mapPaymentRow(row: PaymentRow): Payment {
     status: row.status as PaymentStatus,
     dynamicWalletAddress: row.dynamic_wallet_address ?? undefined,
     escrowTxHash: row.escrow_tx_hash ?? undefined,
+    escrowHeldAt: row.escrow_held_at ?? undefined,
+    escrowReleasedAt: row.escrow_released_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

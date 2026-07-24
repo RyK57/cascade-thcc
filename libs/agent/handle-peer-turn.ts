@@ -1,6 +1,6 @@
 import { listJobBids, secondPriceClear, upsertJobBid } from "@/db/bids";
 import { claimJob, clearAssigneeAndReopen, updateJob } from "@/db/jobs";
-import { createPayment, getPaymentByJobId } from "@/db/payments";
+import { createPayment, getPaymentByJobId, updatePayment } from "@/db/payments";
 import {
   adjustCredits,
   getUserByIdAdmin,
@@ -8,6 +8,11 @@ import {
   listPeers,
   upsertUserByPhone,
 } from "@/db/users";
+import {
+  getAgentWalletAddress,
+  isAgentWalletConfigured,
+} from "@/libs/dynamic/agent-wallet";
+import { payWorkerUsdc } from "@/libs/dynamic/pay-worker";
 import { ensurePhoneWallet } from "@/libs/dynamic/phone-wallet";
 import { payoutFromTreasury } from "@/libs/dynamic/treasury";
 import {
@@ -434,11 +439,32 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     assignee?.walletAddress ||
     `0xpeer${(job.assigneeUserId ?? "unknown").replace(/-/g, "").slice(0, 32)}`;
 
-  const payout = await payoutFromTreasury({
-    jobId: job.id,
-    toAddress: wallet,
-    amountUsdcCents: amount,
-  });
+  // Prefer Cascade agent wallet release; fall back to treasury stack.
+  let explorerUrl: string;
+  if (isAgentWalletConfigured() && getAgentWalletAddress()) {
+    try {
+      const payout = await payWorkerUsdc({ to: wallet, amountCents: amount });
+      explorerUrl = payout.explorerUrl;
+    } catch (error) {
+      console.warn(
+        "[cascade] agent wallet payout failed; falling back to treasury",
+        error
+      );
+      const payout = await payoutFromTreasury({
+        jobId: job.id,
+        toAddress: wallet,
+        amountUsdcCents: amount,
+      });
+      explorerUrl = payout.explorerUrl;
+    }
+  } else {
+    const payout = await payoutFromTreasury({
+      jobId: job.id,
+      toAddress: wallet,
+      amountUsdcCents: amount,
+    });
+    explorerUrl = payout.explorerUrl;
+  }
 
   if (job.assigneeUserId) {
     await adjustCredits({
@@ -449,6 +475,15 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     });
   }
 
+  const payment = await getPaymentByJobId(job.id).catch(() => null);
+  if (payment) {
+    await updatePayment(payment.id, {
+      escrowReleasedAt: new Date().toISOString(),
+    }).catch((error) =>
+      console.warn("[cascade] failed to stamp escrow_released_at", error)
+    );
+  }
+
   let paid = await updateJob(job.id, { status: JOB_STATUS.paid });
   paid = await syncJobHud(paid, HUD_STAGE.paid);
 
@@ -456,7 +491,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     try {
       await sendChatMessage({
         chatId: job.claimChatId,
-        text: `Payout complete (sandbox): ${payout.explorerUrl}`,
+        text: `Payout complete (sandbox): ${explorerUrl}`,
         effect: "confetti",
         idempotencyKey: `payout-peer-${job.id}`,
       });
@@ -467,7 +502,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
 
   return {
     action: AGENT_ACTION.paid,
-    reply: peerPaidReply(payout.explorerUrl),
+    reply: peerPaidReply(explorerUrl),
     effect: "confetti",
   };
 }

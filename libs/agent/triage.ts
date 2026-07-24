@@ -1,5 +1,6 @@
 import { createAnthropicClient } from "@/libs/ai";
 import { TIER_VALUES, toTriageResult, type TriageResult } from "@/utils/schema/agent";
+import { comparePeerExpertEv, EV_TIEBREAK_GAP_USD } from "./routing-ev";
 
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
 
@@ -91,26 +92,26 @@ function heuristicTriage(text: string): TriageResult {
       lower
     )
   ) {
-    return {
+    return maybeEvTieBreak({
       tier: "expert",
       jobSummary: text.slice(0, 140),
       reason: "Looks like it needs a verified specialist.",
       needsClarification: false,
       priceEstimateUsd: 84,
-    };
+    });
   }
   if (
     /\b(test|phone|signup|errand|opinion|label|compare|real (person|people|human))\b/.test(
       lower
     )
   ) {
-    return {
+    return maybeEvTieBreak({
       tier: "peer",
       jobSummary: text.slice(0, 140),
       reason: "A peer can do this without a credential.",
       needsClarification: false,
       priceEstimateUsd: 12,
-    };
+    });
   }
   return {
     tier: "ai",
@@ -118,5 +119,37 @@ function heuristicTriage(text: string): TriageResult {
     reason: "Cascade can answer this directly.",
     needsClarification: false,
     priceEstimateUsd: 0,
+  };
+}
+
+/**
+ * When heuristic is between peer/expert and EV gap is large, prefer the EV winner.
+ * Never overrides a clear AI route or an LLM tool choice.
+ */
+function maybeEvTieBreak(result: TriageResult): TriageResult {
+  if (result.tier !== "peer" && result.tier !== "expert") return result;
+
+  const peerCost = Math.max(5, result.priceEstimateUsd ?? 12);
+  const expertCost =
+    result.tier === "expert"
+      ? Math.max(peerCost, result.priceEstimateUsd ?? 84)
+      : Math.max(peerCost * 3, 45);
+  const valueUsd = Math.max(peerCost * 2, expertCost);
+  const ev = comparePeerExpertEv({
+    valueUsd,
+    peerCostUsd: result.tier === "peer" ? peerCost : peerCost,
+    expertCostUsd: expertCost,
+    avgPeerTrust: 70,
+  });
+
+  if (ev.gapUsd < EV_TIEBREAK_GAP_USD || ev.winner === result.tier) {
+    return result;
+  }
+
+  return {
+    ...result,
+    tier: ev.winner,
+    reason: `${result.reason} EV tie-break → ${ev.winner} (gap $${ev.gapUsd.toFixed(0)}).`,
+    priceEstimateUsd: ev.winner === "expert" ? expertCost : peerCost,
   };
 }
