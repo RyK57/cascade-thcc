@@ -18,6 +18,8 @@ export async function seedCascadePeers(): Promise<SeedCascadePeersResult> {
       role: USER_ROLE.peer,
       creditBalance: peer.creditBalance,
       trustScore: peer.trustScore,
+      lastLat: peer.lastLat,
+      lastLng: peer.lastLng,
     });
     phones.push(peer.phone);
   }

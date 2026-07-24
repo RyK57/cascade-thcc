@@ -1,11 +1,21 @@
 export { checkIMessage } from "./check-imessage";
 export { createLinqClient, isLinqConfigured } from "./client";
 export {
+  haversineKm,
+  needsLocationHint,
+  requestLocation,
+  retrieveLocation,
+} from "./location";
+export {
   parseInboundMessage,
   type InboundLinqEvent,
   type InboundLinqMessage,
   type InboundLinqReaction,
 } from "./parse-inbound-message";
+export {
+  createAgentPayRequest,
+  sendCheckoutLink,
+} from "./payment-requests";
 export {
   remainingDailyMessages,
   noteOutboundSend,
