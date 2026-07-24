@@ -1,17 +1,30 @@
+import { AppShell } from "@/components/app/app-shell";
 import { InternalEnvPanel } from "./internal-env-panel";
-import { InternalHealthPanel } from "./internal-health-panel";
-import { InternalSeedJobButton } from "./internal-seed-job-button";
-import { InternalSeedPanel } from "./internal-seed-panel";
-import { InternalSupabasePanel } from "./internal-supabase-panel";
+import { InternalIntegrationsPanel } from "./internal-integrations-panel";
+import { InternalRunbookPanel } from "./internal-runbook-panel";
 
+/**
+ * Four identical cards in a 2×2 grid gave every panel the same weight and no
+ * reading order. This runs top to bottom in the order an operator asks the
+ * questions: is the product wired up, is the environment complete, what can I
+ * run about it.
+ */
 export function InternalToolingDashboard() {
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-2">
-      <InternalSupabasePanel />
-      <InternalEnvPanel />
-      <InternalHealthPanel />
-      <InternalSeedPanel />
-      <InternalSeedJobButton />
-    </div>
+    <AppShell className="py-12 sm:py-16">
+      <div className="max-w-[58ch]">
+        <h1 className="font-secondary text-4xl sm:text-5xl">Tooling</h1>
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+          Operator view of this deployment. Read-only — nothing here changes
+          state, and no secret value is ever rendered.
+        </p>
+      </div>
+
+      <div className="mt-16 space-y-16 sm:mt-20 sm:space-y-20">
+        <InternalIntegrationsPanel />
+        <InternalEnvPanel />
+        <InternalRunbookPanel />
+      </div>
+    </AppShell>
   );
 }
