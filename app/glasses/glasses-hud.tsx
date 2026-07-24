@@ -36,6 +36,7 @@ export function GlassesHud() {
   const [selected, setSelected] = useState(0);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [stale, setStale] = useState(false);
+  const [caption, setCaption] = useState<string | null>(null);
   // State, not a ref: the footer reads it to decide whether a pinch still does
   // anything, and a ref would not re-render when the latch trips. `busy` stays
   // a ref — it guards a synchronous decision, not the output.
@@ -87,6 +88,22 @@ export function GlassesHud() {
     const interval = setInterval(refresh, 4000);
     return () => clearInterval(interval);
   }, [refresh]);
+
+  // Live captions: the iOS app streams partial transcripts while the wearer
+  // speaks; poll fast so text tracks speech within ~a second.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/glasses/transcript`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { text: string | null };
+        setCaption(data.text);
+      } catch {
+        // keep last caption on blips
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const approve = useCallback(async () => {
     const job = jobs[selected];
@@ -157,6 +174,25 @@ export function GlassesHud() {
           {stale ? "No signal" : "Live"}
         </span>
       </header>
+
+      {caption ? (
+        <div
+          style={{
+            fontSize: 26,
+            lineHeight: 1.3,
+            color: "#fff",
+            background: "#141414",
+            border: "2px solid #6F68FF",
+            borderRadius: 14,
+            padding: "10px 14px",
+            marginBottom: 12,
+            maxHeight: 110,
+            overflow: "hidden",
+          }}
+        >
+          🎤 {caption}
+        </div>
+      ) : null}
 
       {jobs.length === 0 ? (
         <div className="hud-empty">

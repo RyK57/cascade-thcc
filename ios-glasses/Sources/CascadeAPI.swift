@@ -44,4 +44,24 @@ struct CascadeAPI {
         let (data, _) = try await URLSession.shared.data(for: request)
         return try JSONDecoder().decode(TurnResponse.self, from: data)
     }
+
+    /// Fire-and-forget partial transcript so the glasses HUD shows live
+    /// captions while the wearer is still speaking.
+    static func postTranscript(
+        baseURL: String,
+        handle: String,
+        text: String
+    ) async {
+        guard let url = URL(string: "\(baseURL)/api/glasses/transcript"),
+              !text.isEmpty
+        else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(
+            withJSONObject: ["handle": handle, "text": text]
+        )
+        request.timeoutInterval = 5
+        _ = try? await URLSession.shared.data(for: request)
+    }
 }

@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var reply = ""
     @State private var busy = false
     @State private var lastCapture: UIImage?
+    @State private var lastCaptionPost = Date.distantPast
 
     var body: some View {
         NavigationStack {
@@ -46,6 +47,20 @@ struct ContentView: View {
         .onAppear {
             speech.requestPermissions()
             glasses.configure()
+        }
+        // Stream partial transcripts to the HUD live-caption bar (~2/sec).
+        .onChange(of: speech.transcript) { _, transcript in
+            guard speech.isRecording, !transcript.isEmpty,
+                  Date().timeIntervalSince(lastCaptionPost) > 0.5
+            else { return }
+            lastCaptionPost = Date()
+            let base = baseURL.trimmingCharacters(in: .whitespaces)
+            let phone = handle.trimmingCharacters(in: .whitespaces)
+            Task {
+                await CascadeAPI.postTranscript(
+                    baseURL: base, handle: phone, text: transcript
+                )
+            }
         }
     }
 
