@@ -13,9 +13,11 @@ export interface HandleInboundResult {
 }
 
 /**
- * One agent turn: normalize the webhook event, dedupe, triage the task,
- * and reply in-thread. The `crowd` / `expert` branches currently acknowledge
- * and route; the next stage wires them to a live Terac opportunity + Dynamic payout.
+ * LLM triage spine (PR #2): normalize → dedupe → triage → draft reply.
+ *
+ * Live Linq webhook entry is `runAgentTurn` (hiring loop: Terac draft/launch +
+ * Dynamic settle). Keep this helper for composing triage into that loop — do
+ * not reintroduce it as a second webhook path.
  */
 export async function handleInbound(raw: unknown): Promise<HandleInboundResult> {
   const event = normalizeLinqEvent(raw);

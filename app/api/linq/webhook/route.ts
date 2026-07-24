@@ -3,6 +3,12 @@ import { runAgentTurn } from "@/libs/agent";
 import { isLinqConfigured, parseInboundMessage } from "@/libs/linq";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
+/**
+ * Inbound Linq webhook. Single live path: SDK parse → `runAgentTurn`
+ * (persist job/message, Terac draft/launch/review, Dynamic payment state).
+ * The LLM triage helpers in `libs/agent` are composed into that turn — not a
+ * parallel webhook orchestrator.
+ */
 export async function POST(request: Request) {
   if (!isLinqConfigured()) {
     return NextResponse.json(
