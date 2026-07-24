@@ -30,5 +30,6 @@ export {
   type StatusCardLayout,
   type SendStatusCardParams,
 } from "./send-status-card";
+export { markChatRead } from "./mark-chat-read";
 export { setTyping } from "./set-typing";
 export { sendTextMessage } from "./send-text-message";

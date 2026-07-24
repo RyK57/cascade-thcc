@@ -4,12 +4,14 @@ import {
   getJobByClaimChatId,
   getJobByStatusCardMessageId,
   getOldestClaimablePeerJob,
+  listJobMessages,
   MESSAGE_DIRECTION,
   recordJobMessage,
 } from "@/db/jobs";
 import { getUserByPhone } from "@/db/users";
 import { ensurePhoneWallet } from "@/libs/dynamic/phone-wallet";
 import {
+  markChatRead,
   sendChatMessage,
   setTyping,
   type InboundLinqEvent,
@@ -17,6 +19,7 @@ import {
 import { captionImage, isRunwareConfigured } from "@/libs/runware";
 import { JOB_STATUS, type Job } from "@/utils/schema/job";
 import { USER_ROLE } from "@/utils/schema/user";
+import { toConversationTurns, type ConversationTurn } from "./conversation";
 import { clipTitle, handleJobTurn } from "./handle-job-turn";
 import { interpretMessage } from "./interpret-message";
 import { errorReply } from "./reply-templates";
@@ -73,6 +76,14 @@ export async function runAgentTurn(
     text = "I sent a photo — ask me what I need done with it.";
   }
 
+  // Read receipt before typing, so the thread shows "Read" then "…" the way a
+  // person's replies do. Best-effort like typing — never block the turn.
+  try {
+    await markChatRead(chatId);
+  } catch {
+    // read receipts are best-effort
+  }
+
   let typingStarted = false;
   try {
     await setTyping(chatId, true);
@@ -112,6 +123,10 @@ export async function runAgentTurn(
         description: text,
       }));
 
+    // Prior turns on this thread, read before the inbound message is recorded so
+    // the live request lands last. A job created just now has nothing to replay.
+    const history = resolved.job ? await loadHistory(job.id) : [];
+
     const isNewMessage = await recordJobMessage({
       jobId: job.id,
       linqMessageId: messageId,
@@ -139,7 +154,9 @@ export async function runAgentTurn(
         job.status === JOB_STATUS.intake && job.description && job.description !== text
           ? `${job.description}\n${text}`
           : text;
-      const triage = needsTriage ? await triageJob(triageText) : undefined;
+      const triage = needsTriage
+        ? await triageJob(triageText, history)
+        : undefined;
       ({ action, reply, effect } = await handleJobTurn({
         job,
         intent,
@@ -148,6 +165,7 @@ export async function runAgentTurn(
         senderHandle,
         chatId,
         triage,
+        history,
       }));
     } catch (error) {
       console.error("Job turn failed:", error);
@@ -186,6 +204,19 @@ export async function runAgentTurn(
         // ignore
       }
     }
+  }
+}
+
+/**
+ * Thread history for the prompt. Memory is best-effort: a failed read should
+ * cost context, not the whole turn.
+ */
+async function loadHistory(jobId: string): Promise<ConversationTurn[]> {
+  try {
+    return toConversationTurns(await listJobMessages(jobId));
+  } catch (error) {
+    console.warn("[cascade] job history load failed", error);
+    return [];
   }
 }
 

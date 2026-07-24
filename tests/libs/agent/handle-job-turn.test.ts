@@ -179,6 +179,9 @@ describe("ai triage", () => {
 
     expect(outcome.action).toBe(AGENT_ACTION.answeredAi);
     expect(outcome.reply).toContain("Cascade → ai");
+    // The free instant answer runs on almost every AI-routed message; confetti
+    // is reserved for a job that finishes real work.
+    expect(outcome.effect).toBeUndefined();
   });
 });
 

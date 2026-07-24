@@ -1,5 +1,6 @@
 import { createAnthropicClient } from "@/libs/ai";
 import { TIER_VALUES, toTriageResult, type TriageResult } from "@/utils/schema/agent";
+import { appendUserTurn, type ConversationTurn } from "./conversation";
 import { comparePeerExpertEv, EV_TIEBREAK_GAP_USD } from "./routing-ev";
 
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
@@ -11,7 +12,9 @@ const TRIAGE_SYSTEM = `You are the routing brain of Cascade, an iMessage task ag
 - "expert": needs a verified specialist via Terac (legal, medical, financial, senior engineering review). Use sparingly. price_estimate_usd typically 50-200.
 
 Bias toward "peer" over "expert" unless a credential is clearly required.
-Set needs_clarification=true and provide ONE clarifying_question only when a critical detail is missing (location, budget, or the concrete deliverable). Keep job_summary short. Always answer by calling the route_job tool.`;
+Set needs_clarification=true and provide ONE clarifying_question only when a critical detail is missing (location, budget, or the concrete deliverable). Keep job_summary short. Always answer by calling the route_job tool.
+
+Earlier messages from this iMessage thread come before the latest one. Classify the LATEST request, but read it in the context of the thread: a short follow-up ("make it usage-based", "the second one") continues the previous task rather than starting a new one, and job_summary should reflect the whole request, not just the last few words.`;
 
 const triageTool = {
   name: "route_job",
@@ -60,7 +63,10 @@ const triageTool = {
  * Classify an inbound task into a worker tier using a tool-forced LLM call.
  * Falls back to peer (cheapest human) if the model misbehaves.
  */
-export async function triageJob(text: string): Promise<TriageResult> {
+export async function triageJob(
+  text: string,
+  history: ConversationTurn[] = []
+): Promise<TriageResult> {
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     return heuristicTriage(text);
   }
@@ -73,7 +79,7 @@ export async function triageJob(text: string): Promise<TriageResult> {
       system: TRIAGE_SYSTEM,
       tools: [triageTool],
       tool_choice: { type: "tool", name: "route_job" },
-      messages: [{ role: "user", content: text }],
+      messages: appendUserTurn(history, text),
     });
 
     const toolUse = response.content.find((block) => block.type === "tool_use");

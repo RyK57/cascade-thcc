@@ -1,4 +1,5 @@
 import { createAnthropicClient, createOpenAIClient } from "@/libs/ai";
+import { appendUserTurn, type ConversationTurn } from "./conversation";
 import { aiFollowUpSuggest } from "./reply-templates";
 
 export interface AiAnswerResult {
@@ -6,11 +7,17 @@ export interface AiAnswerResult {
   followUp: string;
 }
 
+const ANSWER_SYSTEM = `You are Cascade, an iMessage task agent. Answer the latest task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).
+
+Earlier messages from this thread come first, and they are the same person you are replying to now. Treat a short follow-up as a continuation — carry the earlier answer's context forward instead of answering it as a standalone question.`;
+
 export async function answerAiTask(params: {
   title: string;
   description: string;
+  history?: ConversationTurn[];
 }): Promise<AiAnswerResult> {
-  const prompt = `You are Cascade, an iMessage task agent. Answer this task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).\n\nTask: ${params.title}\n\nDetails:\n${params.description}`;
+  const task = `Task: ${params.title}\n\nDetails:\n${params.description}`;
+  const messages = appendUserTurn(params.history ?? [], task);
 
   let answer: string | undefined;
 
@@ -20,7 +27,8 @@ export async function answerAiTask(params: {
       const response = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 800,
-        messages: [{ role: "user", content: prompt }],
+        system: ANSWER_SYSTEM,
+        messages,
       });
       answer = response.content
         .filter((b) => b.type === "text")
@@ -37,7 +45,7 @@ export async function answerAiTask(params: {
       const client = createOpenAIClient();
       const response = await client.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "system", content: ANSWER_SYSTEM }, ...messages],
       });
       answer = response.choices[0]?.message?.content?.trim();
     } catch (error) {

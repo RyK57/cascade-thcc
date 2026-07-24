@@ -106,6 +106,9 @@ describe("finalizePeerPayout idempotency", () => {
     expect(outcome.action).toBe(AGENT_ACTION.paid);
     expect(payoutFromTreasury).not.toHaveBeenCalled();
     expect(claimEscrowRelease).not.toHaveBeenCalled();
+    // Re-reporting a job that completed earlier is not a completion — confetti
+    // here is what made the effect fire on repeat messages.
+    expect(outcome.effect).toBeUndefined();
   });
 
   it("skips payout when another caller already claimed release", async () => {

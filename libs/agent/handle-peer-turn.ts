@@ -502,11 +502,19 @@ async function recordedPayoutUrl(jobId: string): Promise<string | null> {
   return payout ? explorerTxUrl(payout.txHash) : null;
 }
 
-function paidOutcome(explorerUrl: string | null): PeerOutcome {
+/**
+ * `justCompleted` gates the confetti: this reply is also how an already-paid
+ * job re-reports itself, and celebrating a completion that happened earlier is
+ * the reason the effect used to fire on repeat messages.
+ */
+function paidOutcome(
+  explorerUrl: string | null,
+  justCompleted: boolean
+): PeerOutcome {
   return {
     action: AGENT_ACTION.paid,
     reply: peerPaidReply(explorerUrl ?? "sandbox payout already sent"),
-    effect: "confetti",
+    effect: justCompleted ? "confetti" : undefined,
   };
 }
 
@@ -517,7 +525,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
 
   // Idempotent: iMessage approve + Mission Control release must not double-pay.
   if (job.status === JOB_STATUS.paid) {
-    return paidOutcome(await recordedPayoutUrl(job.id));
+    return paidOutcome(await recordedPayoutUrl(job.id), false);
   }
 
   // escrow_released_at only means someone claimed the release slot — it is not
@@ -539,7 +547,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     // Payout landed; only the trailing status write failed. Finish the job.
     const settled = await updateJob(job.id, { status: JOB_STATUS.paid });
     await syncJobHud(settled, HUD_STAGE.paid).catch(() => undefined);
-    return paidOutcome(payoutUrl);
+    return paidOutcome(payoutUrl, true);
   }
 
   // Claim the release slot before any on-chain transfer (CAS on escrow_released_at).

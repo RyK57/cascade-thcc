@@ -5,6 +5,7 @@ import type { Job } from "@/utils/schema/job";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { JOB_TIER, type TriageResult } from "@/utils/schema/agent";
 import { answerAiTask } from "./answer-ai";
+import type { ConversationTurn } from "./conversation";
 import { draftExpertJob, handleExpertTurn } from "./handle-expert-turn";
 import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
 import { interpretPayAsset } from "./interpret-message";
@@ -22,6 +23,8 @@ export interface JobTurn {
   chatId: string;
   /** Set when this turn starts with a fresh triage. */
   triage?: TriageResult;
+  /** Earlier turns on this thread, oldest first. Excludes `text`. */
+  history?: ConversationTurn[];
 }
 
 export interface JobTurnOutcome {
@@ -82,9 +85,11 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   }
 
   if (triage.needsClarification && triage.clarifyingQuestion) {
+    // Merge, don't overwrite: a second clarifying round used to drop the
+    // original request, leaving the brief as just the last answer given.
     await updateJob(turn.job.id, {
       title: clipTitle(triage.jobSummary),
-      description: turn.text,
+      description: mergeBrief(turn.job.description, turn.text),
       triageReason: triage.reason,
     });
     return {
@@ -134,6 +139,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     const { answer } = await answerAiTask({
       title: job.title,
       description: job.description ?? turn.text,
+      history: turn.history,
     });
     const done = await updateJob(job.id, {
       status: JOB_STATUS.paid,
@@ -141,10 +147,11 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
       evSummary: evLine,
     });
     await syncJobHud(done, HUD_STAGE.answered);
+    // No confetti: this is the free instant answer and it runs on almost every
+    // AI-routed message. Reserve the effect for a job that finishes real work.
     return {
       action: AGENT_ACTION.answeredAi,
       reply: `${routeLine}\n\n${answer}`,
-      effect: "confetti",
     };
   }
 
