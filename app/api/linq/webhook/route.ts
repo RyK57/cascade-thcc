@@ -130,7 +130,9 @@ async function handleLocationShare(
   if (!chatId) return;
 
   const coords = await retrieveLocation(chatId);
-  if (!coords?.lat || !coords?.lng) return;
+  // Falsy check would discard a legitimate 0 — the equator and prime meridian
+  // are valid coordinates. retrieveLocation already validates the types.
+  if (coords?.lat === undefined || coords?.lng === undefined) return;
 
   const job = await getJobByChatId(chatId);
   if (job) {
