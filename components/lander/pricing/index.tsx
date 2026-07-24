@@ -1,47 +1,50 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { LanderLabel, LanderSection, LanderShell } from "@/components/lander/shell";
+import {
+  LanderSection,
+  LanderShell,
+  SectionHead,
+} from "@/components/lander/shell";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
 import { PRICING } from "./pricing-data";
 
+/**
+ * A rate sheet, not three matching cards: term on the left, the terms of the
+ * deal on the right, hairline-ruled the way the rest of the sheet is.
+ */
 export function PricingSection() {
   return (
     <LanderSection id="pricing" rules>
       <LanderShell>
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-          <div className="max-w-2xl space-y-5">
-            <LanderLabel bracketed>Pricing</LanderLabel>
-            <h2 className="font-secondary text-4xl leading-[1.05] tracking-tight sm:text-5xl">
-              {PRICING.headline}
-            </h2>
-            <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
-              {PRICING.support}
-            </p>
-          </div>
-          <div className="lg:justify-self-end">
+        <SectionHead
+          title={PRICING.headline}
+          support={PRICING.support}
+          action={
             <Button size="xl" asChild>
               <Link href={ROUTES.main}>
                 {PRICING.cta}
                 <ArrowRight data-icon="inline-end" className="size-4" />
               </Link>
             </Button>
-          </div>
-        </div>
+          }
+        />
 
-        <div className="mt-14 grid border border-hairline md:grid-cols-3">
+        <ul className="mt-14 border-t border-hairline md:mt-20 lg:mt-24">
           {PRICING.points.map((point) => (
-            <div
+            <li
               key={point.title}
-              className="space-y-3 border-b border-hairline p-6 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0 sm:p-8"
+              className="grid gap-3 border-b border-hairline py-7 md:grid-cols-2 md:items-baseline md:gap-12 md:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-16 lg:py-12"
             >
-              <h3 className="text-lg font-medium tracking-tight">{point.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <h3 className="max-w-[14ch] font-secondary text-[clamp(1.5rem,2.3vw,2.125rem)] leading-[1.05] text-balance text-foreground">
+                {point.title}
+              </h3>
+              <p className="max-w-[62ch] text-sm leading-relaxed text-pretty text-muted-foreground sm:text-lg">
                 {point.description}
               </p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </LanderShell>
     </LanderSection>
   );

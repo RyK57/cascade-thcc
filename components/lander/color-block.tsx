@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { LanderLabel } from "./shell";
 
 interface ColorBlockProps {
   label: string;
@@ -10,6 +9,11 @@ interface ColorBlockProps {
   className?: string;
 }
 
+/**
+ * The two solid blocks are the only saturated surfaces on the page. Text on
+ * them is the full foreground value — an opacity step here drops white below
+ * 4.5:1 on both fills, so hierarchy comes from size and the mesh instead.
+ */
 export function ColorBlock({
   label,
   title,
@@ -18,41 +22,36 @@ export function ColorBlock({
   meta,
   className,
 }: ColorBlockProps) {
+  const isAccent = tone === "accent";
+
   return (
     <div
       className={cn(
-        "flex min-h-56 flex-col justify-between gap-8 p-6 sm:min-h-64 sm:p-8",
-        tone === "accent" && "bg-brand-accent text-brand-accent-foreground",
-        tone === "secondary" &&
-          "bg-brand-secondary text-brand-secondary-foreground",
+        "relative isolate flex min-h-[17rem] flex-col justify-between gap-10 overflow-hidden p-6 sm:min-h-[19rem] sm:p-8 lg:p-10",
+        isAccent
+          ? "bg-brand-accent text-brand-accent-foreground"
+          : "bg-brand-secondary text-brand-secondary-foreground",
         className
       )}
     >
-      <LanderLabel
-        bracketed
-        className={
-          tone === "accent"
-            ? "text-brand-accent-foreground/70"
-            : "text-brand-secondary-foreground/70"
-        }
-      >
-        {label}
-      </LanderLabel>
+      <div aria-hidden className="pointer-events-none absolute inset-0 rules-mesh" />
 
-      <div className="space-y-3">
+      <p className="label-caps relative">{label}</p>
+
+      <div className="relative space-y-4">
         {meta ? (
-          <div className="flex flex-wrap items-end gap-4">
-            <p className="font-secondary text-6xl leading-none sm:text-7xl">
+          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+            <h3 className="font-secondary text-[clamp(3.5rem,7vw,5rem)] leading-[0.85]">
               {title}
-            </p>
-            <p className="label-caps pb-2 opacity-80">{meta}</p>
+            </h3>
+            <p className="label-caps">{meta}</p>
           </div>
         ) : (
-          <h3 className="font-secondary text-3xl leading-tight sm:text-4xl">
+          <h3 className="max-w-[14ch] font-secondary text-[clamp(2rem,3.4vw,2.75rem)] leading-[1.02] text-balance">
             {title}
           </h3>
         )}
-        <p className="max-w-md text-sm leading-relaxed opacity-85">
+        <p className="max-w-[46ch] text-sm leading-relaxed text-pretty sm:text-base">
           {description}
         </p>
       </div>
