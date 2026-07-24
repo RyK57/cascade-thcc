@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   PROTECTED_ROUTE_PREFIXES,
@@ -7,19 +6,22 @@ import {
 } from "../../lib/constants/routes";
 import { getSupabasePublicConfig } from "./config";
 
+interface AuthUser {
+  id: string;
+}
+
+interface AuthGetUserResult {
+  data: { user: AuthUser | null };
+}
+
+interface AuthClientWithGetUser {
+  getUser: () => Promise<AuthGetUserResult>;
+}
+
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_ROUTE_PREFIXES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
-}
-
-/** Edge typecheck on Vercel can miss getUser on SupabaseAuthClient — call via typed surface. */
-async function getRequestUser(client: SupabaseClient): Promise<User | null> {
-  const auth = client.auth as SupabaseClient["auth"] & {
-    getUser: () => Promise<{ data: { user: User | null } }>;
-  };
-  const { data } = await auth.getUser();
-  return data.user;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -30,7 +32,7 @@ export async function updateSession(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase: SupabaseClient = createServerClient(config.url, config.anonKey, {
+  const supabase = createServerClient(config.url, config.anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -45,7 +47,12 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const user = await getRequestUser(supabase);
+  // Local AuthClientWithGetUser avoids Vercel Edge typecheck gaps on SupabaseAuthClient.
+  const auth = supabase.auth as AuthClientWithGetUser;
+  const {
+    data: { user },
+  } = await auth.getUser();
+
   const { pathname } = request.nextUrl;
 
   if (!user && isProtectedPath(pathname)) {
