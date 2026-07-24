@@ -1,7 +1,11 @@
 export { answerAiTask } from "./answer-ai";
 export { broadcastJobToPeers } from "./broadcast-peers";
 export { draftExpertJob, handleExpertTurn, pollExpertSubmissions } from "./handle-expert-turn";
-export { clipTitle, handleJobTurn } from "./handle-job-turn";
+export {
+  clipTitle,
+  handleJobTurn,
+  isAwaitingClarification,
+} from "./handle-job-turn";
 export {
   finalizePeerPayout,
   handlePeerTurn,
@@ -9,6 +13,11 @@ export {
   quotePeerJob,
 } from "./handle-peer-turn";
 export { interpretMessage } from "./interpret-message";
+export {
+  derivedPlaceholderAddress,
+  isDerivedPlaceholder,
+  linkRequesterWallet,
+} from "./link-requester-wallet";
 export { getPayUrl } from "./pay-url";
 export { parseTrustRating } from "./parse-trust-rating";
 export { pollTrustAudits } from "./poll-trust-audits";

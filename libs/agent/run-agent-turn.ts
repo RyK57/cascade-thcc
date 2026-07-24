@@ -20,7 +20,11 @@ import { captionImage, isRunwareConfigured } from "@/libs/runware";
 import { JOB_STATUS, type Job } from "@/utils/schema/job";
 import { USER_ROLE } from "@/utils/schema/user";
 import { toConversationTurns, type ConversationTurn } from "./conversation";
-import { clipTitle, handleJobTurn } from "./handle-job-turn";
+import {
+  clipTitle,
+  handleJobTurn,
+  isAwaitingClarification,
+} from "./handle-job-turn";
 import { interpretMessage } from "./interpret-message";
 import { errorReply } from "./reply-templates";
 import { triageJob } from "./triage";
@@ -147,15 +151,16 @@ export async function runAgentTurn(
     let effect: "confetti" | undefined;
 
     try {
-      // Triage on the accumulated brief, not just the newest message. After a
-      // clarifying question the follow-up is often a bare answer ("https://…"),
-      // and triaging that alone loses the original request entirely.
-      const triageText =
-        job.status === JOB_STATUS.intake && job.description && job.description !== text
-          ? `${job.description}\n${text}`
-          : text;
+      // Triage on the accumulated brief + thread history + a one-clarify cap.
+      // Bare follow-ups ("https://…") must not lose the original request or
+      // restart an interview.
       const triage = needsTriage
-        ? await triageJob(triageText, history)
+        ? await triageJob({
+            text,
+            priorContext: job.description,
+            alreadyClarified: isAwaitingClarification(job.triageReason),
+            history,
+          })
         : undefined;
       ({ action, reply, effect } = await handleJobTurn({
         job,

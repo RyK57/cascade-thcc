@@ -9,14 +9,27 @@ export interface AiAnswerResult {
 
 const ANSWER_SYSTEM = `You are Cascade, an iMessage task agent. Answer the latest task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).
 
-Earlier messages from this thread come first, and they are the same person you are replying to now. Treat a short follow-up as a continuation — carry the earlier answer's context forward instead of answering it as a standalone question.`;
+Rules:
+- Do NOT ask clarifying questions. Make reasonable assumptions and state them in one short line if needed.
+- Earlier messages from this thread come first — the same person you are replying to now. Treat a short follow-up as a continuation.
+- If the user pasted content (a poem, draft, list), it is in the conversation — never claim it is missing or cut off.
+- End with a useful answer, not a question.`;
 
 export async function answerAiTask(params: {
   title: string;
   description: string;
+  /** Newest inbound text — the part the answer must actually address. */
+  latestMessage?: string;
+  /** Prior turns from job_messages. */
   history?: ConversationTurn[];
 }): Promise<AiAnswerResult> {
-  const task = `Task: ${params.title}\n\nDetails:\n${params.description}`;
+  const latest = params.latestMessage?.trim();
+  const conversation =
+    latest && !params.description.includes(latest)
+      ? `${params.description}\n\nUser: ${latest}`
+      : params.description;
+
+  const task = `Task: ${params.title}\n\nConversation so far:\n${conversation}`;
   const messages = appendUserTurn(params.history ?? [], task);
 
   let answer: string | undefined;
@@ -54,10 +67,10 @@ export async function answerAiTask(params: {
   }
 
   if (!answer) {
-    answer = heuristicAnswer(params.title, params.description);
+    answer = heuristicAnswer(params.title, conversation);
   }
 
-  const followUp = suggestFollowUp(params.title, params.description);
+  const followUp = suggestFollowUp(params.title, conversation);
   return {
     answer: `${answer}\n\n${aiFollowUpSuggest(followUp)}`,
     followUp,
@@ -70,7 +83,7 @@ function heuristicAnswer(title: string, description: string): string {
     `1) Clarify the outcome you want this week.`,
     `2) Block 2–3 focus windows and one buffer.`,
     `3) Cut anything that doesn't move the goal.`,
-    `Context I used: ${description.slice(0, 240)}`,
+    `Based on: ${description.slice(0, 240)}`,
   ].join("\n");
 }
 

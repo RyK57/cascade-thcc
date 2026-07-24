@@ -11,7 +11,6 @@ import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
 import { interpretPayAsset } from "./interpret-message";
 import { bestEvLine } from "./routing-ev";
 import { fallbackReply, routingReply } from "./reply-templates";
-import { HUD_STAGE, syncJobHud } from "./status-hud";
 import { AGENT_ACTION, AGENT_INTENT, type AgentAction, type AgentIntent } from "./types";
 
 export interface JobTurn {
@@ -71,11 +70,19 @@ export async function handleJobTurn(turn: JobTurn): Promise<JobTurnOutcome> {
   return handleExpertTurn(turn);
 }
 
+const AWAITING_CLARIFICATION = "awaiting_clarification:";
+
+export function isAwaitingClarification(triageReason?: string): boolean {
+  return Boolean(triageReason?.startsWith(AWAITING_CLARIFICATION));
+}
+
 /** Keeps the original request alongside any clarifying answer. */
-function mergeBrief(existing: string | undefined, latest: string): string {
-  if (!existing) return latest;
-  if (existing === latest || existing.includes(latest)) return existing;
-  return `${existing}\n${latest}`;
+function accumulateDescription(prior: string | undefined, latest: string): string {
+  const next = latest.trim();
+  const prev = prior?.trim();
+  if (!prev) return next;
+  if (prev === next || prev.includes(next) || prev.endsWith(next)) return prev;
+  return `${prev}\n\nUser: ${next}`;
 }
 
 async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
@@ -84,13 +91,15 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     return { action: AGENT_ACTION.fallback, reply: fallbackReply() };
   }
 
+  const description = accumulateDescription(turn.job.description, turn.text);
+
   if (triage.needsClarification && triage.clarifyingQuestion) {
     // Merge, don't overwrite: a second clarifying round used to drop the
     // original request, leaving the brief as just the last answer given.
     await updateJob(turn.job.id, {
       title: clipTitle(triage.jobSummary),
-      description: mergeBrief(turn.job.description, turn.text),
-      triageReason: triage.reason,
+      description,
+      triageReason: `${AWAITING_CLARIFICATION}${triage.reason}`,
     });
     return {
       action: AGENT_ACTION.clarified,
@@ -109,9 +118,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
 
   let job = await updateJob(turn.job.id, {
     title: clipTitle(triage.jobSummary),
-    // Append, don't coalesce: createJob always sets description, so `??` never
-    // fell through and the answer to a clarifying question was never stored.
-    description: mergeBrief(turn.job.description, turn.text),
+    description,
     tier: triage.tier,
     triageReason: triage.reason,
     priceUsdCents,
@@ -132,26 +139,25 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   });
 
   job = await updateJob(job.id, { evSummary: evLine });
-  // Card-first: HUD carries EV/stage; chat stays short.
-  const routeLine = `${routingReply(triage.tier, triage.reason)}`;
+  const routeLine = routingReply(triage.tier, triage.reason);
 
   if (triage.tier === JOB_TIER.ai) {
     const { answer } = await answerAiTask({
-      title: job.title,
-      description: job.description ?? turn.text,
+      title: triage.jobSummary,
+      description,
+      latestMessage: turn.text,
       history: turn.history,
     });
-    const done = await updateJob(job.id, {
+    await updateJob(job.id, {
       status: JOB_STATUS.paid,
       priceUsdCents: 0,
       evSummary: evLine,
     });
-    await syncJobHud(done, HUD_STAGE.answered);
-    // No confetti: this is the free instant answer and it runs on almost every
-    // AI-routed message. Reserve the effect for a job that finishes real work.
+    // No HUD card for AI: a free in-thread answer is the whole deliverable.
+    // No confetti either — reserved for a job that finishes real work.
     return {
       action: AGENT_ACTION.answeredAi,
-      reply: `${routeLine}\n\n${answer}`,
+      reply: answer,
     };
   }
 
@@ -166,14 +172,14 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     const quoted = await quotePeerJob(job, interpretPayAsset(turn.text) ?? undefined);
     return {
       ...quoted,
-      reply: `${routeLine}\n❤️ approve after funding · 👎 reject`,
+      reply: routeLine ? `${routeLine}\n${quoted.reply}` : quoted.reply,
     };
   }
 
   const drafted = await draftExpertJob(job);
   return {
     ...drafted,
-    reply: `${routeLine}\n❤️ launch Terac · 👎 revise`,
+    reply: routeLine ? `${routeLine}\n${drafted.reply}` : drafted.reply,
   };
 }
 

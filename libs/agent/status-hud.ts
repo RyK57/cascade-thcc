@@ -93,7 +93,7 @@ function stageCopy(job: Job, stage: HudStage): {
         caption: "Cascade · Pay",
         subcaption: `Fund agent wallet · ${price}`,
         trailingCaption: price,
-        fallbackText: `Sandbox escrow pending for "${job.title}" — ${price}.`,
+        fallbackText: `Payment pending for "${job.title}" — ${price}.`,
       };
     case HUD_STAGE.answered:
       return {

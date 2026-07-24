@@ -5,16 +5,21 @@ import { comparePeerExpertEv, EV_TIEBREAK_GAP_USD } from "./routing-ev";
 
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
 
-const TRIAGE_SYSTEM = `You are the routing brain of Cascade, an iMessage task agent. Classify each task into exactly one tier:
+const TRIAGE_SYSTEM = `You are the routing brain of Cascade, an iMessage task agent. Classify each task into exactly one tier and MOVE — do not interview the user.
 
-- "ai": you can fully complete it yourself right now with general knowledge (plans, drafts, summaries, math, recommendations with no real-world action). price_estimate_usd=0.
-- "peer": needs a real person without a professional credential (user testing, phone checks, quick errands framed as info-gathering, opinions, labeling). Route here for seeded Cascade peers. price_estimate_usd typically 8-25.
-- "expert": needs a verified specialist via Terac (legal, medical, financial, senior engineering review). Use sparingly. price_estimate_usd typically 50-200.
+Tiers:
+- "ai": plans, advice, drafts, summaries, recommendations, brainstorming — anything you can answer with general knowledge. price_estimate_usd=0. Prefer ai over clarifying.
+- "peer": needs a real person without a credential (user testing, text/call a phone, signup checks, errands, opinions, labeling). price_estimate_usd typically 8-25.
+- "expert": verified specialist via Terac (legal, medical, CPA, senior eng review). Use sparingly. price_estimate_usd typically 50-200.
 
-Bias toward "peer" over "expert" unless a credential is clearly required.
-Set needs_clarification=true and provide ONE clarifying_question only when a critical detail is missing (location, budget, or the concrete deliverable). Keep job_summary short. Always answer by calling the route_job tool.
-
-Earlier messages from this iMessage thread come before the latest one. Classify the LATEST request, but read it in the context of the thread: a short follow-up ("make it usage-based", "the second one") continues the previous task rather than starting a new one, and job_summary should reflect the whole request, not just the last few words.`;
+Hard rules:
+- Bias peer over expert unless a credential is clearly required.
+- Prefer routing with sensible defaults over asking. Fill missing details yourself (assume reasonable defaults in job_summary).
+- "Plan my week…", fundraising advice, movie recs → ai, needs_clarification=false.
+- "Have someone test/text my signup on a real phone" → peer even if URL/code is messy; put whatever they gave in job_summary.
+- needs_clarification=true ONLY when the task is impossible without ONE missing fact (e.g. no phone number at all for a "text this number" job). Never ask follow-up interviews. Never ask genre/mood/stage chains.
+- Earlier messages from this iMessage thread come before the latest one. Classify the LATEST request in thread context: a short follow-up ("make it usage-based", "the second one") continues the previous task; job_summary should reflect the whole request.
+- Always call route_job.`;
 
 const triageTool = {
   name: "route_job",
@@ -38,7 +43,8 @@ const triageTool = {
       },
       needs_clarification: {
         type: "boolean" as const,
-        description: "True only if a critical detail is missing before work can start.",
+        description:
+          "True only if work is impossible without one missing critical fact. Almost always false.",
       },
       clarifying_question: {
         type: "string" as const,
@@ -59,16 +65,34 @@ const triageTool = {
   },
 };
 
+export interface TriageJobInput {
+  /** Latest inbound message. */
+  text: string;
+  /** Prior job description / clarify thread, if any. */
+  priorContext?: string;
+  /** True when we already asked one clarifying question — never ask again. */
+  alreadyClarified?: boolean;
+  /** Prior turns from job_messages, oldest-first. */
+  history?: ConversationTurn[];
+}
+
 /**
  * Classify an inbound task into a worker tier using a tool-forced LLM call.
- * Falls back to peer (cheapest human) if the model misbehaves.
+ * Falls back to heuristics if the model misbehaves or keeps clarifying.
  */
-export async function triageJob(
-  text: string,
-  history: ConversationTurn[] = []
-): Promise<TriageResult> {
+export async function triageJob(input: TriageJobInput | string): Promise<TriageResult> {
+  const params: TriageJobInput =
+    typeof input === "string" ? { text: input } : input;
+  const text = params.text.trim();
+  const prior = params.priorContext?.trim();
+  const prompt = prior
+    ? `Prior context:\n${prior}\n\nLatest message:\n${text}`
+    : text;
+
+  const heuristic = heuristicTriage(prompt);
+
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
-    return heuristicTriage(text);
+    return finalizeTriage(heuristic, params.alreadyClarified);
   }
 
   try {
@@ -79,20 +103,51 @@ export async function triageJob(
       system: TRIAGE_SYSTEM,
       tools: [triageTool],
       tool_choice: { type: "tool", name: "route_job" },
-      messages: appendUserTurn(history, text),
+      messages: appendUserTurn(params.history ?? [], prompt),
     });
 
     const toolUse = response.content.find((block) => block.type === "tool_use");
-    const triage = toolUse ? toTriageResult(toolUse.input) : null;
-    return triage ?? heuristicTriage(text);
+    const llm = toolUse ? toTriageResult(toolUse.input) : null;
+    const merged = mergeTriage(llm, heuristic, prompt);
+    return finalizeTriage(merged, params.alreadyClarified);
   } catch (error) {
     console.error("triageJob failed; using heuristic", error);
-    return heuristicTriage(text);
+    return finalizeTriage(heuristic, params.alreadyClarified);
   }
 }
 
-function heuristicTriage(text: string): TriageResult {
+/**
+ * An explicit ask for a human. This beats the LLM's tier choice: when someone
+ * says "have someone…" they are buying a person's judgment, not an AI answer.
+ */
+const HUMAN_REQUEST_PATTERN =
+  /\b(someone|somebody|a human|real human|real person|real people|a person|have (a )?(guy|girl|friend|peer)|another person|second pair of eyes|human eyes)\b/i;
+
+export function wantsHuman(text: string): boolean {
+  return HUMAN_REQUEST_PATTERN.test(text);
+}
+
+/** Export for tests — keyword router used when LLM is off or over-clarifies. */
+export function heuristicTriage(text: string): TriageResult {
   const lower = text.toLowerCase();
+
+  if (
+    /\b(new task|disregard|scratch that|forget (that|it)|different (task|job)|actually)\b/.test(
+      lower
+    ) &&
+    /\b(test|phone|signup|sign[- ]?up|text (my|this)|real (phone|person|human))\b/.test(
+      lower
+    )
+  ) {
+    return maybeEvTieBreak({
+      tier: "peer",
+      jobSummary: clipSummary(text),
+      reason: "Requester switched to a peer phone/signup check.",
+      needsClarification: false,
+      priceEstimateUsd: 12,
+    });
+  }
+
   if (
     /\b(senior|lawyer|attorney|doctor|cpa|engineer review|api design|legal|medical|financial)\b/.test(
       lower
@@ -100,32 +155,115 @@ function heuristicTriage(text: string): TriageResult {
   ) {
     return maybeEvTieBreak({
       tier: "expert",
-      jobSummary: text.slice(0, 140),
+      jobSummary: clipSummary(text),
       reason: "Looks like it needs a verified specialist.",
       needsClarification: false,
       priceEstimateUsd: 84,
     });
   }
+
+  if (wantsHuman(text)) {
+    return maybeEvTieBreak({
+      tier: "peer",
+      jobSummary: clipSummary(text),
+      reason: "You asked for a real person, so this goes to a peer.",
+      needsClarification: false,
+      priceEstimateUsd: 12,
+    });
+  }
+
   if (
-    /\b(test|phone|signup|errand|opinion|label|compare|real (person|people|human))\b/.test(
+    /\b(test|phone|signup|sign[- ]?up|errand|opinion|label|compare|real (person|people|human|phone)|text (my|this|them)|qa|user test)\b/.test(
       lower
     )
   ) {
     return maybeEvTieBreak({
       tier: "peer",
-      jobSummary: text.slice(0, 140),
+      jobSummary: clipSummary(text),
       reason: "A peer can do this without a credential.",
       needsClarification: false,
       priceEstimateUsd: 12,
     });
   }
+
   return {
     tier: "ai",
-    jobSummary: text.slice(0, 140),
+    jobSummary: clipSummary(text),
     reason: "Cascade can answer this directly.",
     needsClarification: false,
     priceEstimateUsd: 0,
   };
+}
+
+function mergeTriage(
+  llm: TriageResult | null,
+  heuristic: TriageResult,
+  prompt: string
+): TriageResult {
+  if (!llm) return heuristic;
+
+  // "Have someone…" is a product signal, not a hint. Never answer it with AI.
+  const latestForHuman = prompt.split("Latest message:").pop() ?? prompt;
+  if (llm.tier === "ai" && wantsHuman(latestForHuman)) {
+    return {
+      ...llm,
+      tier: "peer",
+      needsClarification: false,
+      clarifyingQuestion: undefined,
+      reason: "You asked for a real person, so this goes to a peer.",
+      priceEstimateUsd: llm.priceEstimateUsd || 12,
+    };
+  }
+
+  // Keyword peer/expert beats an LLM that stalls on clarification.
+  if (
+    llm.needsClarification &&
+    !heuristic.needsClarification &&
+    (heuristic.tier === "peer" || heuristic.tier === "expert")
+  ) {
+    return {
+      ...heuristic,
+      jobSummary: llm.jobSummary || heuristic.jobSummary,
+      reason: `${heuristic.reason} (overrode clarify loop)`,
+    };
+  }
+
+  // Short follow-ups after context should not restart an interview.
+  const latest = prompt.split("Latest message:").pop()?.trim() ?? prompt;
+  if (
+    llm.needsClarification &&
+    latest.length < 80 &&
+    (prompt.toLowerCase().includes("prior context") || latest.length < 40)
+  ) {
+    return {
+      ...llm,
+      needsClarification: false,
+      clarifyingQuestion: undefined,
+      reason: `${llm.reason} (answered with available context)`,
+    };
+  }
+
+  return llm;
+}
+
+function finalizeTriage(
+  result: TriageResult,
+  alreadyClarified?: boolean
+): TriageResult {
+  if (alreadyClarified && result.needsClarification) {
+    return {
+      ...result,
+      needsClarification: false,
+      clarifyingQuestion: undefined,
+      reason: `${result.reason} (clarification cap)`,
+    };
+  }
+  return result;
+}
+
+function clipSummary(text: string): string {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > 140 ? `${compact.slice(0, 137)}...` : compact;
 }
 
 /**

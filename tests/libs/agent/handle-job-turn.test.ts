@@ -178,10 +178,40 @@ describe("ai triage", () => {
     });
 
     expect(outcome.action).toBe(AGENT_ACTION.answeredAi);
-    expect(outcome.reply).toContain("Cascade → ai");
-    // The free instant answer runs on almost every AI-routed message; confetti
-    // is reserved for a job that finishes real work.
+    expect(outcome.reply).toContain("Here is your plan.");
+    // The answer is the product — no routing debug line in the thread.
+    expect(outcome.reply).not.toContain("Cascade →");
+    // Free instant answers must not fire confetti; reserve it for real work.
     expect(outcome.effect).toBeUndefined();
+  });
+
+  it("marks awaiting_clarification and keeps the thread in intake", async () => {
+    const outcome = await handleJobTurn({
+      job: makeJob({ description: "Plan my week" }),
+      intent: AGENT_INTENT.freeform,
+      text: "fundraising advice",
+      isNewJob: false,
+      senderHandle: "+15555550123",
+      chatId: "chat_1",
+      triage: {
+        tier: "ai",
+        jobSummary: "Fundraising advice",
+        reason: "missing stage",
+        needsClarification: true,
+        clarifyingQuestion: "What stage are you at?",
+        priceEstimateUsd: 0,
+      },
+    });
+
+    expect(outcome.action).toBe(AGENT_ACTION.clarified);
+    expect(outcome.reply).toBe("What stage are you at?");
+    expect(updateJob).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        description: expect.stringContaining("User: fundraising advice"),
+        triageReason: expect.stringContaining("awaiting_clarification:"),
+      })
+    );
   });
 });
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getJobById } from "@/db/jobs";
 import { getPaymentByJobId, updatePaymentStatus } from "@/db/payments";
-import { settlePayment } from "@/libs/agent";
+import { linkRequesterWallet, settlePayment } from "@/libs/agent";
 import {
   getAgentWalletAddress,
   isAgentWalletConfigured,
@@ -98,6 +98,16 @@ async function handleFund(request: Request, jobId: string) {
       PAYMENT_STATUS.walletConnected,
       body.dynamicWalletAddress
     ).catch(() => undefined);
+  }
+
+  // Bind the web wallet to the phone that started this job in iMessage.
+  if (body.dynamicWalletAddress) {
+    await linkRequesterWallet({
+      phone: job.requesterHandle,
+      walletAddress: body.dynamicWalletAddress,
+    }).catch((error) => {
+      console.warn("[cascade] linkRequesterWallet failed", error);
+    });
   }
 
   const settled = await settlePayment({
