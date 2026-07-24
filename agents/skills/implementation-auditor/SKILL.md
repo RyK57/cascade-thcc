@@ -1,6 +1,6 @@
 ---
 name: implementation-auditor
-description: Post-implementation audit skill — run after features, migrations, or backend work. Finds fractures, data drift, and duplicate sources of truth.
+description: Post-implementation audit — layering, Linq/Terac/Dynamic wiring, data drift, and conversational channel safety.
 ---
 
 # Implementation Auditor
@@ -18,15 +18,19 @@ Use the implementation-auditor subagent to review my [feature/migration/backend]
 - After pushing a feature branch
 - After adding `supabase/migrations/*.sql`
 - After implementing `db/`, `libs/`, or `app/api/`
+- After Linq webhook / Terac launch / Dynamic payment changes
 - Before merging to main
 
 ## What it checks
 
-- Layering (`architecture.mdc`)
+- Layering (`architecture.mdc`) + product loop (`product.mdc`)
 - Migration ↔ db ↔ schema ↔ API alignment
 - Single source of truth (`routes.ts`, `branding.ts`, `utils/schema/`)
+- Linq/Terac/Dynamic secrets not leaked to client
+- Terac launch not possible without explicit confirmation path
+- No blast/cold-outreach messaging patterns
+- Chat ↔ job ↔ opportunity ↔ payment IDs persisted
 - Unwired or broken code
-- Optional Supabase null handling
 - Test coverage mirror
 - Styling rule violations (if UI changed)
 
