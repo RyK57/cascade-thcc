@@ -1,3 +1,4 @@
+export { authorizeInternalRequest } from "./authorize-internal-request";
 export { isInternalOperator } from "./internal-access";
 export { InternalEnvPanel } from "./internal-env-panel";
 export { InternalIntegrationsPanel } from "./internal-integrations-panel";

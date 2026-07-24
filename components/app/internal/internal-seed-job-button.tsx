@@ -49,12 +49,12 @@ export function InternalSeedJobButton() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Demo job seed</CardTitle>
+        <CardTitle>Checkout seed</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        <p>Creates a job in payment_pending with a $3.00 payment row.</p>
+        <p>Creates a $3.00 payment-ready job and returns its customer pay link.</p>
         <Button onClick={seed} disabled={pending} size="sm">
-          {pending ? "Seeding…" : "Seed demo job"}
+          {pending ? "Seeding…" : "Seed checkout job"}
         </Button>
         {payUrl ? (
           <div className="space-y-2">

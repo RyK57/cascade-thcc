@@ -11,14 +11,13 @@ export function WalletSection() {
       aria-labelledby="wallet-heading"
       className="mt-16 sm:mt-20"
     >
-      <p className="label-caps text-muted-foreground">Payments</p>
+      <p className="label-caps text-muted-foreground">Wallet</p>
       <h2 id="wallet-heading" className="mt-6 font-secondary text-2xl sm:text-3xl">
-        Your wallet
+        Connect once, pay from here
       </h2>
       <p className="mt-3 max-w-[56ch] text-sm leading-relaxed text-muted-foreground">
-        Dynamic is the payment rail. Sign in with email — an embedded wallet is
-        created for you, no seed phrase. You fund the Cascade agent wallet
-        escrow; worker payout releases only after you approve in iMessage.
+        Sign in with email to open your Cascade wallet. Escrow is held until you
+        approve the deliverable in iMessage — nothing is released early.
       </p>
 
       <div className="mt-6 max-w-xl rounded-xl border border-hairline p-5 sm:p-6">

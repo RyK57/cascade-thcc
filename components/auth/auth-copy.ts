@@ -41,7 +41,7 @@ export const AUTH_COPY = {
   notConfigured: {
     title: "Sign-in is offline",
     description:
-      "This deployment is missing its Supabase credentials, so accounts can't be checked yet.",
+      "Accounts can’t be checked in this environment right now. Try again later.",
   },
 } as const;
 
