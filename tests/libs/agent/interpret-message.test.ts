@@ -76,6 +76,29 @@ describe("interpretMessage", () => {
   });
 });
 
+describe("account link intent", () => {
+  it.each([
+    "link",
+    "LINK",
+    "my account",
+    "show me my jobs",
+    "my payments",
+    "dashboard",
+  ])("reads %s as an account request", (text) => {
+    expect(interpretMessage(text)).toBe(AGENT_INTENT.accountLink);
+  });
+
+  it("does not hijack a task that merely mentions an account", () => {
+    // This is work to route, not a request for the web app.
+    expect(
+      interpretMessage("someone check if my account signup flow is broken")
+    ).toBe(AGENT_INTENT.freeform);
+    expect(interpretMessage("link my Stripe account to this spreadsheet")).toBe(
+      AGENT_INTENT.freeform
+    );
+  });
+});
+
 describe("interpretPayAsset", () => {
   it("picks up an explicit ETH request", () => {
     expect(interpretPayAsset("pay in eth")).toBe("eth");
