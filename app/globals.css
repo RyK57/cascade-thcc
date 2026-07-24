@@ -4,10 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Brand accent — subagent sets --brand-accent during prototype setup */
+/* Brand tokens — change accent/secondary here, never per component */
 :root {
-  --brand-accent: #ff5a1f;
+  --brand-accent: #e8501f;
   --brand-accent-foreground: #ffffff;
+  --brand-secondary: #6f68ff;
+  --brand-secondary-foreground: #ffffff;
 }
 
 @font-face {
@@ -18,26 +20,28 @@
   src: local("Airbnb Cereal"), url("/fonts/AirbnbCereal_W_Bk.otf") format("opentype");
 }
 
+@font-face {
+  font-family: "Emilio";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/EmilioTest-Light.otf") format("opentype");
+}
+
 .font-primary {
-  font-family: "Airbnb Cereal", Arial, sans-serif;
+  font-family: var(--font-sans);
   font-style: normal;
   font-weight: 400;
   letter-spacing: -0.01em;
 }
 
-@font-face {
-  font-family: 'Romie';
-  font-style: italic;
-  font-weight: normal;
-  src: local('Romie'), url("/fonts/romie-regular.otf") format('opentype');
-}
-
+/* Display / headline face — Emilio */
 .font-secondary {
-  font-family: Romie, "Romie Placeholder", serif;
-  font-style: italic;
-  font-weight: 100;
-  letter-spacing: 0.005em;
-  line-height: 1.2;
+  font-family: var(--font-emilio), var(--font-display);
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
 }
 
 @theme inline {
@@ -45,7 +49,16 @@
   --color-foreground: var(--foreground);
   --font-sans: "Airbnb Cereal", Arial, sans-serif;
   --font-mono: ui-monospace, monospace;
-  --font-heading: "InstrumentSerif", serif;
+  --font-display: "Emilio", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif,
+    serif;
+  --font-heading: var(--font-display);
+  --color-surface: var(--surface);
+  --color-surface-deep: var(--surface-deep);
+  --color-hairline: var(--hairline);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-foreground: var(--brand-accent-foreground);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-secondary-foreground: var(--brand-secondary-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -82,74 +95,83 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --spacing-section: 6rem;
+  --spacing-gutter: 1.5rem;
+  --container-shell: 82rem;
 }
 
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(0 0% 3.9%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 3.9%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 3.9%);
+  --background: hsl(40 20% 98%);
+  --foreground: hsl(30 8% 10%);
+  --surface: hsl(38 16% 95%);
+  --surface-deep: hsl(36 14% 91%);
+  --hairline: hsl(30 8% 10% / 12%);
+  --card: hsl(40 20% 98%);
+  --card-foreground: hsl(30 8% 10%);
+  --popover: hsl(40 20% 98%);
+  --popover-foreground: hsl(30 8% 10%);
   --primary: var(--brand-accent);
   --primary-foreground: var(--brand-accent-foreground);
-  --secondary: hsl(0 0% 96.1%);
-  --secondary-foreground: hsl(0 0% 9%);
-  --muted: hsl(0 0% 96.1%);
-  --muted-foreground: hsl(0 0% 45.1%);
+  --secondary: hsl(38 16% 93%);
+  --secondary-foreground: hsl(30 8% 10%);
+  --muted: hsl(38 16% 93%);
+  --muted-foreground: hsl(30 6% 42%);
   --accent: var(--brand-accent);
   --accent-foreground: var(--brand-accent-foreground);
   --destructive: hsl(0 84.2% 60.2%);
-  --border: hsl(0 0% 89.8%);
-  --input: hsl(0 0% 89.8%);
+  --border: var(--hairline);
+  --input: hsl(30 8% 10% / 18%);
   --ring: var(--brand-accent);
   --chart-1: hsl(0 0% 87%);
   --chart-2: hsl(0 0% 45.1%);
   --chart-3: hsl(0 0% 43.9%);
   --chart-4: hsl(0 0% 37.1%);
   --chart-5: hsl(0 0% 26.9%);
-  --radius: 0.625rem;
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(0 0% 3.9%);
+  --radius: 0.375rem;
+  --sidebar: hsl(38 16% 95%);
+  --sidebar-foreground: hsl(30 8% 10%);
   --sidebar-primary: var(--brand-accent);
   --sidebar-primary-foreground: var(--brand-accent-foreground);
-  --sidebar-accent: hsl(0 0% 96.1%);
-  --sidebar-accent-foreground: hsl(0 0% 9%);
-  --sidebar-border: hsl(0 0% 89.8%);
+  --sidebar-accent: hsl(38 16% 93%);
+  --sidebar-accent-foreground: hsl(30 8% 10%);
+  --sidebar-border: var(--hairline);
   --sidebar-ring: var(--brand-accent);
 }
 
 .dark {
-  --background: hsl(0 0% 3.9%);
-  --foreground: hsl(0 0% 98%);
-  --card: hsl(0 0% 9%);
-  --card-foreground: hsl(0 0% 98%);
-  --popover: hsl(0 0% 9%);
-  --popover-foreground: hsl(0 0% 98%);
+  --background: hsl(36 6% 14%);
+  --foreground: hsl(40 22% 95%);
+  --surface: hsl(36 6% 11%);
+  --surface-deep: hsl(36 6% 8%);
+  --hairline: hsl(40 22% 95% / 10%);
+  --card: hsl(36 6% 11%);
+  --card-foreground: hsl(40 22% 95%);
+  --popover: hsl(36 6% 11%);
+  --popover-foreground: hsl(40 22% 95%);
   --primary: var(--brand-accent);
   --primary-foreground: var(--brand-accent-foreground);
-  --secondary: hsl(0 0% 14.9%);
-  --secondary-foreground: hsl(0 0% 98%);
-  --muted: hsl(0 0% 14.9%);
-  --muted-foreground: hsl(0 0% 63.9%);
+  --secondary: hsl(36 6% 18%);
+  --secondary-foreground: hsl(40 22% 95%);
+  --muted: hsl(36 6% 18%);
+  --muted-foreground: hsl(38 8% 66%);
   --accent: var(--brand-accent);
   --accent-foreground: var(--brand-accent-foreground);
   --destructive: hsl(0 84% 70%);
-  --border: hsl(0 0% 100% / 10%);
-  --input: hsl(0 0% 100% / 15%);
+  --border: var(--hairline);
+  --input: hsl(40 22% 95% / 16%);
   --ring: var(--brand-accent);
   --chart-1: hsl(0 0% 87%);
   --chart-2: hsl(0 0% 45.1%);
   --chart-3: hsl(0 0% 43.9%);
   --chart-4: hsl(0 0% 37.1%);
   --chart-5: hsl(0 0% 26.9%);
-  --sidebar: hsl(0 0% 9%);
-  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar: hsl(36 6% 11%);
+  --sidebar-foreground: hsl(40 22% 95%);
   --sidebar-primary: var(--brand-accent);
   --sidebar-primary-foreground: var(--brand-accent-foreground);
-  --sidebar-accent: hsl(0 0% 14.9%);
-  --sidebar-accent-foreground: hsl(0 0% 98%);
-  --sidebar-border: hsl(0 0% 100% / 10%);
+  --sidebar-accent: hsl(36 6% 18%);
+  --sidebar-accent-foreground: hsl(40 22% 95%);
+  --sidebar-border: var(--hairline);
   --sidebar-ring: var(--brand-accent);
 }
 
@@ -159,9 +181,35 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "Airbnb Cereal", Arial, sans-serif;
+    font-family: var(--font-sans);
     font-style: normal;
     font-weight: 400;
     letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  /* Vertical column rules — set --rule-columns to change density */
+  .rules-x {
+    --rule-columns: 4;
+    background-image: linear-gradient(to right, var(--hairline) 0 1px, transparent 1px);
+    background-size: calc(100% / var(--rule-columns)) 100%;
+  }
+
+  /* Fine technical mesh used behind panels */
+  .rules-mesh {
+    --mesh-size: 28px;
+    background-image:
+      linear-gradient(to right, var(--hairline) 0 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hairline) 0 1px, transparent 1px);
+    background-size: var(--mesh-size) var(--mesh-size);
+  }
+
+  /* Small all-caps technical label */
+  .label-caps {
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
   }
 }
