@@ -1,7 +1,11 @@
 export { answerAiTask } from "./answer-ai";
 export { broadcastJobToPeers } from "./broadcast-peers";
 export { draftExpertJob, handleExpertTurn, pollExpertSubmissions } from "./handle-expert-turn";
-export { clipTitle, handleJobTurn } from "./handle-job-turn";
+export {
+  clipTitle,
+  handleJobTurn,
+  isAwaitingClarification,
+} from "./handle-job-turn";
 export {
   finalizePeerPayout,
   handlePeerTurn,

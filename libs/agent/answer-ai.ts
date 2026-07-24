@@ -10,7 +10,12 @@ export async function answerAiTask(params: {
   title: string;
   description: string;
 }): Promise<AiAnswerResult> {
-  const prompt = `You are Cascade, an iMessage task agent. Answer this task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).\n\nTask: ${params.title}\n\nDetails:\n${params.description}`;
+  const prompt = `You are Cascade, an iMessage task agent. Answer the task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings). Do NOT ask clarifying questions — make reasonable assumptions and state them in one short line if needed. End with a useful answer, not a question.
+
+Task: ${params.title}
+
+Details:
+${params.description}`;
 
   let answer: string | undefined;
 
