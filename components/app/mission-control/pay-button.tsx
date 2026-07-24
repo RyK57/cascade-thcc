@@ -38,6 +38,9 @@ export function PayButton({
   const { data: accounts = [] } = useGetWalletAccounts();
   const [phase, setPhase] = useState<PayPhase>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Survives a failed record-escrow POST so a retry never re-broadcasts the
+  // transfer. The USDC has already left the wallet; only the POST may repeat.
+  const [sentTxHash, setSentTxHash] = useState<string | null>(null);
 
   const walletAccount = accounts.find((account) => account.chain === "EVM") as
     | EvmWalletAccount
@@ -49,12 +52,16 @@ export function PayButton({
     setError(null);
     setPhase("sending");
     try {
-      const { txHash } = await payIntoEscrow({
-        walletAccount,
-        agentAddress: agentAddress as `0x${string}`,
-        amountCents,
-      });
-      onEscrowTx(txHash);
+      let txHash = sentTxHash;
+      if (!txHash) {
+        ({ txHash } = await payIntoEscrow({
+          walletAccount,
+          agentAddress: agentAddress as `0x${string}`,
+          amountCents,
+        }));
+        setSentTxHash(txHash);
+        onEscrowTx(txHash);
+      }
 
       const response = await fetch(`/api/jobs/${jobId}/fund`, {
         method: "POST",
@@ -88,7 +95,13 @@ export function PayButton({
   return (
     <div className="space-y-2">
       <Button onClick={pay} disabled={busy || phase === "escrowed" || Boolean(missing)}>
-        {phase === "escrowed" ? "Escrow locked" : busy ? "Working…" : `Fund ${amountLabel} USDC`}
+        {phase === "escrowed"
+          ? "Escrow locked"
+          : busy
+            ? "Working…"
+            : sentTxHash
+              ? "Retry recording escrow"
+              : `Fund ${amountLabel} USDC`}
       </Button>
       {missing && phase === "idle" ? (
         <p className="text-xs text-muted-foreground">{missing}</p>
