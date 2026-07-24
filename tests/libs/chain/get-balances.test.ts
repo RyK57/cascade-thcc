@@ -43,4 +43,40 @@ describe("getBalancesForAddresses", () => {
     expect(keys[0].toLowerCase()).toBe(ADDR_2.toLowerCase());
     expect(result[keys[0]].usdc).toBe("3.25");
   });
+
+  it("is also keyed by the caller's original casing", async () => {
+    // Callers look up with the string they hold (env vars, wallet SDKs), which
+    // is often lowercase — checksum-only keys would silently miss.
+    const lowercase = ADDR.toLowerCase();
+    const result = await getBalancesForAddresses([lowercase]);
+    expect(result[lowercase]?.usdc).toBe("3.25");
+    expect(result[ADDR]?.usdc).toBe("3.25");
+  });
+
+  it("skips invalid addresses instead of voiding the whole batch", async () => {
+    // The simulated treasury placeholder is not a real address.
+    const result = await getBalancesForAddresses([
+      "0xCascadeSandboxTreasury000000000000001",
+      ADDR_2,
+    ]);
+    expect(result[ADDR_2]?.usdc).toBe("3.25");
+    expect(result["0xCascadeSandboxTreasury000000000000001"]).toBeUndefined();
+  });
+
+  it("keeps good balances when one address's RPC read fails", async () => {
+    // Addresses unique to this test — getAddressBalances memoizes for ~2s.
+    const failing = "0x2222222222222222222222222222222222222222";
+    const working = "0x3333333333333333333333333333333333333333";
+    getBalance
+      .mockReset()
+      .mockImplementation(async ({ address }: { address: string }) =>
+        address.toLowerCase() === failing
+          ? Promise.reject(new Error("rpc down"))
+          : 1_500_000_000_000_000_000n
+      );
+
+    const result = await getBalancesForAddresses([failing, working]);
+    expect(result[failing]).toBeUndefined();
+    expect(result[working]?.usdc).toBe("3.25");
+  });
 });
