@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getJobById } from "@/db/jobs";
 import { getPaymentByJobId, updatePaymentStatus } from "@/db/payments";
+import { getAccountSession, samePhone } from "@/libs/account";
 import { linkRequesterWallet, settlePayment } from "@/libs/agent";
 import {
   getAgentWalletAddress,
@@ -100,11 +101,18 @@ async function handleFund(request: Request, jobId: string) {
     ).catch(() => undefined);
   }
 
-  // Bind the web wallet to the phone that started this job in iMessage.
+  // Bind the web wallet to the phone that started this job in iMessage. Only a
+  // phone-verified session counts as proof of ownership; a funder who just has
+  // the link can still pay, but cannot repoint the account's payout address.
   if (body.dynamicWalletAddress) {
+    const session = await getAccountSession().catch(() => null);
+    const verified = Boolean(
+      session && samePhone(session.phone, job.requesterHandle)
+    );
     await linkRequesterWallet({
       phone: job.requesterHandle,
       walletAddress: body.dynamicWalletAddress,
+      verified,
     }).catch((error) => {
       console.warn("[cascade] linkRequesterWallet failed", error);
     });
