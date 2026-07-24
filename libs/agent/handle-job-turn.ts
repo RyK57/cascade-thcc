@@ -1,5 +1,4 @@
 import { updateJob } from "@/db/jobs";
-import { listPeers } from "@/db/users";
 import { needsLocationHint, requestLocation } from "@/libs/linq/location";
 import type { Job } from "@/utils/schema/job";
 import { JOB_STATUS } from "@/utils/schema/job";
@@ -9,7 +8,6 @@ import type { ConversationTurn } from "./conversation";
 import { draftExpertJob, handleExpertTurn } from "./handle-expert-turn";
 import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
 import { interpretPayAsset } from "./interpret-message";
-import { bestEvLine } from "./routing-ev";
 import { fallbackReply, routingReply } from "./reply-templates";
 import { AGENT_ACTION, AGENT_INTENT, type AgentAction, type AgentIntent } from "./types";
 
@@ -118,7 +116,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
       ? Math.max(0, Math.round(estimateUsd * 100))
       : Math.max(1, Math.round((estimateUsd || 12) * 100));
 
-  let job = await updateJob(turn.job.id, {
+  const job = await updateJob(turn.job.id, {
     title: clipTitle(triage.jobSummary),
     description,
     tier: triage.tier,
@@ -127,20 +125,10 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     status: JOB_STATUS.intake,
   });
 
-  const peers = await listPeers().catch(() => []);
-  const avgTrust =
-    peers.reduce((s, p) => s + p.trustScore, 0) / Math.max(1, peers.length);
-  const peerCost = Math.max(5, (priceUsdCents || 1200) / 100);
-  const expertCost = Math.max(peerCost * 3, 45);
-  const valueUsd = Math.max(peerCost * 2, expertCost);
-  const evLine = bestEvLine({
-    valueUsd,
-    peerCostUsd: peerCost,
-    expertCostUsd: expertCost,
-    avgPeerTrust: avgTrust || 70,
-  });
-
-  job = await updateJob(job.id, { evSummary: evLine });
+  // Routing economics used to be computed here and stashed on the job as
+  // `evSummary`, which then leaked into the thread and the status card. The
+  // comparison still happens — inside triage, where it decides the tier — but
+  // an expected-value figure is not something the requester is agreeing to.
   const routeLine = routingReply(triage.tier, triage.reason);
 
   if (triage.tier === JOB_TIER.ai) {
@@ -154,7 +142,6 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     await updateJob(job.id, {
       status: JOB_STATUS.paid,
       priceUsdCents: 0,
-      evSummary: evLine,
     });
     // No HUD card for AI: a free in-thread answer is the whole deliverable.
     // No confetti either — reserved for a job that finishes real work.
