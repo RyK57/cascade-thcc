@@ -18,8 +18,8 @@ interface MainPageProps {
 }
 
 /**
- * `/main` — operator workspace.
- * `/main?job=<id>` — Mission Control escrow checkout (Dynamic scoped here).
+ * `/main` — signed-in workspace (Messages handoff + wallet).
+ * `/main?job=<id>` — escrow checkout for a job pay link (Dynamic scoped here).
  */
 export default async function MainPage({ searchParams }: MainPageProps) {
   const { job: jobId } = await searchParams;
@@ -34,11 +34,12 @@ export default async function MainPage({ searchParams }: MainPageProps) {
         <div className="max-w-[54ch]">
           <p className="label-caps text-accent-ink">Payment</p>
           <h1 className="mt-6 font-secondary text-3xl sm:text-4xl">
-            Checkout isn’t configured here
+            Checkout isn’t available right now
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            This deployment is missing Supabase admin credentials, so the pay
-            link can’t load the job. Nothing was charged.
+            We can’t load this payment link in this environment. Nothing was
+            charged — open the latest link from your Messages thread, or try
+            again shortly.
           </p>
         </div>
       </AppShell>
