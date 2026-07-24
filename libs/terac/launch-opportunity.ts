@@ -1,10 +1,11 @@
 import { teracRequest } from "./client";
 import type { TeracOpportunity } from "./types";
 
-export async function getOpportunity(
+export async function launchOpportunity(
   opportunityId: string
 ): Promise<TeracOpportunity> {
   return teracRequest<TeracOpportunity>({
-    path: `/opportunities/${opportunityId}`,
+    method: "POST",
+    path: `/opportunities/${opportunityId}/launch`,
   });
 }

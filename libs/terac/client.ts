@@ -18,6 +18,10 @@ export function getTeracBaseUrl(): string {
   return TERAC_API_BASE.replace(/\/$/, "");
 }
 
+export function getTeracProjectId(): string | undefined {
+  return process.env.TERAC_PROJECT_ID?.trim() || undefined;
+}
+
 interface TeracRequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
