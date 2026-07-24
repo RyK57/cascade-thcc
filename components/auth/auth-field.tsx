@@ -9,13 +9,15 @@ export interface AuthFieldProps {
   id: string;
   name: string;
   label: string;
-  type?: "text" | "email" | "password";
+  type?: "text" | "email" | "password" | "tel";
   value: string;
   onValueChange: (value: string) => void;
   onBlur?: () => void;
   error?: string;
   /** Standing guidance, shown before anything goes wrong. */
   hint?: ReactNode;
+  /** Picks the on-screen keyboard — phone codes want digits, not QWERTY. */
+  inputMode?: "text" | "tel" | "numeric";
   autoComplete?: string;
   placeholder?: string;
   required?: boolean;
@@ -45,6 +47,7 @@ export function AuthField({
   onBlur,
   error,
   hint,
+  inputMode,
   autoComplete,
   placeholder,
   required,
@@ -80,6 +83,7 @@ export function AuthField({
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
           onBlur={onBlur}
+          inputMode={inputMode}
           autoComplete={autoComplete}
           placeholder={placeholder}
           required={required}
