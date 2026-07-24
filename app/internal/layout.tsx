@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app/app-shell";
-import { isInternalOperator } from "@/components/app/internal/internal-access";
+import { isInternalOperator } from "@/libs/auth";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/utils/supabase/server";

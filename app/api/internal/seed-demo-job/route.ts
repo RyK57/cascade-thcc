@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireOperator } from "@/libs/auth";
 import { seedDemoJob } from "@/libs/seed";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
@@ -12,6 +13,9 @@ const bodySchema = z
 
 /** Internal tooling: seed a checkout-ready demo job (no Linq/Terac needed). */
 export async function POST(request: Request) {
+  const denied = await requireOperator(request);
+  if (denied) return denied;
+
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
       { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },

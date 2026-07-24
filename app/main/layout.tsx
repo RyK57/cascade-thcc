@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AppShell } from "@/components/app/app-shell";
-import { isInternalOperator } from "@/components/app/internal/internal-access";
+import { isInternalOperator } from "@/libs/auth";
 import { Button } from "@/components/ui/button";
 import { BRAND } from "@/lib/constants/branding";
 import { ROUTES } from "@/lib/constants/routes";
