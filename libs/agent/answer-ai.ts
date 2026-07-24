@@ -9,13 +9,26 @@ export interface AiAnswerResult {
 export async function answerAiTask(params: {
   title: string;
   description: string;
+  /** Newest inbound text — the part the answer must actually address. */
+  latestMessage?: string;
 }): Promise<AiAnswerResult> {
-  const prompt = `You are Cascade, an iMessage task agent. Answer the task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings). Do NOT ask clarifying questions — make reasonable assumptions and state them in one short line if needed. End with a useful answer, not a question.
+  const latest = params.latestMessage?.trim();
+  const conversation =
+    latest && !params.description.includes(latest)
+      ? `${params.description}\n\nUser: ${latest}`
+      : params.description;
+
+  const prompt = `You are Cascade, an iMessage task agent. Answer the task completely and concisely for SMS/iMessage (short paragraphs, no markdown headings).
+
+Rules:
+- Do NOT ask clarifying questions. Make reasonable assumptions and state them in one short line if needed.
+- The full conversation is below. If the user pasted content (a poem, draft, list), it is in there — never claim it is missing or cut off.
+- End with a useful answer, not a question.
 
 Task: ${params.title}
 
-Details:
-${params.description}`;
+Conversation so far:
+${conversation}`;
 
   let answer: string | undefined;
 
@@ -51,10 +64,10 @@ ${params.description}`;
   }
 
   if (!answer) {
-    answer = heuristicAnswer(params.title, params.description);
+    answer = heuristicAnswer(params.title, conversation);
   }
 
-  const followUp = suggestFollowUp(params.title, params.description);
+  const followUp = suggestFollowUp(params.title, conversation);
   return {
     answer: `${answer}\n\n${aiFollowUpSuggest(followUp)}`,
     followUp,
@@ -67,7 +80,7 @@ function heuristicAnswer(title: string, description: string): string {
     `1) Clarify the outcome you want this week.`,
     `2) Block 2–3 focus windows and one buffer.`,
     `3) Cut anything that doesn't move the goal.`,
-    `Context I used: ${description.slice(0, 240)}`,
+    `Based on: ${description.slice(0, 240)}`,
   ].join("\n");
 }
 
