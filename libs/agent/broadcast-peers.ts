@@ -41,22 +41,13 @@ export async function broadcastJobToPeers(job: Job): Promise<number> {
     process.env.LINQ_FROM_NUMBER?.trim() ||
     process.env.LINQ_PHONE_NUMBER?.trim();
 
-  let index = 0;
   for (const peer of peers) {
     if (!peer.phone) continue;
     if (peer.phone === job.requesterHandle) continue;
 
-    const priorityHint =
-      index === 0 || peer.trustScore >= 80
-        ? "Priority queue — you see this first."
-        : "Priority queue — higher-trust peers were messaged first.";
-
-    const text = peerClaimBroadcast({
-      title: job.title,
-      priceCents,
-      trustScore: peer.trustScore,
-      priorityHint,
-    });
+    // Trust and proximity still order this loop; neither is quoted back to
+    // the worker.
+    const text = peerClaimBroadcast({ title: job.title, priceCents });
 
     try {
       if (from) {
@@ -68,7 +59,6 @@ export async function broadcastJobToPeers(job: Job): Promise<number> {
         continue;
       }
       sent += 1;
-      index += 1;
     } catch (error) {
       console.warn(
         `[cascade] peer broadcast failed for ${peer.phone} (inbound-first?)`,
