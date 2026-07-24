@@ -12,6 +12,7 @@ import {
   getSandboxRpcUrl,
   isServerWalletConfigured,
 } from "./sandbox";
+import { usdcUnitsFromCents } from "./usdc";
 
 const SIMULATED_TREASURY =
   process.env.DYNAMIC_SANDBOX_TREASURY_ADDRESS?.trim() ||
@@ -106,21 +107,34 @@ export async function payoutFromTreasury(params: {
   await ensureSandboxTreasury();
 
   if (isServerWalletConfigured() && getSandboxRpcUrl()) {
+    let broadcast: { txHash: string } | null = null;
     try {
-      const broadcast = await broadcastUsdcTransfer(params);
+      broadcast = await broadcastUsdcTransfer(params);
+    } catch (error) {
+      console.warn("[dynamic] broadcast failed; simulating payout", error);
+    }
+
+    if (broadcast) {
+      // Only the broadcast may fall back to simulation. Once funds have moved,
+      // a failed ledger write must not downgrade this to a fabricated
+      // `0xsim…` hash — that records real money as never sent.
       await createPayout({
         jobId: params.jobId,
         txHash: broadcast.txHash,
         amountUsdcCents: params.amountUsdcCents,
         status: PAYOUT_STATUS.broadcast,
+      }).catch((error) => {
+        console.error(
+          "[dynamic] treasury transfer sent but not recorded",
+          broadcast.txHash,
+          error
+        );
       });
       return {
         txHash: broadcast.txHash,
         status: "broadcast",
         explorerUrl: explorerTxUrl(broadcast.txHash),
       };
-    } catch (error) {
-      console.warn("[dynamic] broadcast failed; simulating payout", error);
     }
   }
 
@@ -138,6 +152,30 @@ export async function payoutFromTreasury(params: {
   };
 }
 
+/**
+ * Whether a sponsored-transaction failure means sponsorship isn't available,
+ * as opposed to an ambiguous network failure. Fails closed: anything that
+ * could have broadcast is not retried.
+ */
+export function isSponsorshipUnavailable(error: unknown): boolean {
+  const message = (
+    error instanceof Error ? error.message : String(error ?? "")
+  ).toLowerCase();
+
+  // Ambiguous: the transaction may already be on-chain.
+  if (
+    /timeout|timed out|etimedout|econnreset|econnrefused|socket|aborted|network error|fetch failed|already known|nonce too low/.test(
+      message
+    )
+  ) {
+    return false;
+  }
+
+  return /sponsor|gasless|paymaster|not enabled|not supported|unsupported|disabled|forbidden|unauthorized|payment required|quota|insufficient (sponsor|gas) (credit|balance)/.test(
+    message
+  );
+}
+
 async function broadcastUsdcTransfer(params: {
   toAddress: string;
   amountUsdcCents: number;
@@ -146,7 +184,7 @@ async function broadcastUsdcTransfer(params: {
   const mod = await import(/* webpackIgnore: true */ specifier);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { DynamicEvmWalletClient } = mod as any;
-  const { encodeFunctionData, erc20Abi, parseUnits } = await import("viem");
+  const { encodeFunctionData, erc20Abi } = await import("viem");
 
   const treasury = await getTreasuryWallet();
   if (!treasury?.walletMetadata) {
@@ -161,7 +199,10 @@ async function broadcastUsdcTransfer(params: {
   });
   await client.authenticateApiToken(process.env.DYNAMIC_API_KEY!);
 
-  const amount = parseUnits(String(params.amountUsdcCents / 100), 6);
+  // Integer cents → 6-decimal base units. Avoids routing money through a
+  // float divide and back out via String(), which the rest of the codebase
+  // already sidesteps with this helper.
+  const amount = usdcUnitsFromCents(params.amountUsdcCents);
   const to = params.toAddress as `0x${string}`;
   const target = BASE_SEPOLIA_USDC_ADDRESS as `0x${string}`;
   const transferData = encodeFunctionData({
@@ -184,7 +225,11 @@ async function broadcastUsdcTransfer(params: {
   } catch (error) {
     // Sponsorship may be disabled for the environment — fall back to a
     // self-funded tx (treasury needs Base Sepolia gas ETH from a faucet).
-    console.warn("[dynamic] sponsored tx failed; trying self-funded", error);
+    // Only for errors that mean sponsorship is unavailable: a timeout or
+    // dropped connection can follow a transaction that actually broadcast,
+    // and retrying those would send the transfer twice.
+    if (!isSponsorshipUnavailable(error)) throw error;
+    console.warn("[dynamic] sponsored tx unavailable; trying self-funded", error);
   }
 
   const walletClient = await client.getWalletClient({
