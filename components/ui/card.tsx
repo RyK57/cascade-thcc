@@ -33,9 +33,20 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+/**
+ * Renders a <div> by default. Pass `as="h1"`…`as="h6"` whenever the card title is
+ * the real heading for its region — a styled <div> gives screen readers no document
+ * structure, which is how four auth pages ended up with zero headings.
+ */
+function CardTitle({
+  className,
+  as: Comp = "div",
+  ...props
+}: React.ComponentProps<"div"> & {
+  as?: "div" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+}) {
   return (
-    <div
+    <Comp
       data-slot="card-title"
       className={cn(
         "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",

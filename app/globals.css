@@ -4,11 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Brand tokens — change accent/secondary here, never per component */
+/* Brand tokens — change accent/secondary here, never per component.
+ *
+ * Two stops per hue, because one cannot do both jobs on a dark surface:
+ *   --brand-*            FILL. White text sits on it. Measured 4.65:1 / 4.64:1 (WCAG AA).
+ *   --brand-*-bright     INK. Sits on the near-black background as text, rules, or icons.
+ *                        Measured 4.64:1 / 4.67:1 against --background (WCAG AA).
+ * Never put white on a -bright stop, and never use a fill stop as text on the background.
+ */
 :root {
-  --brand-accent: #e8501f;
+  --brand-accent: #cd471b;
+  --brand-accent-bright: #ea6236;
   --brand-accent-foreground: #ffffff;
-  --brand-secondary: #6f68ff;
+  --brand-secondary: #6761ee;
+  --brand-secondary-bright: #837dff;
   --brand-secondary-foreground: #ffffff;
 }
 
@@ -56,8 +65,10 @@
   --color-surface-deep: var(--surface-deep);
   --color-hairline: var(--hairline);
   --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-bright: var(--brand-accent-bright);
   --color-brand-accent-foreground: var(--brand-accent-foreground);
   --color-brand-secondary: var(--brand-secondary);
+  --color-brand-secondary-bright: var(--brand-secondary-bright);
   --color-brand-secondary-foreground: var(--brand-secondary-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -100,45 +111,10 @@
   --container-shell: 82rem;
 }
 
+/* Single palette. This product is dark-only by decision — there is no light theme
+ * and no theme toggle. `.dark` stays on <html> (forcedTheme) so Tailwind `dark:`
+ * variants in shadcn primitives keep resolving, but the tokens live here once. */
 :root {
-  --background: hsl(40 20% 98%);
-  --foreground: hsl(30 8% 10%);
-  --surface: hsl(38 16% 95%);
-  --surface-deep: hsl(36 14% 91%);
-  --hairline: hsl(30 8% 10% / 12%);
-  --card: hsl(40 20% 98%);
-  --card-foreground: hsl(30 8% 10%);
-  --popover: hsl(40 20% 98%);
-  --popover-foreground: hsl(30 8% 10%);
-  --primary: var(--brand-accent);
-  --primary-foreground: var(--brand-accent-foreground);
-  --secondary: hsl(38 16% 93%);
-  --secondary-foreground: hsl(30 8% 10%);
-  --muted: hsl(38 16% 93%);
-  --muted-foreground: hsl(30 6% 42%);
-  --accent: var(--brand-accent);
-  --accent-foreground: var(--brand-accent-foreground);
-  --destructive: hsl(0 84.2% 60.2%);
-  --border: var(--hairline);
-  --input: hsl(30 8% 10% / 18%);
-  --ring: var(--brand-accent);
-  --chart-1: hsl(0 0% 87%);
-  --chart-2: hsl(0 0% 45.1%);
-  --chart-3: hsl(0 0% 43.9%);
-  --chart-4: hsl(0 0% 37.1%);
-  --chart-5: hsl(0 0% 26.9%);
-  --radius: 0.375rem;
-  --sidebar: hsl(38 16% 95%);
-  --sidebar-foreground: hsl(30 8% 10%);
-  --sidebar-primary: var(--brand-accent);
-  --sidebar-primary-foreground: var(--brand-accent-foreground);
-  --sidebar-accent: hsl(38 16% 93%);
-  --sidebar-accent-foreground: hsl(30 8% 10%);
-  --sidebar-border: var(--hairline);
-  --sidebar-ring: var(--brand-accent);
-}
-
-.dark {
   --background: hsl(36 6% 14%);
   --foreground: hsl(40 22% 95%);
   --surface: hsl(36 6% 11%);
@@ -159,12 +135,16 @@
   --destructive: hsl(0 84% 70%);
   --border: var(--hairline);
   --input: hsl(40 22% 95% / 16%);
-  --ring: var(--brand-accent);
+  /* Focus ring is the foreground cream, not the accent: an accent ring on an
+   * accent-filled button is invisible. Cream measures 4.20:1 on the accent fill
+   * and 13.96:1 on the background, clearing WCAG 2.4.11 on both. */
+  --ring: var(--foreground);
   --chart-1: hsl(0 0% 87%);
   --chart-2: hsl(0 0% 45.1%);
   --chart-3: hsl(0 0% 43.9%);
   --chart-4: hsl(0 0% 37.1%);
   --chart-5: hsl(0 0% 26.9%);
+  --radius: 0.375rem;
   --sidebar: hsl(36 6% 11%);
   --sidebar-foreground: hsl(40 22% 95%);
   --sidebar-primary: var(--brand-accent);
@@ -172,7 +152,11 @@
   --sidebar-accent: hsl(36 6% 18%);
   --sidebar-accent-foreground: hsl(40 22% 95%);
   --sidebar-border: var(--hairline);
-  --sidebar-ring: var(--brand-accent);
+  --sidebar-ring: var(--foreground);
+}
+
+html {
+  color-scheme: dark;
 }
 
 @layer base {
@@ -211,5 +195,51 @@
     line-height: 1;
     letter-spacing: 0.22em;
     text-transform: uppercase;
+  }
+
+  /* Accent ink on the background — never use --brand-accent for text on --background */
+  .text-accent-ink {
+    color: var(--brand-accent-bright);
+  }
+  .text-secondary-ink {
+    color: var(--brand-secondary-bright);
+  }
+
+  /* Skip link: off-screen until focused */
+  .skip-link {
+    position: absolute;
+    left: var(--spacing-gutter);
+    top: 0;
+    z-index: 100;
+    transform: translateY(-150%);
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .skip-link:focus-visible {
+    transform: translateY(0.75rem);
+  }
+}
+
+/* Touch ergonomics: every control clears the 44px minimum on coarse pointers.
+ * Applied systemically so no individual component has to remember. */
+@media (pointer: coarse) {
+  [data-slot="button"],
+  [data-slot="input"],
+  [data-slot="select-trigger"],
+  [data-slot="dropdown-menu-item"] {
+    min-height: 2.75rem;
+  }
+  [data-slot="button"][data-size^="icon"] {
+    min-width: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

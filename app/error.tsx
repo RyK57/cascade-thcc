@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
+import { StatusPage } from "@/components/app/status-page";
 import { Button } from "@/components/ui/button";
+import { BRAND } from "@/lib/constants/branding";
 import { ROUTES } from "@/lib/constants/routes";
 
 interface ErrorPageProps {
@@ -12,22 +15,32 @@ interface ErrorPageProps {
 export default function GlobalError({ error, reset }: ErrorPageProps) {
   useEffect(() => {
     console.error(error);
+    // An error boundary has to be a client component, so it can't export
+    // `metadata`. Set the title here rather than inherit the previous page's.
+    document.title = `Something went wrong · ${BRAND.name}`;
   }, [error]);
 
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-6 px-4 py-16 text-center">
-      <div className="space-y-2">
-        <h1 className="font-secondary text-3xl">Something went wrong</h1>
-        <p className="max-w-md text-muted-foreground">
-          An unexpected error occurred. Try again or return home.
-        </p>
-      </div>
-      <div className="flex gap-3">
-        <Button onClick={reset}>Try again</Button>
-        <Button variant="outline" asChild>
-          <a href={ROUTES.home}>Go home</a>
-        </Button>
-      </div>
-    </div>
+    <StatusPage
+      marker="Error"
+      title="Something went wrong on our side"
+      description="This page failed to load. Nothing you were doing was sent or charged. Retrying usually clears it — if it doesn’t, your workspace and your iMessage thread are both unaffected."
+      actions={
+        <>
+          <Button onClick={reset}>Try again</Button>
+          <Button variant="outline" asChild>
+            <Link href={ROUTES.main}>Go to your workspace</Link>
+          </Button>
+        </>
+      }
+      footnote={
+        error.digest ? (
+          <p>
+            Quote this reference if you report it:{" "}
+            <code className="font-mono text-foreground">{error.digest}</code>
+          </p>
+        ) : null
+      }
+    />
   );
 }
