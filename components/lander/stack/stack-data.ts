@@ -13,25 +13,25 @@ export interface StackBlock {
 }
 
 export const STACK = {
-  headline: "The hiring loop explains itself.",
-  support: "Three systems, one conversation — message, source, settle.",
+  headline: "Three platforms. One thread.",
+  support: "Linq for chat, peers + Terac for humans, Dynamic sandbox for money.",
 } as const;
 
 export const STACK_ITEMS: StackItem[] = [
   {
     name: "Linq",
     role: "Channel",
-    description: "Real iMessage with RCS and SMS fallback on the same thread.",
+    description: "Real iMessage with typing, tapbacks, and status updates.",
   },
   {
-    name: "Terac",
-    role: "Experts",
-    description: "Verified human labor. Draft free; launch when you say go.",
+    name: "Peers + Terac",
+    role: "Workers",
+    description: "Seeded peers for quick human work; Terac for verified experts.",
   },
   {
     name: "Dynamic",
-    role: "Payments",
-    description: "Wallets and settlement tied to approved submissions.",
+    role: "Sandbox pay",
+    description: "Base Sepolia USDC escrow and payouts — no real dollars.",
   },
   {
     name: "Confirm",
@@ -42,18 +42,18 @@ export const STACK_ITEMS: StackItem[] = [
 
 export const STACK_BLOCKS: StackBlock[] = [
   {
-    label: "Draft → launch",
+    label: "AI tier",
     title: "$0",
-    meta: "Drafts are free",
+    meta: "Instant",
     description:
-      "Scoping a Terac opportunity costs nothing. Launch only after you confirm estimate and ETA in iMessage.",
+      "Plans, drafts, and summaries answered in-thread with a related follow-up suggestion.",
     tone: "secondary",
   },
   {
-    label: "Verified completion",
-    title: "Approve, then pay.",
+    label: "Peer → expert",
+    title: "Quote, then go.",
     description:
-      "Dynamic coordinates wallet payment when you accept a submission — settlement follows the work, not a spreadsheet.",
+      "Peers claim by tapback. Experts launch on Terac only after you confirm the live quote.",
     tone: "accent",
   },
 ];
