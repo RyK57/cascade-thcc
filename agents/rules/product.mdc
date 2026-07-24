@@ -1,33 +1,35 @@
 ---
-description: Product vision and domain rules for the iMessage expert-hiring agent
+description: Product vision and domain rules for Cascade (iMessage task agent)
 globs:
   - "**/*"
 alwaysApply: true
 ---
 
-# Product — iMessage Expert Agent
+# Product — Cascade
 
 ## One-liner
 
-An **iMessage agent** (Linq) that helps people hire verified experts (Terac) and coordinates **payments through Dynamic**.
+**Cascade** is an iMessage agent (Linq) that routes every task to the cheapest capable worker: the AI itself, a seeded peer human, or a verified Terac expert — with **sandbox Dynamic** payments (Base Sepolia, no real funds).
 
 ## Core loop
 
-1. **Person texts the Linq Number** (iMessage / RCS / SMS fallback)
-2. **Agent understands the job** — role, skills, urgency, budget, deliverable
-3. **Agent sources experts via Terac** — draft opportunity, targeting, screening; launch only when the user explicitly confirms spend
-4. **Agent coordinates the engagement over iMessage** — updates, questions, approvals
-5. **Payments settle via Dynamic** — wallet/auth + payouts/escrow coordination (not Stripe-first)
+1. **Person texts the Linq Number**
+2. **One LLM triage** → `ai` | `peer` | `expert`
+3. **AI** answers in-thread (free) and suggests a related follow-up
+4. **Peer** → quote → sandbox escrow → broadcast to seeded peers → claim → deliver → approve → sandbox payout + credit
+5. **Expert** → Terac draft quote → explicit confirm → launch → poll submissions → approve → sandbox pay (billed on approval)
+6. Persist chat ↔ job ↔ opportunity/assignee ↔ payment IDs
 
 ## Channel rules (Linq / Apple)
 
 iMessage is **conversational and peer-to-peer**. Build two-way agent dialogues.
 
 **Do not build:**
-- One-way blast lists
-- Cold outbound marketing
-- Reminder/notification-only flows with no expected reply
-- Any non-opted-in outreach that risks flagging the Linq Number
+- One-way blast lists / cold outbound marketing
+- Reminder-only flows with no expected reply
+- Non-opted-in outreach that risks flagging the Linq Number
+
+Peer claim pings go only to **seeded peers who already texted the line** (inbound-first).
 
 Prefer: listen → clarify → act → confirm → reply on the same thread.
 
@@ -35,20 +37,22 @@ Prefer: listen → clarify → act → confirm → reply on the same thread.
 
 | Concern | System | Code home |
 |---------|--------|-----------|
-| Messaging (inbound/outbound, reactions, typing, webhooks) | Linq | `libs/linq/`, `app/api/linq/`, webhook routes |
+| Messaging (inbound/outbound, reactions, typing, webhooks) | Linq | `libs/linq/`, `app/api/linq/` |
 | Expert labor (opportunities, submissions, review) | Terac | `libs/terac/`, `app/api/terac/` |
-| Wallets / payments coordination | Dynamic | `libs/dynamic/`, `components/dynamic/` |
-| Persistence (jobs, chats, users, payment state) | Supabase | `db/`, `supabase/migrations/`, `utils/supabase/` |
+| Seeded peer marketplace + credits | Cascade | `db/users`, `db/ledger`, `libs/agent/handle-peer-turn.ts` |
+| Wallets / sandbox escrow + payout | Dynamic | `libs/dynamic/`, `components/dynamic/` |
+| Persistence | Supabase | `db/`, `supabase/migrations/`, `utils/schema/` |
 
 ## Agent behavior defaults
 
-- Confirm **cost and scope** in chat before launching Terac opportunities (drafts are free; launch spends budget)
+- Confirm **cost and scope** before launching Terac or spending peer escrow
 - Keep the human in the loop for hire / reject / pay decisions
-- Persist chat ↔ job ↔ opportunity ↔ payment IDs so threads are resumable
-- Never put API secrets in client components — server routes / server actions only
+- Dynamic is **sandbox / Base Sepolia only** — never mainnet or real USD
+- Never put API secrets in client components
 
 ## Out of scope (unless user asks)
 
-- Replacing Terac with a custom expert marketplace
-- Using Stripe as the primary payment rail (Dynamic is primary; Stripe may remain unused scaffold)
+- Replacing Terac experts with a public custom expert marketplace (seeded peers are allowed)
+- Stripe or Linq Agent Pay as the primary rail
 - Mass SMS campaigns
+- Mainnet / real-dollar payments
