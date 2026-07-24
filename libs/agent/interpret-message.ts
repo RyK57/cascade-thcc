@@ -9,8 +9,10 @@ const DECLINE_PATTERN =
 const STATUS_PATTERN =
   /\b(status|progress|update|any news|how'?s it going|where are we|eta)\b/;
 
+// "balance" is the customer-facing wording; "credits" is kept so older
+// threads and anyone who learned the original phrasing still work.
 const PAY_CREDITS_PATTERN =
-  /\b(pay (with |in )?credits?|use credits?|credits? please)\b/;
+  /\b(pay (with |in |from )?(credits?|balance)|use (credits?|balance)|(credits?|balance) please)\b/;
 
 export function interpretMessage(text: string): AgentIntent {
   const normalized = text.trim().toLowerCase();

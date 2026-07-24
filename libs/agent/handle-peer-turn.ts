@@ -164,7 +164,7 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
       return {
         action: AGENT_ACTION.paymentPending,
         reply: agentPayOfferReply(
-          "Agent Pay unavailable in this sandbox — use the Cascade wallet link."
+          "Agent Pay isn't available right now — use the Cascade wallet link."
         ),
       };
     }
@@ -186,7 +186,7 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
     if (requester.creditBalance < priceCredits) {
       return {
         action: AGENT_ACTION.paymentPending,
-        reply: `Not enough credits (${requester.creditBalance}/${priceCredits}). ${paymentPendingReply(getPayUrl(job.id))}`,
+        reply: `Not enough balance (${requester.creditBalance}/${priceCredits}). ${paymentPendingReply(getPayUrl(job.id))}`,
       };
     }
 
@@ -292,7 +292,7 @@ async function handlePeerFunded(turn: PeerTurn): Promise<PeerOutcome> {
         });
         if (claimed) {
           await syncJobHud(claimed, HUD_STAGE.claimed);
-          const wonReply = `You won the second-price auction at ${clear.priceCredits} credits. ${peerClaimedPeerReply(job.title)}`;
+          const wonReply = `You won the auction at ${clear.priceCredits}. ${peerClaimedPeerReply(job.title)}`;
 
           if (clear.winnerUserId === peer.id) {
             return { action: AGENT_ACTION.claimed, reply: wonReply };
@@ -311,14 +311,14 @@ async function handlePeerFunded(turn: PeerTurn): Promise<PeerOutcome> {
 
           return {
             action: AGENT_ACTION.statusReported,
-            reply: `Bid recorded (${bidMatch[1]} credits) — another peer bid lower and took this one. We'll ping you on the next match.`,
+            reply: `Bid recorded (${bidMatch[1]}) — someone bid lower and took this one. We'll ping you on the next match.`,
           };
         }
       }
     }
     return {
       action: AGENT_ACTION.statusReported,
-      reply: `Bid recorded (${bidMatch[1]} credits). Waiting for a second bid to clear second-price, or tapback ❤️ to race-claim.`,
+      reply: `Bid recorded (${bidMatch[1]}). Waiting on a second bid to clear the auction, or tapback ❤️ to claim it outright.`,
     };
   }
 
