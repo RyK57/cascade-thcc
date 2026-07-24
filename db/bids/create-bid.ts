@@ -5,13 +5,39 @@ export interface JobBid {
   jobId: string;
   peerUserId: string;
   bidCredits: number;
+  /** Chat the bid arrived on — becomes the winner's claim chat. */
+  chatId?: string;
   createdAt: string;
+}
+
+const BID_COLUMNS =
+  "id, job_id, peer_user_id, bid_credits, chat_id, created_at";
+
+interface JobBidRow {
+  id: string;
+  job_id: string;
+  peer_user_id: string;
+  bid_credits: number;
+  chat_id: string | null;
+  created_at: string;
+}
+
+function mapBidRow(row: JobBidRow): JobBid {
+  return {
+    id: row.id,
+    jobId: row.job_id,
+    peerUserId: row.peer_user_id,
+    bidCredits: row.bid_credits,
+    chatId: row.chat_id ?? undefined,
+    createdAt: row.created_at,
+  };
 }
 
 export async function upsertJobBid(params: {
   jobId: string;
   peerUserId: string;
   bidCredits: number;
+  chatId?: string;
 }): Promise<JobBid> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -21,46 +47,43 @@ export async function upsertJobBid(params: {
         job_id: params.jobId,
         peer_user_id: params.peerUserId,
         bid_credits: params.bidCredits,
+        chat_id: params.chatId,
       },
       { onConflict: "job_id,peer_user_id" }
     )
-    .select("id, job_id, peer_user_id, bid_credits, created_at")
-    .single();
+    .select(BID_COLUMNS)
+    .single<JobBidRow>();
 
   if (error || !data) {
     throw new Error(error?.message ?? "Failed to upsert bid");
   }
 
-  return {
-    id: data.id,
-    jobId: data.job_id,
-    peerUserId: data.peer_user_id,
-    bidCredits: data.bid_credits,
-    createdAt: data.created_at,
-  };
+  return mapBidRow(data);
 }
 
 export async function listJobBids(jobId: string): Promise<JobBid[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("job_bids")
-    .select("id, job_id, peer_user_id, bid_credits, created_at")
+    .select(BID_COLUMNS)
     .eq("job_id", jobId)
     .order("bid_credits", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    jobId: row.job_id,
-    peerUserId: row.peer_user_id,
-    bidCredits: row.bid_credits,
-    createdAt: row.created_at,
-  }));
+  return ((data ?? []) as JobBidRow[]).map(mapBidRow);
 }
 
-/** Second-price: winner is lowest bid; pays min(secondLowest, floor). */
+/**
+ * Reverse Vickrey clear: the lowest bidder wins and is paid the second-lowest
+ * bid, floored at `floorCredits`. Paying the second price is what makes bidding
+ * your true cost optimal — clamping the payment to the winner's own bid would
+ * make this a first-price auction and remove that property.
+ *
+ * With a single bid there is no second price, so the winner's own bid stands in.
+ */
 export function secondPriceClear(bids: JobBid[], floorCredits: number): {
   winnerUserId: string;
+  winnerBid: JobBid;
   priceCredits: number;
 } | null {
   if (!bids.length) return null;
@@ -69,6 +92,7 @@ export function secondPriceClear(bids: JobBid[], floorCredits: number): {
   const second = sorted[1]?.bidCredits ?? winner.bidCredits;
   return {
     winnerUserId: winner.peerUserId,
-    priceCredits: Math.max(floorCredits, Math.min(second, winner.bidCredits + 1)),
+    winnerBid: winner,
+    priceCredits: Math.max(floorCredits, second),
   };
 }

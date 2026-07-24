@@ -275,22 +275,44 @@ async function handlePeerFunded(turn: PeerTurn): Promise<PeerOutcome> {
       jobId: job.id,
       peerUserId: peer.id,
       bidCredits: Number(bidMatch[1]),
+      chatId,
     });
     const bids = await listJobBids(job.id);
     if (bids.length >= 2) {
-      const floor = Math.max(1, Math.ceil((job.priceUsdCents ?? 1200) / 200));
+      const floor = Math.max(1, Math.ceil((job.priceUsdCents || 1200) / 200));
       const clear = secondPriceClear(bids, floor);
-      if (clear && clear.winnerUserId === peer.id) {
+      // Award to the lowest bidder, not merely to whoever bid last. Gating on
+      // `winnerUserId === peer.id` stalled every ordering where the lowest bid
+      // wasn't the most recent one.
+      if (clear) {
+        const winnerChatId = clear.winnerBid.chatId ?? chatId;
         const claimed = await claimJob({
           jobId: job.id,
-          assigneeUserId: peer.id,
-          claimChatId: chatId,
+          assigneeUserId: clear.winnerUserId,
+          claimChatId: winnerChatId,
         });
         if (claimed) {
           await syncJobHud(claimed, HUD_STAGE.claimed);
+          const wonReply = `You won the second-price auction at ${clear.priceCredits} credits. ${peerClaimedPeerReply(job.title)}`;
+
+          if (clear.winnerUserId === peer.id) {
+            return { action: AGENT_ACTION.claimed, reply: wonReply };
+          }
+
+          // The winner bid earlier in a different thread — tell them there.
+          try {
+            await sendChatMessage({
+              chatId: winnerChatId,
+              text: wonReply,
+              idempotencyKey: `bid-win-${job.id}-${clear.winnerUserId}`,
+            });
+          } catch (error) {
+            console.warn("Failed to notify auction winner", error);
+          }
+
           return {
-            action: AGENT_ACTION.claimed,
-            reply: `You won the second-price auction at ${clear.priceCredits} credits. ${peerClaimedPeerReply(job.title)}`,
+            action: AGENT_ACTION.statusReported,
+            reply: `Bid recorded (${bidMatch[1]} credits) — another peer bid lower and took this one. We'll ping you on the next match.`,
           };
         }
       }
