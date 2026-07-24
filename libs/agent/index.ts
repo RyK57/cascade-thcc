@@ -30,6 +30,11 @@ export {
 } from "./routing-ev";
 export { runAgentTurn } from "./run-agent-turn";
 export { settlePayment } from "./settle-payment";
+export {
+  formatTexterLocation,
+  resolveTexterLocation,
+  type TexterLocation,
+} from "./texter-location";
 export { HUD_STAGE, syncJobHud, type HudStage } from "./status-hud";
 export { triageJob } from "./triage";
 export {
