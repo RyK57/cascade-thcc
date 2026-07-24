@@ -1,18 +1,25 @@
-import { BRAND } from "@/lib/constants/branding";
+"use client";
+
+import { motion, useReducedMotion } from "framer-motion";
+import { HERO } from "./hero-data";
 
 export function HeroHeading() {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div className="space-y-4 text-center">
-      <p className="font-secondary text-5xl leading-tight sm:text-6xl md:text-7xl">
-        {BRAND.name}
-      </p>
-      <h1 className="text-xl font-medium sm:text-2xl md:text-3xl">
-        {BRAND.tagline}
+    <motion.div
+      className="mx-auto max-w-3xl space-y-6 text-center"
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <h1 className="font-secondary text-5xl leading-[1.05] tracking-tight text-foreground sm:text-6xl md:text-7xl">
+        {HERO.headlineLead}{" "}
+        <span className="text-brand-accent">{HERO.headlineAccent}</span>
       </h1>
-      <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
-        Hackathon starter with Linq, Terac, and Dynamic wired into the prototype
-        template stack.
+      <p className="mx-auto max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+        {HERO.support}
       </p>
-    </div>
+    </motion.div>
   );
 }

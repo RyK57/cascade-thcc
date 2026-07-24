@@ -1,16 +1,35 @@
+"use client";
+
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/constants/routes";
+import { HERO } from "./hero-data";
 
 export function HeroCta() {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-      <Button size="lg" className="gap-2">
-        Start prototype
-        <ArrowRight className="size-4" />
+    <motion.div
+      className="flex flex-col items-center justify-center gap-3 sm:flex-row"
+      initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.5,
+        delay: reduceMotion ? 0 : 0.1,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    >
+      <Button size="xl" asChild>
+        <Link href={ROUTES.main}>
+          {HERO.primaryCta}
+          <ArrowRight data-icon="inline-end" className="size-4" />
+        </Link>
       </Button>
-      <Button size="lg" variant="outline">
-        View docs
+      <Button size="xl" variant="outline" asChild>
+        <Link href="#how-it-works">{HERO.secondaryCta}</Link>
       </Button>
-    </div>
+    </motion.div>
   );
 }
