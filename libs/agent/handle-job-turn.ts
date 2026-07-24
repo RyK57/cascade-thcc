@@ -24,6 +24,8 @@ export interface JobTurn {
   triage?: TriageResult;
   /** Earlier turns on this thread, oldest first. Excludes `text`. */
   history?: ConversationTurn[];
+  /** Approximate texter location for this turn, when known. */
+  locationContext?: string;
 }
 
 export interface JobTurnOutcome {
@@ -147,6 +149,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
       description,
       latestMessage: turn.text,
       history: turn.history,
+      locationContext: turn.locationContext,
     });
     await updateJob(job.id, {
       status: JOB_STATUS.paid,
@@ -162,7 +165,9 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   }
 
   if (triage.tier === JOB_TIER.peer) {
-    if (needsLocationHint(turn.text)) {
+    // Ask for a share when the brief is local and we still have no coords —
+    // peer ranking uses requesterLat/Lng when present.
+    if (needsLocationHint(turn.text) && !turn.locationContext) {
       try {
         await requestLocation(turn.chatId);
       } catch (error) {

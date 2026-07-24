@@ -19,6 +19,7 @@ Hard rules:
 - "Have someone test/text my signup on a real phone" → peer even if URL/code is messy; put whatever they gave in job_summary.
 - needs_clarification=true ONLY when the task is impossible without ONE missing fact (e.g. no phone number at all for a "text this number" job). Never ask follow-up interviews. Never ask genre/mood/stage chains.
 - Earlier messages from this iMessage thread come before the latest one. Classify the LATEST request in thread context: a short follow-up ("make it usage-based", "the second one") continues the previous task; job_summary should reflect the whole request.
+- When a texter location is provided, prefer peer for nearby/local errands and put that location context into job_summary when it matters.
 - Always call route_job.`;
 
 const triageTool = {
@@ -74,6 +75,8 @@ export interface TriageJobInput {
   alreadyClarified?: boolean;
   /** Prior turns from job_messages, oldest-first. */
   history?: ConversationTurn[];
+  /** Texter location when known — use for local / nearby routing. */
+  locationContext?: string;
 }
 
 /**
@@ -85,9 +88,16 @@ export async function triageJob(input: TriageJobInput | string): Promise<TriageR
     typeof input === "string" ? { text: input } : input;
   const text = params.text.trim();
   const prior = params.priorContext?.trim();
-  const prompt = prior
-    ? `Prior context:\n${prior}\n\nLatest message:\n${text}`
-    : text;
+  const location = params.locationContext?.trim();
+  const parts: string[] = [];
+  if (prior) parts.push(`Prior context:\n${prior}`);
+  if (location) {
+    parts.push(
+      `Texter location (approximate — use for local/nearby tasks, do not invent a street address):\n${location}`
+    );
+  }
+  parts.push(prior || location ? `Latest message:\n${text}` : text);
+  const prompt = parts.join("\n\n");
 
   const heuristic = heuristicTriage(prompt);
 

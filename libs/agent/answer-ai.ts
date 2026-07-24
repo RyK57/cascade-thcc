@@ -13,6 +13,7 @@ Rules:
 - Do NOT ask clarifying questions. Make reasonable assumptions and state them in one short line if needed.
 - Earlier messages from this thread come first — the same person you are replying to now. Treat a short follow-up as a continuation.
 - If the user pasted content (a poem, draft, list), it is in the conversation — never claim it is missing or cut off.
+- When a texter location is provided, use it for nearby / local recommendations and logistics. Never claim you lack their location if it is present. Do not invent a precise street address from coordinates alone.
 - End with a useful answer, not a question.`;
 
 export async function answerAiTask(params: {
@@ -22,14 +23,20 @@ export async function answerAiTask(params: {
   latestMessage?: string;
   /** Prior turns from job_messages. */
   history?: ConversationTurn[];
+  /** Approximate texter location when known. */
+  locationContext?: string;
 }): Promise<AiAnswerResult> {
   const latest = params.latestMessage?.trim();
   const conversation =
     latest && !params.description.includes(latest)
       ? `${params.description}\n\nUser: ${latest}`
       : params.description;
+  const location = params.locationContext?.trim();
+  const locationBlock = location
+    ? `\n\nTexter location (approximate):\n${location}`
+    : "";
 
-  const task = `Task: ${params.title}\n\nConversation so far:\n${conversation}`;
+  const task = `Task: ${params.title}${locationBlock}\n\nConversation so far:\n${conversation}`;
   const messages = appendUserTurn(params.history ?? [], task);
 
   let answer: string | undefined;

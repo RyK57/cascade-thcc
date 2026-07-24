@@ -16,6 +16,7 @@ import {
   setTyping,
   type InboundLinqEvent,
 } from "@/libs/linq";
+import { needsLocationHint, requestLocation } from "@/libs/linq/location";
 import { captionImage, isRunwareConfigured } from "@/libs/runware";
 import { JOB_STATUS, type Job } from "@/utils/schema/job";
 import { USER_ROLE } from "@/utils/schema/user";
@@ -27,6 +28,10 @@ import {
 } from "./handle-job-turn";
 import { interpretMessage } from "./interpret-message";
 import { errorReply } from "./reply-templates";
+import {
+  formatTexterLocation,
+  resolveTexterLocation,
+} from "./texter-location";
 import { triageJob } from "./triage";
 import {
   AGENT_ACTION,
@@ -131,6 +136,28 @@ export async function runAgentTurn(
     // the live request lands last. A job created just now has nothing to replay.
     const history = resolved.job ? await loadHistory(job.id) : [];
 
+    // Resolve texter location before triage/answers so routing and AI see it.
+    const texterLocation = await resolveTexterLocation({
+      chatId,
+      phone: senderHandle,
+      job,
+    }).catch((error) => {
+      console.warn("[cascade] resolve texter location failed", error);
+      return null;
+    });
+    const locationContext = texterLocation
+      ? formatTexterLocation(texterLocation)
+      : undefined;
+
+    // Soft ask when the brief is local and we still have no coords.
+    if (!locationContext && needsLocationHint(text)) {
+      try {
+        await requestLocation(chatId);
+      } catch (error) {
+        console.warn("[cascade] location request failed", error);
+      }
+    }
+
     const isNewMessage = await recordJobMessage({
       jobId: job.id,
       linqMessageId: messageId,
@@ -160,6 +187,7 @@ export async function runAgentTurn(
             priorContext: job.description,
             alreadyClarified: isAwaitingClarification(job.triageReason),
             history,
+            locationContext,
           })
         : undefined;
       ({ action, reply, effect } = await handleJobTurn({
@@ -171,6 +199,7 @@ export async function runAgentTurn(
         chatId,
         triage,
         history,
+        locationContext,
       }));
     } catch (error) {
       console.error("Job turn failed:", error);
