@@ -17,7 +17,11 @@ import {
 import { captionImage, isRunwareConfigured } from "@/libs/runware";
 import { JOB_STATUS, type Job } from "@/utils/schema/job";
 import { USER_ROLE } from "@/utils/schema/user";
-import { clipTitle, handleJobTurn } from "./handle-job-turn";
+import {
+  clipTitle,
+  handleJobTurn,
+  isAwaitingClarification,
+} from "./handle-job-turn";
 import { interpretMessage } from "./interpret-message";
 import { errorReply } from "./reply-templates";
 import { triageJob } from "./triage";
@@ -125,7 +129,13 @@ export async function runAgentTurn(
     let effect: "confetti" | undefined;
 
     try {
-      const triage = needsTriage ? await triageJob(text) : undefined;
+      const triage = needsTriage
+        ? await triageJob({
+            text,
+            priorContext: job.description,
+            alreadyClarified: isAwaitingClarification(job.triageReason),
+          })
+        : undefined;
       ({ action, reply, effect } = await handleJobTurn({
         job,
         intent,
