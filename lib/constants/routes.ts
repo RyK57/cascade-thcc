@@ -2,6 +2,7 @@ export const ROUTES = {
   home: "/",
   main: "/main",
   internal: "/internal",
+  job: (jobId: string) => `/job/${jobId}` as const,
   auth: {
     login: "/auth/login",
     signUp: "/auth/sign-up",
@@ -19,6 +20,7 @@ export const ROUTES = {
     jobs: "/api/jobs",
     agentWallet: "/api/agent-wallet",
     internalSeedDemoJob: "/api/internal/seed-demo-job",
+    internalDemoMetrics: "/api/internal/demo-metrics",
   },
 } as const;
 

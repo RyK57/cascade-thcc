@@ -108,7 +108,9 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     avgPeerTrust: avgTrust || 70,
   });
 
-  const routeLine = `${routingReply(triage.tier, triage.reason)}\n${evLine}`;
+  job = await updateJob(job.id, { evSummary: evLine });
+  // Card-first: HUD carries EV/stage; chat stays short.
+  const routeLine = `${routingReply(triage.tier, triage.reason)}`;
 
   if (triage.tier === JOB_TIER.ai) {
     const { answer } = await answerAiTask({
@@ -118,6 +120,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     let done = await updateJob(job.id, {
       status: JOB_STATUS.paid,
       priceUsdCents: 0,
+      evSummary: evLine,
     });
     done = await syncJobHud(done, HUD_STAGE.answered);
     return {
@@ -138,14 +141,14 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     const quoted = await quotePeerJob(job);
     return {
       ...quoted,
-      reply: `${routeLine}\n\n${quoted.reply}`,
+      reply: `${routeLine}\n❤️ approve after funding · 👎 reject`,
     };
   }
 
   const drafted = await draftExpertJob(job);
   return {
     ...drafted,
-    reply: `${routeLine}\n\n${drafted.reply}`,
+    reply: `${routeLine}\n❤️ launch Terac · 👎 revise`,
   };
 }
 

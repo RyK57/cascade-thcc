@@ -29,6 +29,7 @@ export async function updateJob(
       funded_via: parsed.fundedVia,
       claim_chat_id: parsed.claimChatId,
       triage_reason: parsed.triageReason,
+      ev_summary: parsed.evSummary,
       wallet_refuse_count: parsed.walletRefuseCount,
       requester_lat: parsed.requesterLat,
       requester_lng: parsed.requesterLng,

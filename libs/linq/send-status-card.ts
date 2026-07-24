@@ -7,6 +7,7 @@ import { withRetryAfter } from "./rate-limit";
 export interface StatusCardLayout {
   caption: string;
   subcaption?: string;
+  trailingCaption?: string;
   imageUrl?: string;
 }
 
@@ -23,6 +24,7 @@ export interface SendStatusCardParams {
 function formatPlainStatus(layout: StatusCardLayout, fallbackText: string): string {
   const lines = [layout.caption];
   if (layout.subcaption) lines.push(layout.subcaption);
+  if (layout.trailingCaption) lines.push(layout.trailingCaption);
   lines.push(fallbackText);
   return lines.join("\n");
 }
@@ -40,6 +42,15 @@ function getIMessageAppConfig():
   };
 }
 
+function cardLayout(layout: StatusCardLayout) {
+  return {
+    caption: layout.caption,
+    subcaption: layout.subcaption,
+    trailing_caption: layout.trailingCaption,
+    image_url: layout.imageUrl,
+  };
+}
+
 /**
  * Prefer plain-text status lines (no Apple Messages extension required).
  * When CASCADE_IMESSAGE_* env is set and the handle supports iMessage,
@@ -52,6 +63,7 @@ export async function sendStatusCard(
   const app = getIMessageAppConfig();
   const supports =
     app && params.handle ? await checkIMessage(params.handle) : false;
+  const url = params.url ?? `https://cascade.local/job`;
 
   if (!app || !supports) {
     const sent = await sendChatMessage({
@@ -76,18 +88,14 @@ export async function sendStatusCard(
             parts: [
               {
                 type: "imessage_app",
-                url: params.url ?? `https://cascade.local/job`,
+                url,
                 fallback_text: params.fallbackText,
                 app: {
                   bundle_id: app.bundleId,
                   team_id: app.teamId,
                   name: app.name,
                 },
-                layout: {
-                  caption: params.layout.caption,
-                  subcaption: params.layout.subcaption,
-                  image_url: params.layout.imageUrl,
-                },
+                layout: cardLayout(params.layout),
               },
             ],
           },
@@ -117,6 +125,7 @@ export async function updateStatusCard(params: {
   layout: StatusCardLayout;
   fallbackText: string;
   wasCard: boolean;
+  url?: string;
 }): Promise<{ messageId: string; usedCard: boolean }> {
   if (!params.wasCard) {
     return sendStatusCard({
@@ -124,19 +133,16 @@ export async function updateStatusCard(params: {
       handle: params.handle,
       layout: params.layout,
       fallbackText: params.fallbackText,
+      url: params.url,
     });
   }
 
   try {
     const client = createLinqClient();
     const updated = await client.messages.updateAppCard(params.previousMessageId, {
-      url: `https://cascade.local/job`,
+      url: params.url ?? `https://cascade.local/job`,
       fallback_text: params.fallbackText,
-      layout: {
-        caption: params.layout.caption,
-        subcaption: params.layout.subcaption,
-        image_url: params.layout.imageUrl,
-      },
+      layout: cardLayout(params.layout),
     });
     return {
       messageId:
@@ -152,6 +158,7 @@ export async function updateStatusCard(params: {
       handle: params.handle,
       layout: params.layout,
       fallbackText: params.fallbackText,
+      url: params.url,
     });
   }
 }

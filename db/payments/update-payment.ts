@@ -7,6 +7,8 @@ const updatePaymentSchema = z
   .object({
     escrowTxHash: z.string().min(1).optional(),
     dynamicWalletAddress: z.string().min(1).optional(),
+    escrowHeldAt: z.string().optional(),
+    escrowReleasedAt: z.string().optional(),
   })
   .partial();
 
@@ -24,6 +26,8 @@ export async function updatePayment(
     .update({
       escrow_tx_hash: parsed.escrowTxHash,
       dynamic_wallet_address: parsed.dynamicWalletAddress,
+      escrow_held_at: parsed.escrowHeldAt,
+      escrow_released_at: parsed.escrowReleasedAt,
       updated_at: new Date().toISOString(),
     })
     .eq("id", paymentId)
