@@ -1,6 +1,10 @@
 import { listJobBids, secondPriceClear, upsertJobBid } from "@/db/bids";
 import { claimJob, clearAssigneeAndReopen, updateJob } from "@/db/jobs";
-import { createPayment, getPaymentByJobId, updatePayment } from "@/db/payments";
+import {
+  claimEscrowRelease,
+  createPayment,
+  getPaymentByJobId,
+} from "@/db/payments";
 import {
   adjustCredits,
   getUserByIdAdmin,
@@ -14,6 +18,7 @@ import {
 } from "@/libs/dynamic/agent-wallet";
 import { payWorkerUsdc } from "@/libs/dynamic/pay-worker";
 import { ensurePhoneWallet } from "@/libs/dynamic/phone-wallet";
+import { explorerTxUrl } from "@/libs/dynamic/sandbox";
 import { payoutFromTreasury } from "@/libs/dynamic/treasury";
 import {
   createAgentPayRequest,
@@ -215,6 +220,21 @@ export async function markPeerFunded(
   job: Job,
   explorerUrl?: string
 ): Promise<PeerOutcome> {
+  // Already past fund — do not rebroadcast or rewrite status.
+  if (
+    job.status === JOB_STATUS.funded ||
+    job.status === JOB_STATUS.claimed ||
+    job.status === JOB_STATUS.delivered ||
+    job.status === JOB_STATUS.approved ||
+    job.status === JOB_STATUS.paid
+  ) {
+    const base = peerFundedReply(job.title);
+    return {
+      action: AGENT_ACTION.funded,
+      reply: explorerUrl ? `${base}\n${explorerUrl}` : base,
+    };
+  }
+
   let funded = await updateJob(job.id, {
     status: JOB_STATUS.funded,
     fundedVia: job.fundedVia ?? FUNDED_VIA.wallet,
@@ -431,6 +451,42 @@ async function handlePeerApproved(turn: PeerTurn): Promise<PeerOutcome> {
 }
 
 export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
+  const payment = await getPaymentByJobId(job.id).catch(() => null);
+
+  // Idempotent: iMessage approve + Mission Control release must not double-pay.
+  if (job.status === JOB_STATUS.paid || payment?.escrowReleasedAt) {
+    const explorerUrl = payment?.escrowTxHash
+      ? explorerTxUrl(payment.escrowTxHash)
+      : "sandbox payout already sent";
+    return {
+      action: AGENT_ACTION.paid,
+      reply: peerPaidReply(explorerUrl),
+      effect: "confetti",
+    };
+  }
+
+  // Claim the release slot before any on-chain transfer (CAS on escrow_released_at).
+  if (payment) {
+    const claimed = await claimEscrowRelease(payment.id).catch((error) => {
+      console.warn("[cascade] claimEscrowRelease failed", error);
+      return null;
+    });
+    if (!claimed) {
+      const latest = await getPaymentByJobId(job.id).catch(() => payment);
+      const explorerUrl = latest?.escrowTxHash
+        ? explorerTxUrl(latest.escrowTxHash)
+        : "sandbox payout already sent";
+      if (job.status !== JOB_STATUS.paid) {
+        await updateJob(job.id, { status: JOB_STATUS.paid }).catch(() => undefined);
+      }
+      return {
+        action: AGENT_ACTION.paid,
+        reply: peerPaidReply(explorerUrl),
+        effect: "confetti",
+      };
+    }
+  }
+
   const amount = job.priceUsdCents ?? job.quotedTotalCents ?? 0;
   const assignee = job.assigneeUserId
     ? await getUserByIdAdmin(job.assigneeUserId)
@@ -473,15 +529,6 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
       jobId: job.id,
       reason: "peer_job_completed",
     });
-  }
-
-  const payment = await getPaymentByJobId(job.id).catch(() => null);
-  if (payment) {
-    await updatePayment(payment.id, {
-      escrowReleasedAt: new Date().toISOString(),
-    }).catch((error) =>
-      console.warn("[cascade] failed to stamp escrow_released_at", error)
-    );
   }
 
   let paid = await updateJob(job.id, { status: JOB_STATUS.paid });
