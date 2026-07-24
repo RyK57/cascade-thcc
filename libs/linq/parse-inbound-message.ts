@@ -25,6 +25,7 @@ export interface InboundLinqReaction {
 export type InboundLinqEvent = InboundLinqMessage | InboundLinqReaction;
 
 const AFFIRM_REACTIONS = new Set(["love", "like"]);
+const DECLINE_REACTIONS = new Set(["dislike"]);
 
 function getLinqWebhookSecret(): string | undefined {
   return process.env.LINQ_WEBHOOK_SECRET?.trim() || undefined;
@@ -41,8 +42,7 @@ function unwrapEvent(
 }
 
 /**
- * Parses a Linq webhook request into an inbound text message or affirming
- * reaction, or null for events the agent ignores.
+ * Parses a Linq webhook into inbound text or an affirm/decline tapback.
  */
 export function parseInboundMessage(
   body: string,
@@ -64,8 +64,12 @@ export function parseInboundMessage(
       AFFIRM_REACTIONS.has(reactionType) ||
       (reactionType === "custom" &&
         Boolean(data.custom_emoji && /❤️|👍|✔|✅/.test(data.custom_emoji)));
+    const isDecline =
+      DECLINE_REACTIONS.has(reactionType) ||
+      (reactionType === "custom" &&
+        Boolean(data.custom_emoji && /👎|❌|❎/.test(data.custom_emoji)));
 
-    if (!isAffirm) return null;
+    if (!isAffirm && !isDecline) return null;
 
     return {
       kind: "reaction",
@@ -75,7 +79,7 @@ export function parseInboundMessage(
       senderHandle,
       reactionType,
       reactionId: `reaction:${event.event_id}`,
-      isAffirm: true,
+      isAffirm,
     };
   }
 

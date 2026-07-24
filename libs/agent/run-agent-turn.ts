@@ -8,6 +8,7 @@ import {
   recordJobMessage,
 } from "@/db/jobs";
 import { getUserByPhone } from "@/db/users";
+import { ensurePhoneWallet } from "@/libs/dynamic/phone-wallet";
 import {
   sendChatMessage,
   setTyping,
@@ -39,7 +40,9 @@ export async function runAgentTurn(
     inbound.kind === "reaction" ? inbound.reactionId : inbound.messageId;
   const text =
     inbound.kind === "reaction"
-      ? "yes"
+      ? inbound.isAffirm
+        ? "yes"
+        : "no"
       : inbound.text;
 
   let typingStarted = false;
@@ -51,9 +54,18 @@ export async function runAgentTurn(
   }
 
   try {
+    // Pregenerate sandbox wallet on first inbound phone.
+    try {
+      await ensurePhoneWallet(senderHandle);
+    } catch (error) {
+      console.warn("[cascade] ensurePhoneWallet failed", error);
+    }
+
     const intent =
       inbound.kind === "reaction"
-        ? AGENT_INTENT.affirm
+        ? inbound.isAffirm
+          ? AGENT_INTENT.affirm
+          : AGENT_INTENT.decline
         : interpretMessage(text);
 
     const resolved = await resolveJob({

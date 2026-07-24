@@ -28,20 +28,25 @@ export function peerQuoteReply(params: {
     `Peer quote for "${params.title}": ${price} sandbox USDC.${trust}`,
     `Fastest way to pay: your Cascade wallet — takes 20 seconds, just your email, no seed phrase, and payouts you earn land there instantly.`,
     `Pay here: ${params.payUrl}`,
-    `Or reply "pay with credits" if you have enough. Tapback ❤️ / reply YES after funding confirms.`,
+    `Or reply "pay with credits" if you have enough.`,
+    `Tapback ❤️ to approve after funding — 👎 to reject.`,
   ].join("\n");
 }
 
-export function peerFundedReply(title: string): string {
-  return `Escrow funded for "${title}" (sandbox). Broadcasting to Cascade peers — first tapback claims it.`;
+export function peerFundedReply(title: string, evLine?: string): string {
+  const race =
+    `Escrow funded for "${title}" (sandbox). Broadcasting to Cascade peers — first tapback ❤️ claims it (reputation + EV matter).`;
+  return evLine ? `${race}\n${evLine}` : race;
 }
 
 export function peerClaimBroadcast(params: {
   title: string;
   priceCents: number;
   trustScore: number;
+  priorityHint?: string;
 }): string {
-  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} sandbox USDC • your trust ${params.trustScore}. Tapback ❤️ or reply YES to claim.`;
+  const priority = params.priorityHint ? ` ${params.priorityHint}` : "";
+  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} sandbox USDC • your trust ${params.trustScore}.${priority} Tapback ❤️ / YES to claim, or text "bid N" credits for a second-price auction.`;
 }
 
 export function peerClaimedRequesterReply(peerName: string): string {
@@ -53,11 +58,15 @@ export function peerClaimedPeerReply(title: string): string {
 }
 
 export function peerDeliveredRequesterReply(): string {
-  return `Deliverable in — reply YES / tapback ❤️ to approve (sandbox payout fires instantly), or NO to reject.`;
+  return `Deliverable in — tapback ❤️ / YES to approve (sandbox payout fires instantly), or 👎 / NO to reject.`;
 }
 
 export function peerPaidReply(explorerUrl: string): string {
   return `Approved + sandbox payout sent. ${explorerUrl}`;
+}
+
+export function fundedExplorerReply(explorerUrl: string): string {
+  return `Sandbox escrow recorded: ${explorerUrl}`;
 }
 
 export function draftReadyReply(params: {
@@ -65,13 +74,15 @@ export function draftReadyReply(params: {
   numParticipants: number;
   totalCents?: number;
   currency?: string;
+  roleLabel?: string;
 }): string {
-  const experts = `${params.numParticipants} verified expert${params.numParticipants === 1 ? "" : "s"}`;
+  const role = params.roleLabel ?? "verified expert";
+  const experts = `${params.numParticipants} ${role}${params.numParticipants === 1 ? "" : "s"}`;
   const cost =
     params.totalCents !== undefined
       ? `${formatCents(params.totalCents, params.currency)}`
       : "quoting…";
-  return `Expert quote for "${params.title}" — ${experts} • ${cost} • tapback ❤️ or reply YES to launch (drafts are free; launch spends). Billed on approval.`;
+  return `Expert quote for "${params.title}" — ${experts} • ${cost} • tapback ❤️ / YES to launch (drafts are free; launch spends), 👎 to hold. Billed on approval.`;
 }
 
 export function teracUnavailableReply(title: string): string {
@@ -117,8 +128,21 @@ export function paymentPendingReply(payUrl: string): string {
   return `Sandbox payment still pending: ${payUrl}`;
 }
 
-export function paidReply(): string {
-  return `Sandbox payment settled — you're set. Text ${BRAND.name} another task anytime.`;
+export function paidReply(explorerUrl?: string): string {
+  const link = explorerUrl ? ` ${explorerUrl}` : "";
+  return `Sandbox payment settled.${link} Text ${BRAND.name} another task anytime.`;
+}
+
+export function agentPayOfferReply(checkoutHint: string): string {
+  return [
+    `Got it — wallet path declined twice.`,
+    `Fallback: Linq Agent Pay (Apple Pay in-thread). ${checkoutHint}`,
+    `Note: wallet users skip fees and get escrow + instant payouts.`,
+  ].join("\n");
+}
+
+export function claimEvLine(expectedValueCredits: number): string {
+  return `Claim EV now ≈ ${expectedValueCredits.toFixed(1)} credits (higher trust peers see this first).`;
 }
 
 export function fundedViaCreditsReply(title: string): string {
