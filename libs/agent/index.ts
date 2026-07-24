@@ -1,9 +1,18 @@
+export { answerAiTask } from "./answer-ai";
+export { broadcastJobToPeers } from "./broadcast-peers";
 export { markMessageSeen, seenMessage } from "./dedupe";
 export {
   handleInbound,
   type HandleInboundResult,
 } from "./handle-inbound";
+export { draftExpertJob, handleExpertTurn, pollExpertSubmissions } from "./handle-expert-turn";
 export { clipTitle, handleJobTurn } from "./handle-job-turn";
+export {
+  finalizePeerPayout,
+  handlePeerTurn,
+  markPeerFunded,
+  quotePeerJob,
+} from "./handle-peer-turn";
 export { interpretMessage } from "./interpret-message";
 export {
   normalizeLinqEvent,
