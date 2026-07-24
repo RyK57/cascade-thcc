@@ -44,7 +44,8 @@ export async function settlePayment({
 
   if (payment.status !== PAYMENT_STATUS.settled) return payment;
 
-  const hash = escrowTxHash ?? payment.escrowTxHash ?? simulatedEscrowHash(paymentId);
+  const hash =
+    escrowTxHash ?? payment.escrowTxHash ?? simulatedEscrowHash(paymentId);
   if (!payment.escrowTxHash || escrowTxHash) {
     payment = await updatePayment(paymentId, { escrowTxHash: hash });
   }

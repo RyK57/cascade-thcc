@@ -42,16 +42,57 @@ export function CascadePayPanel({
   const amount = (amountCents / 100).toFixed(2);
   const address = accounts[0]?.address;
 
+  /**
+   * Try a real Base Sepolia USDC transfer from the embedded wallet to the
+   * treasury; fall back to a simulated escrow record when the wallet has no
+   * testnet funds (or the chain isn't enabled for this environment).
+   */
+  async function signOnchainEscrow(): Promise<string | null> {
+    const walletAccount = accounts[0];
+    if (!walletAccount) return null;
+    try {
+      const [{ createWalletClientForWalletAccount }, viem, chains] =
+        await Promise.all([
+          import("@dynamic-labs-sdk/evm/viem"),
+          import("viem"),
+          import("viem/chains"),
+        ]);
+      const walletClient = await createWalletClientForWalletAccount({
+        walletAccount: walletAccount as never,
+      });
+      const txHash = await walletClient.sendTransaction({
+        chain: chains.baseSepolia,
+        account: walletClient.account,
+        to: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        data: viem.encodeFunctionData({
+          abi: viem.erc20Abi,
+          functionName: "transfer",
+          args: [
+            treasuryAddress as `0x${string}`,
+            viem.parseUnits((amountCents / 100).toFixed(2), 6),
+          ],
+        }),
+        value: BigInt(0),
+      });
+      return txHash;
+    } catch (error) {
+      console.warn("On-chain escrow failed; falling back to simulated", error);
+      return null;
+    }
+  }
+
   async function confirmSandboxPayment() {
     setBusy(true);
     setMessage(null);
     try {
+      const txHash = await signOnchainEscrow();
       const res = await fetch(`/api/jobs/${jobId}/fund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dynamicWalletAddress: address,
-          simulated: true,
+          simulated: !txHash,
+          txHash: txHash ?? undefined,
         }),
       });
       const data = (await res.json()) as {
@@ -63,9 +104,11 @@ export function CascadePayPanel({
       if (!res.ok) throw new Error(data.error ?? "Fund failed");
       if (data.escrowExplorerUrl) setLastEscrowUrl(data.escrowExplorerUrl);
       setMessage(
-        data.escrowExplorerUrl
-          ? `Sandbox escrow recorded. ${data.escrowExplorerUrl}`
-          : "Sandbox escrow recorded. Cascade will text your iMessage thread."
+        txHash
+          ? `Escrow broadcast on Base Sepolia (${txHash.slice(0, 10)}…). ${data.escrowExplorerUrl ?? ""}`.trim()
+          : data.escrowExplorerUrl
+            ? `Sandbox escrow recorded. ${data.escrowExplorerUrl}`
+            : "Sandbox escrow recorded. Cascade will text your iMessage thread."
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Fund failed");

@@ -20,6 +20,7 @@ function simulatedEscrowHash(paymentId: string): string {
 /**
  * Sandbox fund confirm — marks payment settled and advances the job
  * (peer → funded+broadcast, expert → paid). No mainnet / real USD.
+ * Accepts a real Base Sepolia `txHash` from the pay panel when available.
  */
 export async function POST(request: Request, context: RouteContext) {
   const { jobId } = await context.params;
@@ -36,6 +37,7 @@ export async function POST(request: Request, context: RouteContext) {
   let body: {
     dynamicWalletAddress?: string;
     simulated?: boolean;
+    txHash?: string;
     escrowTxHash?: string;
   } = {};
   try {
@@ -45,7 +47,8 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const treasury = await ensureSandboxTreasury();
-  const escrowTxHash = body.escrowTxHash ?? simulatedEscrowHash(payment.id);
+  const escrowTxHash =
+    body.txHash ?? body.escrowTxHash ?? simulatedEscrowHash(payment.id);
 
   // Keep a wallet_connected breadcrumb when address provided before settle.
   if (body.dynamicWalletAddress && payment.status === PAYMENT_STATUS.pending) {
@@ -72,7 +75,8 @@ export async function POST(request: Request, context: RouteContext) {
     escrowTxHash,
     escrowExplorerUrl: explorerTxUrl(escrowTxHash),
     payment: settled,
-    simulated: body.simulated ?? true,
+    simulated: !body.txHash && (body.simulated ?? true),
+    txHash: body.txHash,
   });
 }
 
