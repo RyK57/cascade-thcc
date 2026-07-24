@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getJobById } from "@/db/jobs";
 import { getPaymentByJobId, updatePaymentStatus } from "@/db/payments";
 import { settlePayment } from "@/libs/agent";
@@ -9,11 +10,29 @@ import {
 import { explorerAddressUrl, explorerTxUrl } from "@/libs/dynamic/sandbox";
 import { ensureSandboxTreasury } from "@/libs/dynamic/treasury";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
+import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 
 interface RouteContext {
   params: Promise<{ jobId: string }>;
+}
+
+const jobIdSchema = z.string().uuid();
+
+/**
+ * Every sibling route degrades to 503 when Supabase admin is missing. Without
+ * this, createAdminClient() and ensureSandboxTreasury() both throw and the
+ * route 500s on a zero-config boot.
+ */
+function guardConfigured() {
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json(
+      { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 503 }
+    );
+  }
+  return null;
 }
 
 function simulatedEscrowHash(paymentId: string): string {
@@ -27,7 +46,23 @@ function simulatedEscrowHash(paymentId: string): string {
  * Accepts a real Base Sepolia `txHash` from Mission Control when available.
  */
 export async function POST(request: Request, context: RouteContext) {
+  const unavailable = guardConfigured();
+  if (unavailable) return unavailable;
+
   const { jobId } = await context.params;
+  if (!jobIdSchema.safeParse(jobId).success) {
+    return NextResponse.json({ error: "Invalid job id" }, { status: 400 });
+  }
+
+  try {
+    return await handleFund(request, jobId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Fund failed";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+}
+
+async function handleFund(request: Request, jobId: string) {
   const job = await getJobById(jobId);
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
@@ -90,7 +125,23 @@ export async function POST(request: Request, context: RouteContext) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const unavailable = guardConfigured();
+  if (unavailable) return unavailable;
+
   const { jobId } = await context.params;
+  if (!jobIdSchema.safeParse(jobId).success) {
+    return NextResponse.json({ error: "Invalid job id" }, { status: 400 });
+  }
+
+  try {
+    return await handleFundStatus(jobId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Lookup failed";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+}
+
+async function handleFundStatus(jobId: string) {
   const job = await getJobById(jobId);
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });

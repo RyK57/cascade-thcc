@@ -19,6 +19,13 @@ interface SettlePaymentInput {
   status: PaymentStatus;
   dynamicWalletAddress?: string;
   escrowTxHash?: string;
+  /**
+   * True only when the worker has actually been paid. Funding escrow is not
+   * the same event: closing the job as `paid` at fund time makes the release
+   * path unreachable (the payout route short-circuits on `paid`) and strands
+   * the USDC in the agent wallet forever.
+   */
+  workerPaid?: boolean;
 }
 
 function simulatedEscrowHash(paymentId: string): string {
@@ -35,6 +42,7 @@ export async function settlePayment({
   status,
   dynamicWalletAddress,
   escrowTxHash,
+  workerPaid = false,
 }: SettlePaymentInput): Promise<Payment> {
   let payment = await updatePaymentStatus(
     paymentId,
@@ -74,6 +82,34 @@ export async function settlePayment({
         body: reply,
       });
     }
+    return payment;
+  }
+
+  // Escrow is held, not released. Park the job awaiting release rather than
+  // closing it as paid, and say so — a confetti "paid" here would be wrong on
+  // both counts, since the worker has not been paid yet.
+  if (!workerPaid) {
+    let held = job;
+    if (job.status !== JOB_STATUS.paymentPending) {
+      held = await updateJob(job.id, { status: JOB_STATUS.paymentPending });
+    }
+    await syncJobHud(held, HUD_STAGE.funded).catch(() => undefined);
+
+    if (isLinqConfigured()) {
+      const reply = fundedExplorerReply(explorerUrl);
+      const sent = await sendChatMessage({
+        chatId: held.linqChatId,
+        text: reply,
+        idempotencyKey: `escrow-held-${held.id}`,
+      });
+      await recordJobMessage({
+        jobId: held.id,
+        linqMessageId: sent.message?.id ?? `out_${crypto.randomUUID()}`,
+        direction: MESSAGE_DIRECTION.outbound,
+        body: reply,
+      });
+    }
+
     return payment;
   }
 

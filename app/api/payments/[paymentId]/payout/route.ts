@@ -128,6 +128,9 @@ export async function POST(
       paymentId,
       status: PAYMENT_STATUS.settled,
       dynamicWalletAddress: parsed.data.workerAddress,
+      // The transfer above is the actual worker payout, so this is the one
+      // settle that may close the job as paid.
+      workerPaid: true,
     });
 
     return NextResponse.json({ ok: true, payout, payment: settled });
