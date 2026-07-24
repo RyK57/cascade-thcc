@@ -1,8 +1,17 @@
 import { createAdminClient } from "@/utils/supabase/admin";
 import type { User } from "@/utils/schema/user";
-import { mapUserRow, USER_ROW_COLUMNS, type UserRow } from "./map-row";
+import { mapUserRow, type UserRow } from "./map-row";
 import { createLedgerEntry } from "@/db/ledger/create-ledger-entry";
 
+/**
+ * Adjust a user's credit balance atomically.
+ *
+ * The arithmetic and the overdraft guard both run inside
+ * `adjust_user_credits` (migration 00007). Doing it as a read-modify-write in
+ * application code lost updates: two concurrent debits read the same starting
+ * balance and the second write clobbered the first, so a 10-credit user could
+ * spend 16 and the ledger would permanently disagree with the balance.
+ */
 export async function adjustCredits(params: {
   userId: string;
   deltaCredits: number;
@@ -10,30 +19,26 @@ export async function adjustCredits(params: {
   reason: string;
 }): Promise<User> {
   const supabase = createAdminClient();
-  const { data: current, error: readError } = await supabase
-    .from("users")
-    .select(USER_ROW_COLUMNS)
-    .eq("id", params.userId)
-    .single<UserRow>();
-
-  if (readError || !current) {
-    throw new Error(readError?.message ?? "User not found");
-  }
-
-  const nextBalance = current.credit_balance + params.deltaCredits;
-  if (nextBalance < 0) {
-    throw new Error("Insufficient credits");
-  }
 
   const { data, error } = await supabase
-    .from("users")
-    .update({ credit_balance: nextBalance })
-    .eq("id", params.userId)
-    .select(USER_ROW_COLUMNS)
+    .rpc("adjust_user_credits", {
+      p_user_id: params.userId,
+      p_delta: params.deltaCredits,
+    })
+    .select("*")
     .single<UserRow>();
 
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to adjust credits");
+  if (error) {
+    if (error.message.includes("insufficient_credits")) {
+      throw new Error("Insufficient credits");
+    }
+    if (error.message.includes("user_not_found")) {
+      throw new Error("User not found");
+    }
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Failed to adjust credits");
   }
 
   await createLedgerEntry({
