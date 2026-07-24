@@ -25,9 +25,13 @@ export async function updateJob(
       price_usd_cents: parsed.priceUsdCents,
       assignee_user_id: parsed.assigneeUserId,
       status_card_message_id: parsed.statusCardMessageId,
+      status_card_is_rich: parsed.statusCardIsRich,
       funded_via: parsed.fundedVia,
       claim_chat_id: parsed.claimChatId,
       triage_reason: parsed.triageReason,
+      wallet_refuse_count: parsed.walletRefuseCount,
+      requester_lat: parsed.requesterLat,
+      requester_lng: parsed.requesterLng,
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId)

@@ -35,9 +35,14 @@ export const jobStatusSchema = z.enum([
 export const FUNDED_VIA = {
   wallet: "wallet",
   credits: "credits",
+  agentpay: "agentpay",
 } as const;
 
-export const fundedViaSchema = z.enum([FUNDED_VIA.wallet, FUNDED_VIA.credits]);
+export const fundedViaSchema = z.enum([
+  FUNDED_VIA.wallet,
+  FUNDED_VIA.credits,
+  FUNDED_VIA.agentpay,
+]);
 
 export const jobTierSchema = z.enum(TIER_VALUES);
 
@@ -57,9 +62,13 @@ export const jobSchema = z.object({
   priceUsdCents: z.number().int().nonnegative().optional(),
   assigneeUserId: z.string().uuid().optional(),
   statusCardMessageId: z.string().optional(),
+  statusCardIsRich: z.boolean().optional(),
   fundedVia: fundedViaSchema.optional(),
   claimChatId: z.string().optional(),
   triageReason: z.string().optional(),
+  walletRefuseCount: z.number().int().nonnegative().optional(),
+  requesterLat: z.number().optional(),
+  requesterLng: z.number().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -85,9 +94,13 @@ export const updateJobSchema = jobSchema
     priceUsdCents: true,
     assigneeUserId: true,
     statusCardMessageId: true,
+    statusCardIsRich: true,
     fundedVia: true,
     claimChatId: true,
     triageReason: true,
+    walletRefuseCount: true,
+    requesterLat: true,
+    requesterLng: true,
   })
   .partial();
 
