@@ -59,4 +59,46 @@ describe("linkRequesterWallet", () => {
 
     expect(upsertUserByPhone).not.toHaveBeenCalled();
   });
+
+  it("refuses to repoint an existing wallet without phone verification", async () => {
+    getUserByPhone.mockResolvedValue({ walletAddress: REAL_WALLET });
+
+    // Anyone who opens the pay URL can fund; only the phone owner may change
+    // where this account's money lands.
+    await linkRequesterWallet({
+      phone: PHONE,
+      walletAddress: "0x2222222222222222222222222222222222222222",
+    });
+
+    expect(upsertUserByPhone).not.toHaveBeenCalled();
+  });
+
+  it("lets a phone-verified session move the wallet", async () => {
+    getUserByPhone.mockResolvedValue({ walletAddress: REAL_WALLET });
+    const replacement = "0x2222222222222222222222222222222222222222";
+
+    await linkRequesterWallet({
+      phone: PHONE,
+      walletAddress: replacement,
+      verified: true,
+    });
+
+    expect(upsertUserByPhone).toHaveBeenCalledWith(
+      expect.objectContaining({ walletAddress: replacement })
+    );
+  });
+
+  it("still fills an empty slot for an unverified funder", async () => {
+    // The placeholder is not a real destination, so first-touch linking keeps
+    // working for a requester who has not signed in yet.
+    getUserByPhone.mockResolvedValue({
+      walletAddress: derivedPlaceholderAddress(PHONE),
+    });
+
+    await linkRequesterWallet({ phone: PHONE, walletAddress: REAL_WALLET });
+
+    expect(upsertUserByPhone).toHaveBeenCalledWith(
+      expect.objectContaining({ walletAddress: REAL_WALLET })
+    );
+  });
 });
