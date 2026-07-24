@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { MessageSquare } from "lucide-react";
 import { CopyButton } from "@/components/app/copy-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ROUTES } from "@/lib/constants/routes";
 
 /**
@@ -30,66 +39,63 @@ interface IMessageHandoffProps {
 }
 
 /**
- * Primary product CTA: open a real iMessage thread. No in-app compose —
- * jobs start when the person texts Cascade themselves.
+ * Messages channel panel. Jobs start when the person texts Cascade —
+ * this is a handoff control, not a marketing CTA.
  */
 export function IMessageHandoff({ number }: IMessageHandoffProps) {
   return (
-    <section
-      aria-labelledby="start-heading"
-      className="relative overflow-hidden rounded-xl border border-hairline"
-    >
-      <div aria-hidden className="rules-mesh absolute inset-0 opacity-40" />
-      <div className="relative p-6 sm:p-8">
-        <p className="label-caps text-accent-ink">Start a job</p>
+    <Card size="sm" className="h-full">
+      <CardHeader className="border-b">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle as="h2">Messages</CardTitle>
+          <Badge variant={number ? "secondary" : "outline"}>
+            {number ? "Live" : "Unavailable"}
+          </Badge>
+        </div>
+        <CardDescription>
+          Start and manage jobs in iMessage. Cascade only replies in threads you
+          open.
+        </CardDescription>
+      </CardHeader>
 
+      <CardContent className="space-y-4 pt-4">
         {number ? (
           <>
-            <h2
-              id="start-heading"
-              className="mt-6 font-secondary text-2xl sm:text-3xl"
-            >
-              Text {formatNumber(number)}
-            </h2>
-            <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-              Describe the job the way you would to a colleague. Cascade replies
-              in the same thread, drafts a brief for free, and waits for your
-              explicit yes before anything is launched or charged.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button size="lg" asChild>
-                <a href={`sms:${number}`}>
-                  <MessageSquare data-icon="inline-start" className="size-4" />
-                  Open Messages
-                </a>
-              </Button>
-              <CopyButton value={number} label="Copy the agent's number" />
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Agent number</p>
+              <p className="font-mono text-sm">{formatNumber(number)}</p>
             </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Describe the job in the thread. Drafts are free; launch and payout
+              wait for your explicit confirmation.
+            </p>
           </>
         ) : (
-          <>
-            <h2
-              id="start-heading"
-              className="mt-6 font-secondary text-2xl sm:text-3xl"
-            >
-              Continue from your payment link
-            </h2>
-            <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-              Texting Cascade isn’t available from this screen right now. If you
-              already have a payment link from Messages, open it to fund escrow —
-              or connect your wallet below so you’re ready when the next one
-              arrives.
-            </p>
-            <div className="mt-6">
-              <Button variant="outline" size="lg" asChild>
-                <Link href={`${ROUTES.home}#how-it-works`}>
-                  See how Cascade works
-                </Link>
-              </Button>
-            </div>
-          </>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Texting isn’t wired in this environment. Open a payment link from
+            Messages when you have one, or connect your wallet so checkout is
+            ready.
+          </p>
         )}
-      </div>
-    </section>
+      </CardContent>
+
+      <CardFooter className="justify-start gap-2">
+        {number ? (
+          <>
+            <Button size="sm" asChild>
+              <a href={`sms:${number}`}>
+                <MessageSquare data-icon="inline-start" className="size-4" />
+                Open Messages
+              </a>
+            </Button>
+            <CopyButton value={number} label="Copy number" />
+          </>
+        ) : (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`${ROUTES.home}#how-it-works`}>How it works</Link>
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
   );
 }

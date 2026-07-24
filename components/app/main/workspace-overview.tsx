@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app/app-shell";
+import { DashboardPageHeader } from "@/components/app/dashboard-page-header";
 import { getAgentNumber, IMessageHandoff } from "./imessage-handoff";
 import { WalletSection } from "./wallet-section";
 
@@ -6,24 +6,16 @@ export function WorkspaceOverview() {
   const number = getAgentNumber();
 
   return (
-    <AppShell className="py-12 sm:py-16">
-      <div className="max-w-[58ch]">
-        <p className="label-caps text-accent-ink">Workspace</p>
-        <h1 className="mt-6 font-secondary text-4xl sm:text-5xl">
-          Pick up where you left off
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Jobs start in Messages. When a quote needs payment, the thread sends
-          you here to fund escrow — then you approve the work back in the same
-          conversation.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <DashboardPageHeader
+        title="Overview"
+        description="Jobs run in Messages. Use this workspace to open the agent thread and fund escrow when a quote is ready."
+      />
 
-      <div className="mt-12">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
         <IMessageHandoff number={number} />
+        <WalletSection />
       </div>
-
-      <WalletSection />
-    </AppShell>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AppShell } from "@/components/app/app-shell";
+import { DashboardPageHeader } from "@/components/app/dashboard-page-header";
 import { WorkspaceOverview } from "@/components/app/main/workspace-overview";
 import { MissionControl } from "@/components/app/mission-control";
 import { DynamicProvider } from "@/components/dynamic/dynamic-provider";
@@ -30,61 +30,51 @@ export default async function MainPage({ searchParams }: MainPageProps) {
 
   if (!isSupabaseAdminConfigured()) {
     return (
-      <AppShell className="py-12 sm:py-16">
-        <div className="max-w-[54ch]">
-          <p className="label-caps text-accent-ink">Payment</p>
-          <h1 className="mt-6 font-secondary text-3xl sm:text-4xl">
-            Checkout isn’t available right now
-          </h1>
-          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            We can’t load this payment link in this environment. Nothing was
-            charged — open the latest link from your Messages thread, or try
-            again shortly.
-          </p>
-        </div>
-      </AppShell>
+      <div className="space-y-6">
+        <DashboardPageHeader
+          title="Checkout unavailable"
+          description="This payment link can’t load in the current environment. Nothing was charged — open the latest link from Messages, or try again shortly."
+          actions={
+            <Button variant="outline" size="sm" asChild>
+              <Link href={ROUTES.main}>Back to overview</Link>
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   const job = await getJobById(jobId).catch(() => null);
   if (!job) {
     return (
-      <AppShell className="py-12 sm:py-16">
-        <div className="max-w-[54ch]">
-          <p className="label-caps text-accent-ink">Job not found</p>
-          <h1 className="mt-6 font-secondary text-3xl sm:text-4xl">
-            That payment link has expired
-          </h1>
-          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            The job this link points to no longer exists — it may have been
-            cancelled or already settled. Nothing was charged. Check the latest
-            link in your iMessage thread.
-          </p>
-          <div className="mt-8">
-            <Button asChild>
-              <Link href={ROUTES.main}>Back to workspace</Link>
+      <div className="space-y-6">
+        <DashboardPageHeader
+          title="Payment link expired"
+          description="This job no longer exists — it may have been cancelled or already settled. Nothing was charged. Check the latest link in your iMessage thread."
+          actions={
+            <Button size="sm" asChild>
+              <Link href={ROUTES.main}>Back to overview</Link>
             </Button>
-          </div>
-        </div>
-      </AppShell>
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <AppShell className="py-8 sm:py-12">
-      <div className="mb-8 max-w-[58ch]">
-        <p className="label-caps text-accent-ink">Payment</p>
-        <h1 className="mt-4 font-secondary text-3xl sm:text-4xl">
-          Confirm this job
-        </h1>
-        <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-          You started this in iMessage. Fund the Cascade agent wallet here —
-          worker payout releases only after you approve in the thread.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <DashboardPageHeader
+        title="Checkout"
+        description="Fund the Cascade agent wallet for this job. Worker payout releases only after you approve in the Messages thread."
+        actions={
+          <Button variant="outline" size="sm" asChild>
+            <Link href={ROUTES.main}>Overview</Link>
+          </Button>
+        }
+      />
       <DynamicProvider>
         <MissionControl jobId={job.id} />
       </DynamicProvider>
-    </AppShell>
+    </div>
   );
 }
