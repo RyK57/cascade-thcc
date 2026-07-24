@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getJobById } from "@/db/jobs";
-import { getPaymentByJobId } from "@/db/payments";
+import { claimEscrowRelease, getPaymentByJobId } from "@/db/payments";
 import { finalizePeerPayout } from "@/libs/agent";
 import { isAgentWalletConfigured } from "@/libs/dynamic/agent-wallet";
 import { payWorkerUsdc } from "@/libs/dynamic/pay-worker";
@@ -103,6 +103,18 @@ export async function POST(
       );
     }
 
+    // The job.status read above is not mutual exclusion — two concurrent
+    // requests both pass it and both broadcast. Claim the release slot
+    // atomically first, exactly as finalizePeerPayout does on the peer path.
+    const claimed = await claimEscrowRelease(paymentId);
+    if (!claimed) {
+      return NextResponse.json({ ok: true, alreadyReleased: true, payment });
+    }
+
+    // Deliberately not handing the slot back if this throws: a rejection can
+    // still follow a broadcast (timeout, dropped response), and re-opening the
+    // slot would risk paying twice. A stuck release is recoverable; a double
+    // payout is not.
     const payout = await payWorkerUsdc({
       to: parsed.data.workerAddress,
       amountCents: payment.amountCents,
