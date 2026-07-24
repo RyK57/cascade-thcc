@@ -72,6 +72,9 @@ export const jobSchema = z.object({
   requesterLng: z.number().optional(),
   /** Requester has acknowledged the Terac turnaround estimate. */
   expertTimelineAck: z.boolean().optional(),
+  /** Set once, by `claimJobApproval` — the guard against double-charging. */
+  approvedAt: z.string().optional(),
+  approvedVia: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
