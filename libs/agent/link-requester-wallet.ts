@@ -25,10 +25,17 @@ export function isDerivedPlaceholder(
  * Bind the wallet someone connected on the web app to the phone they text
  * from. Without this the iMessage identity and the Dynamic wallet are two
  * unrelated accounts, and peer payouts have nowhere real to land.
+ *
+ * `verified` means the caller proved they own the phone (a phone-verified web
+ * session). Unverified callers — anyone who merely opened a job's pay URL — may
+ * only fill an empty slot, never move a payout destination that is already set.
+ * Overwriting on possession of a link is how a stranger's wallet ends up
+ * receiving someone else's refunds.
  */
 export async function linkRequesterWallet(params: {
   phone: string;
   walletAddress: string;
+  verified?: boolean;
 }): Promise<void> {
   const phone = params.phone.trim();
   const walletAddress = params.walletAddress.trim();
@@ -37,6 +44,14 @@ export async function linkRequesterWallet(params: {
 
   const existing = await getUserByPhone(phone).catch(() => null);
   if (existing?.walletAddress?.toLowerCase() === walletAddress.toLowerCase()) {
+    return;
+  }
+
+  const hasRealWallet = !isDerivedPlaceholder(phone, existing?.walletAddress);
+  if (hasRealWallet && !params.verified) {
+    console.warn(
+      "[cascade] refused unverified wallet relink for an account that already has one"
+    );
     return;
   }
 
