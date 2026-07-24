@@ -38,7 +38,7 @@ export function peerQuoteReply(params: {
     `Fund escrow here: ${params.payUrl}`,
     `Paying in ETH instead? Reply "pay in eth" and I'll requote at the live rate.`,
     `Or reply "pay with balance" to use your Cascade balance.`,
-    `Nothing is paid out until you approve the work here with ❤️.`,
+    `Nothing is paid out until you approve the work here with ❤️ — or text STOP to cancel.`,
   ].join("\n");
 }
 
@@ -120,7 +120,7 @@ export function expertTimelineDisclaimer(params: {
   return [
     `Heads up before I quote "${params.title}": this goes to a ${role} through Terac, not to AI.`,
     `Real people work on a real schedule — expect hours, and sometimes a day or two, not minutes. You'll get every update in this thread.`,
-    `Reply YES if that timeline works and I'll bring you the price. Nothing is charged yet.`,
+    `Reply YES if that timeline works and I'll bring you the price, or STOP to cancel. Nothing is charged yet.`,
   ].join("\n");
 }
 
@@ -209,7 +209,49 @@ export function errorReply(): string {
 }
 
 export function fallbackReply(): string {
-  return `${BRAND.name} answers what it can for free and hires a vetted professional for the rest — paid only when you approve. Text what you need done.`;
+  return `${BRAND.name} answers what it can for free and hires a real person for the rest — someone on the network, or a vetted Terac professional when the task needs a credential. Paid only when you approve. Text what you need done.`;
+}
+
+/** STOP before anything was funded — say plainly that no money moved. */
+export function stoppedBeforeChargeReply(title: string): string {
+  return `Stopped "${title}". Nothing was charged and nobody was hired. Text me whenever you want to start something new.`;
+}
+
+/** STOP with escrow held — name the amount and where it went. */
+export function stoppedWithRefundReply(
+  title: string,
+  amountCents: number
+): string {
+  return [
+    `Stopped "${title}". Nobody was paid.`,
+    `Your ${formatCents(amountCents)} escrow is back in your Cascade balance — spend it on the next task or cash it out anytime.`,
+  ].join("\n");
+}
+
+/**
+ * The payout already left, or the job was already settled. Never imply money
+ * is coming back when we cannot pull it back.
+ */
+export function stoppedAfterPayoutReply(): string {
+  return `This one already settled and the worker was paid, so there's nothing left to stop. Nothing further will happen on it — text a new task whenever.`;
+}
+
+export function alreadyStoppedReply(): string {
+  return `Already stopped — nothing is running. Text a new task whenever you're ready.`;
+}
+
+export function nothingRunningReply(): string {
+  return `Nothing is running right now. Text me a task whenever you want one started.`;
+}
+
+/** Sent to the worker's own thread when the requester cancels. */
+export function peerJobCancelledNotice(title: string): string {
+  return `Heads up: "${title}" was cancelled by the requester, so no deliverable is needed. I'll ping you on the next one.`;
+}
+
+/** A worker dropping a job they claimed. */
+export function peerDroppedJobReply(title: string): string {
+  return `Dropped "${title}" — it's back in the pool for someone else. No hit to your rating.`;
 }
 
 export function alreadyHaveBalanceNudge(): string {

@@ -1,6 +1,8 @@
 export const AGENT_INTENT = {
   affirm: "affirm",
   decline: "decline",
+  /** Explicit "get me out of this" — cancels the job, unlike a contextual no. */
+  stop: "stop",
   status: "status",
   payCredits: "pay_credits",
   freeform: "freeform",
@@ -27,6 +29,7 @@ export const AGENT_ACTION = {
   rejectedWork: "rejected_work",
   paymentPending: "payment_pending",
   paid: "paid",
+  cancelled: "cancelled",
   fallback: "fallback",
   errored: "errored",
 } as const;

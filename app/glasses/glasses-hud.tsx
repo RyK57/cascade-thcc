@@ -10,12 +10,19 @@ interface HudJob {
   price: string | null;
 }
 
+type Flash = { text: string; kind: "work" | "done" | "fail" };
+
 const ACTIONABLE = new Set(["quoted", "delivered", "in_review"]);
 
-const TIER_COLOR: Record<string, string> = {
-  ai: "#6F68FF",
-  peer: "#E8501F",
-  expert: "#B44FD8",
+// Four rows is what clears the 600px lens. Scrolling is not available
+// on-glasses, so selection has to stop here too — otherwise a pinch approves
+// a job nobody can see.
+const VISIBLE_JOBS = 4;
+
+const TIER_CLASS: Record<string, string> = {
+  ai: "hud-tier--ai",
+  peer: "hud-tier--peer",
+  expert: "hud-tier--expert",
 };
 
 function tokenQuery(): string {
@@ -27,13 +34,19 @@ function tokenQuery(): string {
 export function GlassesHud() {
   const [jobs, setJobs] = useState<HudJob[]>([]);
   const [selected, setSelected] = useState(0);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  const [stale, setStale] = useState(false);
+  // State, not a ref: the footer reads it to decide whether a pinch still does
+  // anything, and a ref would not re-render when the latch trips. `busy` stays
+  // a ref — it guards a synchronous decision, not the output.
+  const [approvedIds, setApprovedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
   const busy = useRef(false);
-  const approved = useRef(new Set<string>());
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showFlash = useCallback((message: string) => {
-    setFlash(message);
+  const showFlash = useCallback((next: Flash) => {
+    setFlash(next);
     if (flashTimer.current) clearTimeout(flashTimer.current);
     flashTimer.current = setTimeout(() => setFlash(null), 2500);
   }, []);
@@ -48,12 +61,19 @@ export function GlassesHud() {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(`/api/glasses/feed${tokenQuery()}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        setStale(true);
+        return;
+      }
       const data = (await res.json()) as { jobs: HudJob[] };
-      setJobs(data.jobs);
-      setSelected((s) => Math.min(s, Math.max(0, data.jobs.length - 1)));
+      const visible = data.jobs.slice(0, VISIBLE_JOBS);
+      setJobs(visible);
+      setSelected((s) => Math.min(s, Math.max(0, visible.length - 1)));
+      setStale(false);
     } catch {
-      // HUD keeps last known state on network blips
+      // Keep the last known jobs — but say so, rather than showing a frozen
+      // board as if it were current.
+      setStale(true);
     }
   }, []);
 
@@ -73,13 +93,13 @@ export function GlassesHud() {
     if (
       !job ||
       busy.current ||
-      approved.current.has(job.id) ||
+      approvedIds.has(job.id) ||
       !ACTIONABLE.has(job.status)
     ) {
       return;
     }
     busy.current = true;
-    showFlash(`Approving "${job.title}"…`);
+    showFlash({ text: "Approving…", kind: "work" });
     try {
       const res = await fetch(
         `/api/glasses/jobs/${job.id}/approve${tokenQuery()}`,
@@ -88,17 +108,21 @@ export function GlassesHud() {
       // The approve route runs the full tapback state machine (launch quote /
       // release payout) with no server-side idempotency, so a second pinch
       // must never reach it. Latch the id before the feed catches up.
-      if (res.ok) approved.current.add(job.id);
-      showFlash(res.ok ? "Approved ✓" : "Failed — try in iMessage");
+      if (res.ok) setApprovedIds((prev) => new Set(prev).add(job.id));
+      showFlash(
+        res.ok
+          ? { text: "Approved", kind: "done" }
+          : { text: "Couldn't approve — use iMessage", kind: "fail" }
+      );
     } catch {
-      showFlash("Failed — try in iMessage");
+      showFlash({ text: "Couldn't approve — use iMessage", kind: "fail" });
     } finally {
       // Stay busy until the feed reflects the new status, otherwise the next
-      // keypress re-enters against a stale ACTIONABLE status.
+      // pinch re-enters against a stale ACTIONABLE status.
       await refresh();
       busy.current = false;
     }
-  }, [jobs, selected, refresh, showFlash]);
+  }, [jobs, selected, approvedIds, refresh, showFlash]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -106,7 +130,9 @@ export function GlassesHud() {
         setSelected((s) => Math.min(s + 1, Math.max(0, jobs.length - 1)));
       } else if (event.key === "ArrowUp") {
         setSelected((s) => Math.max(s - 1, 0));
-      } else if (event.key === "Enter" || event.key === "ArrowRight") {
+      } else if (event.key === "Enter") {
+        // Enter only. A right swipe is a navigation gesture on the Neural
+        // Band, and approve releases a payout — it must take the pinch.
         void approve();
       }
     }
@@ -114,85 +140,75 @@ export function GlassesHud() {
     return () => window.removeEventListener("keydown", onKey);
   }, [jobs.length, approve]);
 
-  return (
-    <div
-      style={{
-        width: 600,
-        height: 600,
-        maxWidth: "100vw",
-        background: "#000",
-        color: "#fff",
-        fontFamily: "-apple-system, system-ui, sans-serif",
-        padding: 24,
-        boxSizing: "border-box",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 34,
-          fontWeight: 800,
-          marginBottom: 14,
-          background: "linear-gradient(90deg,#E8501F,#6F68FF)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-        }}
-      >
-        CASCADE
-      </div>
+  const current = jobs[selected];
+  const canApprove = Boolean(
+    current && ACTIONABLE.has(current.status) && !approvedIds.has(current.id)
+  );
 
-      {flash ? (
-        <div style={{ fontSize: 30, color: "#4ade80", marginBottom: 12 }}>
-          {flash}
-        </div>
-      ) : null}
+  return (
+    <div className="hud">
+      <header className="hud-bar hud-caps">
+        <span>
+          <span className="hud-bracket">[</span> Cascade{" "}
+          <span className="hud-bracket">]</span>
+        </span>
+        <span className="hud-live">
+          <span className={`hud-dot${stale ? " hud-dot--stale" : ""}`} />
+          {stale ? "No signal" : "Live"}
+        </span>
+      </header>
 
       {jobs.length === 0 ? (
-        <div style={{ fontSize: 26, color: "#aaa" }}>
-          Text the Cascade number to start a task.
+        <div className="hud-empty">
+          <p className="hud-empty-lead">No open tasks.</p>
+          <p className="hud-empty-sub">
+            Text the Cascade number and it lands here.
+          </p>
         </div>
       ) : (
-        jobs.slice(0, 5).map((job, index) => {
-          const isSelected = index === selected;
-          const actionable = ACTIONABLE.has(job.status);
-          return (
-            <div
-              key={job.id}
-              style={{
-                padding: "10px 12px",
-                marginBottom: 8,
-                borderRadius: 14,
-                border: isSelected ? "3px solid #E8501F" : "3px solid #333",
-                background: isSelected ? "#1a120d" : "transparent",
-              }}
-            >
+        <div className="hud-list">
+          {jobs.map((job, index) => {
+            const isSelected = index === selected;
+            return (
               <div
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
+                key={job.id}
+                className={`hud-row${isSelected ? " hud-row--on" : ""}`}
               >
-                {job.title}
-              </div>
-              <div style={{ fontSize: 20, display: "flex", gap: 12 }}>
-                <span style={{ color: TIER_COLOR[job.tier] ?? "#888" }}>
-                  {job.tier.toUpperCase()}
+                <span className="hud-gutter">
+                  {isSelected ? <span className="hud-dot" /> : null}
                 </span>
-                <span style={{ color: "#ccc" }}>{job.status}</span>
-                {job.price ? (
-                  <span style={{ color: "#4ade80" }}>{job.price}</span>
-                ) : null}
-                {isSelected && actionable ? (
-                  <span style={{ color: "#E8501F" }}>▸ pinch to approve</span>
-                ) : null}
+                <span className="hud-meta hud-caps">
+                  <span className={TIER_CLASS[job.tier] ?? ""}>{job.tier}</span>
+                  <span aria-hidden>·</span>
+                  <span>{job.status.replace(/_/g, " ")}</span>
+                  {job.price ? (
+                    <span className="hud-price">{job.price}</span>
+                  ) : null}
+                </span>
+                <span className="hud-title">{job.title}</span>
               </div>
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       )}
+
+      <footer className="hud-foot hud-caps">
+        {flash ? (
+          <p className={`hud-flash hud-flash--${flash.kind}`}>{flash.text}</p>
+        ) : jobs.length === 0 ? (
+          // No rows to move through and nothing to pinch — don't advertise
+          // controls that would do nothing.
+          <p className="hud-idle">Listening for new tasks</p>
+        ) : (
+          <div className="hud-legend">
+            <span>Swipe move</span>
+            <span className={canApprove ? "hud-legend--live" : undefined}>
+              {canApprove ? "Pinch approve" : "Waiting"}
+            </span>
+            <span>{jobs.length} open</span>
+          </div>
+        )}
+      </footer>
     </div>
   );
 }

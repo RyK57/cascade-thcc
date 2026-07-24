@@ -12,6 +12,7 @@ export {
   markPeerFunded,
   quotePeerJob,
 } from "./handle-peer-turn";
+export { handleStopTurn } from "./handle-stop";
 export { interpretMessage } from "./interpret-message";
 export {
   derivedPlaceholderAddress,

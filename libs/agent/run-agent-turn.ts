@@ -26,6 +26,7 @@ import {
   handleJobTurn,
   isAwaitingClarification,
 } from "./handle-job-turn";
+import { handleStopTurn } from "./handle-stop";
 import { interpretMessage } from "./interpret-message";
 import { errorReply } from "./reply-templates";
 import {
@@ -178,29 +179,40 @@ export async function runAgentTurn(
     let effect: "confetti" | undefined;
 
     try {
-      // Triage on the accumulated brief + thread history + a one-clarify cap.
-      // Bare follow-ups ("https://…") must not lose the original request or
-      // restart an interview.
-      const triage = needsTriage
-        ? await triageJob({
-            text,
-            priorContext: job.description,
-            alreadyClarified: isAwaitingClarification(job.triageReason),
-            history,
-            locationContext,
-          })
-        : undefined;
-      ({ action, reply, effect } = await handleJobTurn({
-        job,
-        intent,
-        text,
-        isNewJob: !resolved.job || resolved.created,
-        senderHandle,
-        chatId,
-        triage,
-        history,
-        locationContext,
-      }));
+      // STOP outranks the state machine and runs before triage: it has to work
+      // at any stage, including mid-quote and mid-clarification, and it must
+      // never spend a triage call on a message whose whole point is "halt".
+      if (intent === AGENT_INTENT.stop) {
+        ({ action, reply } = await handleStopTurn({
+          job,
+          senderHandle,
+          isNewJob: !resolved.job || resolved.created,
+        }));
+      } else {
+        // Triage on the accumulated brief + thread history + a one-clarify cap.
+        // Bare follow-ups ("https://…") must not lose the original request or
+        // restart an interview.
+        const triage = needsTriage
+          ? await triageJob({
+              text,
+              priorContext: job.description,
+              alreadyClarified: isAwaitingClarification(job.triageReason),
+              history,
+              locationContext,
+            })
+          : undefined;
+        ({ action, reply, effect } = await handleJobTurn({
+          job,
+          intent,
+          text,
+          isNewJob: !resolved.job || resolved.created,
+          senderHandle,
+          chatId,
+          triage,
+          history,
+          locationContext,
+        }));
+      }
     } catch (error) {
       console.error("Job turn failed:", error);
       action = AGENT_ACTION.errored;

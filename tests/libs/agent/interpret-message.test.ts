@@ -17,12 +17,38 @@ describe("interpretMessage", () => {
     expect(interpretMessage(text)).toBe(AGENT_INTENT.affirm);
   });
 
-  it.each(["no", "Nope", "cancel", "not yet", "reject", "hold off"])(
+  // "no" rejects whatever was just offered; it must not end the job. Only the
+  // explicit stop words do that.
+  it.each(["no", "Nope", "not yet", "reject", "hold off", "don't"])(
     "reads %s as decline",
     (text) => {
       expect(interpretMessage(text)).toBe(AGENT_INTENT.decline);
     }
   );
+
+  it.each([
+    "stop",
+    "STOP",
+    "Stop.",
+    "cancel",
+    "cancel it",
+    "cancel the job",
+    "abort",
+    "never mind",
+    "nevermind",
+    "forget it",
+  ])("reads %s as stop", (text) => {
+    expect(interpretMessage(text)).toBe(AGENT_INTENT.stop);
+  });
+
+  it("does not read a task that merely mentions stopping as stop", () => {
+    expect(interpretMessage("find me someone to stop the leak")).toBe(
+      AGENT_INTENT.freeform
+    );
+    expect(interpretMessage("cancel my gym membership for me")).toBe(
+      AGENT_INTENT.freeform
+    );
+  });
 
   it.each([
     "status?",

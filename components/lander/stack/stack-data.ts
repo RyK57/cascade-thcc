@@ -14,7 +14,8 @@ export interface StackBlock {
 
 export const STACK = {
   headline: "Three platforms. One thread.",
-  support: "Linq for the channel, Terac for the people, Dynamic for the money.",
+  support:
+    "Linq for the channel, Terac for credentialed work, Dynamic for the money.",
 } as const;
 
 export const STACK_ITEMS: StackItem[] = [
@@ -25,9 +26,9 @@ export const STACK_ITEMS: StackItem[] = [
   },
   {
     name: "Terac",
-    role: "Workers",
+    role: "Specialists",
     description:
-      "Vetted professionals, matched to the task and rated on what they deliver.",
+      "Vetted professionals, brought in only when a task needs a real credential.",
   },
   {
     name: "Dynamic",
@@ -52,10 +53,10 @@ export const STACK_BLOCKS: StackBlock[] = [
     tone: "secondary",
   },
   {
-    label: "Human tier",
+    label: "Human tiers",
     title: "Quote, then go.",
     description:
-      "A live quote lands in the thread. Confirm it and Cascade hires through Terac, holds the money in escrow, and releases it when you approve.",
+      "A live quote lands in the thread. Confirm it and Cascade hires — the network for hands-on work, a Terac professional when it needs a credential — holds the money in escrow, and releases it when you approve.",
     tone: "accent",
   },
 ];
