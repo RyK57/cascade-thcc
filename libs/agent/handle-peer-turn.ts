@@ -47,6 +47,7 @@ import {
 import { claimExpectedCredits } from "./routing-ev";
 import { HUD_STAGE, syncJobHud } from "./status-hud";
 import {
+  countPeerDeliverables,
   looksLikeBluff,
   shouldAuditDeliverable,
   startTrustAudit,
@@ -382,7 +383,14 @@ async function handlePeerClaimed(turn: PeerTurn): Promise<PeerOutcome> {
       console.warn("Failed to forward deliverable", error);
     }
 
-    if (assignee && (bluff || shouldAuditDeliverable(1))) {
+    // shouldAuditDeliverable samples every Nth delivery, so it needs the peer's
+    // running count — passing a literal 1 made any N > 1 disable audits.
+    let deliverableCount = 1;
+    if (assignee) {
+      deliverableCount = await countPeerDeliverables(assignee.id).catch(() => 1);
+    }
+
+    if (assignee && (bluff || shouldAuditDeliverable(deliverableCount))) {
       try {
         await startTrustAudit({
           jobId: job.id,

@@ -25,6 +25,8 @@ export { HUD_STAGE, syncJobHud, type HudStage } from "./status-hud";
 export { triageJob } from "./triage";
 export {
   applyTrustRating,
+  countPeerDeliverables,
+  isTrustAuditAutoLaunchEnabled,
   looksLikeBluff,
   shouldAuditDeliverable,
   startTrustAudit,

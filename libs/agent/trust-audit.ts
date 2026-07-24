@@ -12,6 +12,33 @@ export function shouldAuditDeliverable(deliverableCountHint = 1): boolean {
   return deliverableCountHint % every === 0;
 }
 
+/**
+ * Launching a Terac opportunity spends budget, so it stays opt-in. Drafts are
+ * free and are always created; without this flag the audit stops at the draft.
+ */
+export function isTrustAuditAutoLaunchEnabled(): boolean {
+  const raw = process.env.CASCADE_TRUST_AUDIT_AUTOLAUNCH?.trim().toLowerCase();
+  return raw === "1" || raw === "true";
+}
+
+/**
+ * How many deliverables this peer has submitted, including the one in flight.
+ * `shouldAuditDeliverable` samples every Nth, so it needs a real running count.
+ */
+export async function countPeerDeliverables(
+  peerUserId: string
+): Promise<number> {
+  const supabase = createAdminClient();
+  const { count, error } = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("assignee_user_id", peerUserId)
+    .in("status", ["delivered", "approved", "paid"]);
+
+  if (error) throw new Error(error.message);
+  return count ?? 1;
+}
+
 export function looksLikeBluff(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (t.length < 12) return true;
@@ -69,12 +96,17 @@ export async function startTrustAudit(params: {
         },
       ],
     });
-    await launchOpportunity(opportunity.id);
+    // Drafts are free; launching is not. Hard product rule is launch-on-
+    // explicit-confirm only, so default to leaving the draft parked.
+    const autoLaunch = isTrustAuditAutoLaunchEnabled();
+    if (autoLaunch) {
+      await launchOpportunity(opportunity.id);
+    }
     await supabase
       .from("trust_audits")
       .update({
         terac_opportunity_id: opportunity.id,
-        status: "launched",
+        status: autoLaunch ? "launched" : "drafted",
         updated_at: new Date().toISOString(),
       })
       .eq("id", audit.id);
