@@ -1,0 +1,175 @@
+import Foundation
+import MWDATCamera
+import MWDATCore
+import UIKit
+
+/// Meta Wearables DAT integration: registration, device session, and photo
+/// capture from the glasses camera. Falls back to the phone's rear camera
+/// when no glasses are connected so the loop works without hardware.
+@MainActor
+final class GlassesManager: ObservableObject {
+    @Published var isConnected = false
+    @Published var statusText = "Glasses: not connected"
+
+    private var session: DeviceSession?
+    private var stream: MWDATCamera.Stream?
+    private var tokens: [any AnyListenerToken] = []
+    private var photoContinuation: CheckedContinuation<UIImage?, Never>?
+    private let phoneFallback = PhoneCameraFallback()
+
+    /// Observe registration + device changes. Wearables.configure() runs in
+    /// the App initializer before this.
+    func configure() {
+        Task {
+            for await state in Wearables.shared.registrationStateStream() {
+                updateStatus(registration: state)
+            }
+        }
+    }
+
+    private func updateStatus(registration: RegistrationState) {
+        switch registration {
+        case .registered:
+            if !isConnected { statusText = "Glasses: registered — tap Connect" }
+        case .registering:
+            statusText = "Glasses: registering…"
+        case .available:
+            statusText = "Glasses: tap Connect to register"
+        case .unavailable:
+            statusText = "Glasses: install/open Meta AI app"
+        @unknown default:
+            statusText = "Glasses: unknown state"
+        }
+    }
+
+    func toggleConnection() {
+        if isConnected {
+            disconnect()
+        } else {
+            Task { await connect() }
+        }
+    }
+
+    func connect() async {
+        do {
+            if Wearables.shared.registrationState != .registered {
+                statusText = "Opening Meta AI app to register…"
+                try await Wearables.shared.startRegistration()
+                for await state in Wearables.shared.registrationStateStream() {
+                    if state == .registered { break }
+                }
+            }
+
+            var permission = try await Wearables.shared.checkPermissionStatus(.camera)
+            if permission != .granted {
+                permission = try await Wearables.shared.requestPermission(.camera)
+            }
+            guard permission == .granted else {
+                statusText = "Glasses: camera permission denied in Meta AI app"
+                return
+            }
+
+            let wearables = Wearables.shared
+            let session = try wearables.createSession(
+                deviceSelector: AutoDeviceSelector(wearables: wearables)
+            )
+            // Capture the stream before start() — no replay on state events.
+            let states = session.stateStream()
+            try session.start()
+            if session.state != .started {
+                for await state in states {
+                    if state == .started { break }
+                    if state == .stopped {
+                        statusText = "Glasses: session stopped — is a device paired?"
+                        return
+                    }
+                }
+            }
+            self.session = session
+            isConnected = true
+            statusText = "Glasses: connected"
+        } catch {
+            statusText = "Glasses: \(error.localizedDescription)"
+        }
+    }
+
+    func disconnect() {
+        stream?.stop()
+        stream = nil
+        session?.stop()
+        session = nil
+        tokens.removeAll()
+        isConnected = false
+        statusText = "Glasses: not connected"
+    }
+
+    /// Photo from the glasses camera when connected; phone camera otherwise.
+    func capturePhoto() async -> UIImage? {
+        guard isConnected, let session else {
+            return await phoneFallback.capture()
+        }
+        do {
+            let stream = try ensureStream(session: session)
+            return await withCheckedContinuation { continuation in
+                photoContinuation = continuation
+                if !stream.capturePhoto(format: .jpeg) {
+                    photoContinuation = nil
+                    continuation.resume(returning: nil)
+                    return
+                }
+                // Photo arrives on photoDataPublisher; guard with a timeout.
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .seconds(12))
+                    if let pending = self?.photoContinuation {
+                        self?.photoContinuation = nil
+                        pending.resume(returning: nil)
+                    }
+                }
+            }
+        } catch {
+            statusText = "Glasses: \(error.localizedDescription)"
+            return await phoneFallback.capture()
+        }
+    }
+
+    private func ensureStream(
+        session: DeviceSession
+    ) throws -> MWDATCamera.Stream {
+        if let stream, stream.state == .streaming { return stream }
+
+        let config = StreamConfiguration(
+            videoCodec: .raw, resolution: .low, frameRate: 24
+        )
+        guard let stream = try session.addStream(config: config) else {
+            throw NSError(
+                domain: "Cascade", code: 1,
+                userInfo: [
+                    NSLocalizedDescriptionKey: "Session not started yet"
+                ]
+            )
+        }
+
+        tokens.append(
+            stream.photoDataPublisher.listen { [weak self] photoData in
+                Task { @MainActor in
+                    guard let self, let pending = self.photoContinuation else {
+                        return
+                    }
+                    self.photoContinuation = nil
+                    pending.resume(returning: UIImage(data: photoData.data))
+                }
+            }
+        )
+        tokens.append(
+            stream.errorPublisher.listen { [weak self] error in
+                Task { @MainActor in
+                    self?.statusText = "Glasses stream: \(error)"
+                }
+            }
+        )
+
+        stream.start()
+        self.stream = stream
+        return stream
+    }
+}

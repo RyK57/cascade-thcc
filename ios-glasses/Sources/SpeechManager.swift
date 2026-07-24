@@ -21,15 +21,21 @@ final class SpeechManager: NSObject, ObservableObject {
         AVAudioApplication.requestRecordPermission { _ in }
     }
 
-    /// Routes audio through the glasses (Bluetooth HFP) when they're paired.
+    /// Routes audio through the glasses when paired: HFP for the mic,
+    /// A2DP allowed for playback (per Meta's DAT audio guidance).
     private func activateSession() throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(
             .playAndRecord,
-            mode: .voiceChat,
+            mode: .default,
             options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
         )
-        try session.setActive(true)
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        if let hfpInput = session.availableInputs?.first(where: {
+            $0.portType == .bluetoothHFP
+        }) {
+            try? session.setPreferredInput(hfpInput)
+        }
     }
 
     func startRecording() {
