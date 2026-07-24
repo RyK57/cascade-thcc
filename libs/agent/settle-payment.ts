@@ -46,8 +46,12 @@ export async function settlePayment({
 
   const hash =
     escrowTxHash ?? payment.escrowTxHash ?? simulatedEscrowHash(paymentId);
-  if (!payment.escrowTxHash || escrowTxHash) {
-    payment = await updatePayment(paymentId, { escrowTxHash: hash });
+  const heldAt = payment.escrowHeldAt ?? new Date().toISOString();
+  if (!payment.escrowTxHash || escrowTxHash || !payment.escrowHeldAt) {
+    payment = await updatePayment(paymentId, {
+      escrowTxHash: hash,
+      escrowHeldAt: heldAt,
+    });
   }
 
   const explorerUrl = explorerTxUrl(hash);

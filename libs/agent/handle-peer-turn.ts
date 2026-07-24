@@ -1,6 +1,6 @@
 import { listJobBids, secondPriceClear, upsertJobBid } from "@/db/bids";
 import { claimJob, clearAssigneeAndReopen, updateJob } from "@/db/jobs";
-import { createPayment, getPaymentByJobId } from "@/db/payments";
+import { createPayment, getPaymentByJobId, updatePayment } from "@/db/payments";
 import {
   adjustCredits,
   getUserByIdAdmin,
@@ -473,6 +473,15 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
       jobId: job.id,
       reason: "peer_job_completed",
     });
+  }
+
+  const payment = await getPaymentByJobId(job.id).catch(() => null);
+  if (payment) {
+    await updatePayment(payment.id, {
+      escrowReleasedAt: new Date().toISOString(),
+    }).catch((error) =>
+      console.warn("[cascade] failed to stamp escrow_released_at", error)
+    );
   }
 
   let paid = await updateJob(job.id, { status: JOB_STATUS.paid });
