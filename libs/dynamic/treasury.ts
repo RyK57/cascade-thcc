@@ -54,7 +54,6 @@ async function createServerWalletAccount(): Promise<{
   // Use a runtime specifier so Vitest/Vite does not eagerly resolve optional deps.
   const specifier = "@dynamic-labs-wallet/" + "node-evm";
   const mod = await import(/* webpackIgnore: true */ specifier);
-   
   const DynamicEvmWalletClient =
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mod as any).DynamicEvmWalletClient ?? (mod as any).default;
@@ -145,7 +144,7 @@ async function broadcastUsdcTransfer(params: {
   const specifier = "@dynamic-labs-wallet/" + "node-evm";
   const mod = await import(/* webpackIgnore: true */ specifier);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { DynamicEvmWalletClient } = mod as any;
+  const { createDelegatedEvmWalletClient } = mod as any;
   const { encodeFunctionData, erc20Abi, parseUnits } = await import("viem");
 
   const treasury = await getTreasuryWallet();
@@ -154,50 +153,31 @@ async function broadcastUsdcTransfer(params: {
   }
 
   const keyShares = JSON.parse(process.env.DYNAMIC_SERVER_KEY_SHARES!);
-  // Sponsored (gasless) txs live on DynamicEvmWalletClient, not the delegated
-  // client — delegated signing is for end-user wallets via delegation webhooks.
-  const client = new DynamicEvmWalletClient({
+  const client = createDelegatedEvmWalletClient({
     environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
+    apiKey: process.env.DYNAMIC_API_KEY!,
   });
-  await client.authenticateApiToken(process.env.DYNAMIC_API_KEY!);
 
   const amount = parseUnits(String(params.amountUsdcCents / 100), 6);
   const to = params.toAddress as `0x${string}`;
   const target = BASE_SEPOLIA_USDC_ADDRESS as `0x${string}`;
-  const transferData = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: "transfer",
-    args: [to, amount],
-  });
-
-  try {
-    const { transactionHash } = await client.sendSponsoredTransaction({
-      walletMetadata: treasury.walletMetadata,
-      externalServerKeyShares: keyShares,
-      password: process.env.DYNAMIC_TREASURY_PASSWORD,
-      autoDelegate: true,
-      chainId: BASE_SEPOLIA_CHAIN_ID,
-      rpcUrl: getSandboxRpcUrl(),
-      calls: [{ target, data: transferData, value: BigInt(0) }],
-    });
-    return { txHash: transactionHash as string };
-  } catch (error) {
-    // Sponsorship may be disabled for the environment — fall back to a
-    // self-funded tx (treasury needs Base Sepolia gas ETH from a faucet).
-    console.warn("[dynamic] sponsored tx failed; trying self-funded", error);
-  }
-
-  const walletClient = await client.getWalletClient({
+  const { transactionHash } = await client.sendSponsoredTransaction({
     walletMetadata: treasury.walletMetadata,
-    password: process.env.DYNAMIC_TREASURY_PASSWORD,
     externalServerKeyShares: keyShares,
     chainId: BASE_SEPOLIA_CHAIN_ID,
     rpcUrl: getSandboxRpcUrl(),
+    calls: [
+      {
+        target,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: "transfer",
+          args: [to, amount],
+        }),
+        value: BigInt(0),
+      },
+    ],
   });
-  const txHash = await walletClient.sendTransaction({
-    to: target,
-    data: transferData,
-    value: BigInt(0),
-  });
-  return { txHash: txHash as string };
+
+  return { txHash: transactionHash as string };
 }
