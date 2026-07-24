@@ -4,14 +4,15 @@ import { ThemeToggle } from "@/components/theme";
 import { ROUTES } from "@/lib/constants/routes";
 
 const NAV_LINKS = [
-  { href: "#features", label: "Features" },
+  { href: "#how-it-works", label: "How it works" },
+  { href: "#stack", label: "Stack" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ] as const;
 
 export function NavbarLinks() {
   return (
-    <nav className="hidden items-center gap-6 md:flex">
+    <nav className="hidden items-center gap-7 md:flex">
       {NAV_LINKS.map((link) => (
         <Link
           key={link.href}
@@ -33,7 +34,7 @@ export function NavbarActions() {
         <Link href={ROUTES.auth.login}>Sign in</Link>
       </Button>
       <Button size="sm" asChild>
-        <Link href={ROUTES.auth.signUp}>Get started</Link>
+        <Link href={ROUTES.main}>Open app</Link>
       </Button>
     </div>
   );
