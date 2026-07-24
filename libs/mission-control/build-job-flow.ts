@@ -1,6 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import { BRAND } from "@/lib/constants/branding";
 import { explorerAddressUrl, explorerTxUrl } from "@/libs/dynamic/usdc";
+import { JOB_TIER } from "@/utils/schema/agent";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import type { MissionFlowInput, MissionNodeData, MissionNodeState } from "./flow-types";
@@ -10,29 +11,54 @@ const DONE = BRAND.secondary; // #6F68FF
 
 type MissionNode = Node<MissionNodeData>;
 
-/** Ranks for "has the job reached stage X yet". */
-const JOB_STAGE_ORDER = [
+/** Expert-shaped ranks. */
+const EXPERT_STAGE_ORDER = [
   JOB_STATUS.intake,
   JOB_STATUS.draftReady,
+  JOB_STATUS.quoted,
   JOB_STATUS.launched,
   JOB_STATUS.inReview,
   JOB_STATUS.paymentPending,
   JOB_STATUS.paid,
 ] as const;
 
-function jobRank(status: string): number {
-  const index = JOB_STAGE_ORDER.indexOf(status as (typeof JOB_STAGE_ORDER)[number]);
+/** Peer-shaped ranks. */
+const PEER_STAGE_ORDER = [
+  JOB_STATUS.intake,
+  JOB_STATUS.quoted,
+  JOB_STATUS.funded,
+  JOB_STATUS.claimed,
+  JOB_STATUS.delivered,
+  JOB_STATUS.approved,
+  JOB_STATUS.paymentPending,
+  JOB_STATUS.paid,
+] as const;
+
+function jobRank(status: string, peer: boolean): number {
+  const order = peer ? PEER_STAGE_ORDER : EXPERT_STAGE_ORDER;
+  const index = order.indexOf(status as (typeof order)[number]);
   return index === -1 ? 0 : index;
 }
 
-/** Payment progress: has escrow been funded / has the worker been paid. */
+/** Escrow hold: authorized or settled payment, or peer job past funded. */
 function escrowFunded(input: MissionFlowInput): boolean {
   const status = input.payment?.status;
-  return status === PAYMENT_STATUS.authorized || status === PAYMENT_STATUS.settled;
+  if (status === PAYMENT_STATUS.authorized || status === PAYMENT_STATUS.settled) {
+    return true;
+  }
+  const jobStatus = input.job.status;
+  return (
+    jobStatus === JOB_STATUS.funded ||
+    jobStatus === JOB_STATUS.claimed ||
+    jobStatus === JOB_STATUS.delivered ||
+    jobStatus === JOB_STATUS.approved ||
+    jobStatus === JOB_STATUS.paid
+  );
 }
 
+/** Worker paid only when the job is closed paid — not merely escrow settled. */
 function workerPaid(input: MissionFlowInput): boolean {
-  return input.payment?.status === PAYMENT_STATUS.settled;
+  return input.job.status === JOB_STATUS.paid;
 }
 
 function walletNode(
@@ -67,38 +93,56 @@ function edgeStyle(state: MissionNodeState) {
   };
 }
 
+function stageStatesForJob(input: MissionFlowInput): {
+  labels: string[];
+  states: MissionNodeState[];
+} {
+  const isPeer = input.job.tier === JOB_TIER.peer;
+  const rank = jobRank(input.job.status, isPeer);
+  const paid = workerPaid(input);
+
+  if (isPeer) {
+    return {
+      labels: ["iMessage intake", "Quoted / fund", "Claimed work", "Paid"],
+      states: [
+        rank > 0 ? "done" : "active",
+        rank > 2 ? "done" : rank >= 1 ? "active" : "idle",
+        rank > 4 ? "done" : rank >= 3 ? "active" : "idle",
+        paid ? "done" : rank >= 5 ? "active" : "idle",
+      ],
+    };
+  }
+
+  return {
+    labels: ["iMessage intake", "Terac worker", "Work approved", "Paid"],
+    states: [
+      rank > 0 ? "done" : "active",
+      rank > 3 ? "done" : rank >= 1 ? "active" : "idle",
+      rank > 4 ? "done" : rank >= 4 ? "active" : "idle",
+      paid ? "done" : rank >= 5 ? "active" : "idle",
+    ],
+  };
+}
+
 /**
  * Pure projection: (job, payment, live balances, tx hashes) → React Flow graph.
- * Everything on the canvas derives from real data — nothing is hard-coded.
+ * Peer and expert jobs use different stage lanes; payout is job.paid, not escrow settle.
  */
 export function buildJobFlow(input: MissionFlowInput): {
   nodes: MissionNode[];
   edges: Edge[];
 } {
-  const rank = jobRank(input.job.status);
   const funded = escrowFunded(input);
   const paid = workerPaid(input);
-
-  // --- Stage lane (top): job lifecycle ---
-  const stageStates: MissionNodeState[] = [
-    rank > 0 ? "done" : "active", // intake
-    rank > 2 ? "done" : rank >= 1 ? "active" : "idle", // terac launch (draft/launched)
-    rank > 3 ? "done" : rank >= 3 ? "active" : "idle", // work approved (in_review)
-    input.job.status === JOB_STATUS.paid
-      ? "done"
-      : rank >= 4
-        ? "active"
-        : "idle", // payment
-  ];
+  const { labels, states: stageStates } = stageStatesForJob(input);
 
   const nodes: MissionNode[] = [
-    stageNode("stage-intake", { x: 0, y: 0 }, "iMessage intake", stageStates[0]),
-    stageNode("stage-terac", { x: 190, y: 0 }, "Terac worker", stageStates[1]),
-    stageNode("stage-review", { x: 380, y: 0 }, "Work approved", stageStates[2]),
-    stageNode("stage-paid", { x: 570, y: 0 }, "Paid", stageStates[3]),
+    stageNode("stage-intake", { x: 0, y: 0 }, labels[0], stageStates[0]),
+    stageNode("stage-terac", { x: 190, y: 0 }, labels[1], stageStates[1]),
+    stageNode("stage-review", { x: 380, y: 0 }, labels[2], stageStates[2]),
+    stageNode("stage-paid", { x: 570, y: 0 }, labels[3], stageStates[3]),
   ];
 
-  // --- Wallet lane (bottom): the money ---
   const requesterState: MissionNodeState = funded
     ? "done"
     : input.requesterAddress
@@ -130,7 +174,7 @@ export function buildJobFlow(input: MissionFlowInput): {
     }),
     walletNode("wallet-agent", { x: 280, y: 150 }, {
       title: "Agent escrow",
-      subtitle: "Dynamic server wallet (MPC)",
+      subtitle: "Cascade agent wallet (hold)",
       address: input.agentAddress,
       balances: input.agentAddress ? input.balances[input.agentAddress] : undefined,
       state: agentState,
@@ -140,7 +184,7 @@ export function buildJobFlow(input: MissionFlowInput): {
     }),
     walletNode("wallet-worker", { x: 560, y: 150 }, {
       title: "Worker",
-      subtitle: "Payout destination",
+      subtitle: "Paid on approve",
       address: input.workerAddress,
       balances: input.workerAddress
         ? input.balances[input.workerAddress]
@@ -152,7 +196,6 @@ export function buildJobFlow(input: MissionFlowInput): {
     })
   );
 
-  // --- Edges ---
   const stageEdgeState = (i: number): MissionNodeState =>
     stageStates[i + 1] === "done"
       ? "done"
@@ -162,7 +205,7 @@ export function buildJobFlow(input: MissionFlowInput): {
 
   const escrowEdgeState: MissionNodeState = funded
     ? "done"
-    : input.payment && !input.job.status.startsWith("paid")
+    : input.payment && input.job.status !== JOB_STATUS.paid
       ? "active"
       : "idle";
   const payoutEdgeState: MissionNodeState = paid
@@ -185,7 +228,7 @@ export function buildJobFlow(input: MissionFlowInput): {
       label: input.escrowTxHash
         ? `${input.escrowTxHash.slice(0, 10)}…`
         : funded
-          ? "escrow funded"
+          ? "escrow held"
           : "USDC escrow",
       ...(input.escrowTxHash
         ? { data: { txUrl: explorerTxUrl(input.escrowTxHash) } }
@@ -200,7 +243,7 @@ export function buildJobFlow(input: MissionFlowInput): {
         ? `${input.payoutTxHash.slice(0, 10)}…`
         : paid
           ? "worker paid"
-          : "autonomous payout",
+          : "release on approve",
       ...(input.payoutTxHash
         ? { data: { txUrl: explorerTxUrl(input.payoutTxHash) } }
         : {}),

@@ -68,12 +68,14 @@ describe("buildJobFlow", () => {
     expect(nodeState(result, "wallet-requester")).toBe("active");
   });
 
-  it("authorized (escrow funded): escrow done, agent active", () => {
+  it("authorized (escrow held): escrow done, agent active, payout idle", () => {
     const result = build({ payment: payment("authorized") });
     expect(edge(result, "escrow-edge").animated).toBe(false);
-    expect(edge(result, "escrow-edge").label).toBe("escrow funded");
+    expect(edge(result, "escrow-edge").label).toBe("escrow held");
+    expect(edge(result, "payout-edge").label).toBe("release on approve");
     expect(nodeState(result, "wallet-requester")).toBe("done");
     expect(nodeState(result, "wallet-agent")).toBe("active");
+    expect(nodeState(result, "wallet-worker")).toBe("idle");
   });
 
   it("isPayingOut: payout edge animates", () => {
@@ -82,7 +84,18 @@ describe("buildJobFlow", () => {
     expect(nodeState(result, "wallet-worker")).toBe("active");
   });
 
-  it("settled + paid: everything done, nothing animated", () => {
+  it("settled escrow alone does not mark worker paid", () => {
+    const result = build({
+      job: job("funded"),
+      payment: payment("settled"),
+    });
+    expect(edge(result, "escrow-edge").label).toBe("escrow held");
+    expect(edge(result, "payout-edge").label).toBe("release on approve");
+    expect(nodeState(result, "wallet-worker")).toBe("idle");
+    expect(nodeState(result, "stage-paid")).not.toBe("done");
+  });
+
+  it("job paid: everything done, nothing animated", () => {
     const result = build({ job: job("paid"), payment: payment("settled") });
     expect(edge(result, "escrow-edge").animated).toBe(false);
     expect(edge(result, "payout-edge").animated).toBe(false);
@@ -91,6 +104,19 @@ describe("buildJobFlow", () => {
       expect(nodeState(result, id)).toBe("done");
     }
     expect(nodeState(result, "stage-paid")).toBe("done");
+  });
+
+  it("peer tier uses claim-shaped stage labels", () => {
+    const result = build({
+      job: { ...job("claimed"), tier: "peer" },
+      payment: payment("settled"),
+    });
+    expect(result.nodes.find((n) => n.id === "stage-terac")?.data.title).toBe(
+      "Quoted / fund"
+    );
+    expect(result.nodes.find((n) => n.id === "stage-review")?.data.title).toBe(
+      "Claimed work"
+    );
   });
 
   it("tx hashes become truncated edge labels with BaseScan links", () => {

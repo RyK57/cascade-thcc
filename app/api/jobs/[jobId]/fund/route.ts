@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getJobById } from "@/db/jobs";
 import { getPaymentByJobId, updatePaymentStatus } from "@/db/payments";
 import { settlePayment } from "@/libs/agent";
+import {
+  getAgentWalletAddress,
+  isAgentWalletConfigured,
+} from "@/libs/dynamic/agent-wallet";
 import { explorerAddressUrl, explorerTxUrl } from "@/libs/dynamic/sandbox";
 import { ensureSandboxTreasury } from "@/libs/dynamic/treasury";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
@@ -18,9 +22,9 @@ function simulatedEscrowHash(paymentId: string): string {
 }
 
 /**
- * Sandbox fund confirm — marks payment settled and advances the job
- * (peer → funded+broadcast, expert → paid). No mainnet / real USD.
- * Accepts a real Base Sepolia `txHash` from the pay panel when available.
+ * Sandbox fund confirm — locks escrow in the Cascade agent wallet (or treasury
+ * fallback). Peer → funded+broadcast (no worker pay). Expert → paid.
+ * Accepts a real Base Sepolia `txHash` from Mission Control when available.
  */
 export async function POST(request: Request, context: RouteContext) {
   const { jobId } = await context.params;
@@ -46,7 +50,9 @@ export async function POST(request: Request, context: RouteContext) {
     // empty body ok
   }
 
+  const agentAddress = getAgentWalletAddress();
   const treasury = await ensureSandboxTreasury();
+  const escrowAddress = agentAddress ?? treasury.address;
   const escrowTxHash =
     body.txHash ?? body.escrowTxHash ?? simulatedEscrowHash(payment.id);
 
@@ -70,8 +76,11 @@ export async function POST(request: Request, context: RouteContext) {
     ok: true,
     mode: "sandbox",
     chain: "base-sepolia",
+    agentWalletConfigured: isAgentWalletConfigured(),
+    agentWalletAddress: agentAddress ?? null,
     treasuryAddress: treasury.address,
-    treasuryExplorerUrl: explorerAddressUrl(treasury.address),
+    escrowAddress,
+    treasuryExplorerUrl: explorerAddressUrl(escrowAddress),
     escrowTxHash,
     escrowExplorerUrl: explorerTxUrl(escrowTxHash),
     payment: settled,
@@ -87,12 +96,17 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
   const payment = await getPaymentByJobId(jobId);
+  const agentAddress = getAgentWalletAddress();
   const treasury = await ensureSandboxTreasury();
+  const escrowAddress = agentAddress ?? treasury.address;
   return NextResponse.json({
     job,
     payment,
+    agentWalletConfigured: isAgentWalletConfigured(),
+    agentWalletAddress: agentAddress ?? null,
     treasuryAddress: treasury.address,
-    treasuryExplorerUrl: explorerAddressUrl(treasury.address),
+    escrowAddress,
+    treasuryExplorerUrl: explorerAddressUrl(escrowAddress),
     escrowExplorerUrl: payment?.escrowTxHash
       ? explorerTxUrl(payment.escrowTxHash)
       : null,
