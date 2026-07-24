@@ -16,10 +16,18 @@ export async function updateJob(
       status: parsed.status,
       title: parsed.title,
       description: parsed.description,
+      tier: parsed.tier,
       terac_opportunity_id: parsed.teracOpportunityId,
       terac_submission_id: parsed.teracSubmissionId,
+      terac_task_url: parsed.teracTaskUrl,
       quoted_total_cents: parsed.quotedTotalCents,
       quoted_currency: parsed.quotedCurrency,
+      price_usd_cents: parsed.priceUsdCents,
+      assignee_user_id: parsed.assigneeUserId,
+      status_card_message_id: parsed.statusCardMessageId,
+      funded_via: parsed.fundedVia,
+      claim_chat_id: parsed.claimChatId,
+      triage_reason: parsed.triageReason,
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId)
