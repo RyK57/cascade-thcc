@@ -156,19 +156,26 @@ async function handleClosed(turn: JobTurn): Promise<JobTurnOutcome> {
   const { job, intent, text } = turn;
 
   if (intent === AGENT_INTENT.freeform) {
+    // Explicit nulls, not undefined: updateJob drops undefined keys so the
+    // PATCH can stay partial. Leaving assignee_user_id or claim_chat_id behind
+    // makes the next job in this thread permanently unclaimable.
     const reset = await updateJob(job.id, {
       status: JOB_STATUS.intake,
       title: clipTitle(text),
       description: text,
-      tier: undefined,
-      teracOpportunityId: undefined,
-      teracSubmissionId: undefined,
-      assigneeUserId: undefined,
-      claimChatId: undefined,
-      statusCardMessageId: undefined,
-      statusCardIsRich: undefined,
-      fundedVia: undefined,
-      priceUsdCents: undefined,
+      tier: null,
+      teracOpportunityId: null,
+      teracSubmissionId: null,
+      teracTaskUrl: null,
+      quotedTotalCents: null,
+      quotedCurrency: null,
+      assigneeUserId: null,
+      claimChatId: null,
+      statusCardMessageId: null,
+      statusCardIsRich: false,
+      fundedVia: null,
+      priceUsdCents: null,
+      evSummary: null,
       walletRefuseCount: 0,
     });
     return handleJobTurn({

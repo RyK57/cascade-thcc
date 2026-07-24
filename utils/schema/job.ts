@@ -81,6 +81,13 @@ export const createJobSchema = jobSchema.pick({
   description: true,
 });
 
+/**
+ * `undefined` means "leave this column alone" — postgrest serializes the PATCH
+ * body with JSON.stringify, which drops undefined keys. Clearing a column
+ * therefore needs an explicit `null`, so every column a job reset has to wipe
+ * is nullable here (but not on `jobSchema`, which models a mapped row where an
+ * absent value is already `undefined`).
+ */
 export const updateJobSchema = jobSchema
   .pick({
     status: true,
@@ -104,7 +111,21 @@ export const updateJobSchema = jobSchema
     requesterLat: true,
     requesterLng: true,
   })
-  .partial();
+  .partial()
+  .extend({
+    tier: jobTierSchema.nullish(),
+    teracOpportunityId: z.string().nullish(),
+    teracSubmissionId: z.string().nullish(),
+    teracTaskUrl: z.string().nullish(),
+    quotedTotalCents: z.number().int().nonnegative().nullish(),
+    quotedCurrency: z.string().nullish(),
+    priceUsdCents: z.number().int().nonnegative().nullish(),
+    assigneeUserId: z.string().uuid().nullish(),
+    statusCardMessageId: z.string().nullish(),
+    fundedVia: fundedViaSchema.nullish(),
+    claimChatId: z.string().nullish(),
+    evSummary: z.string().nullish(),
+  });
 
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type Job = z.infer<typeof jobSchema>;

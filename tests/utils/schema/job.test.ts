@@ -53,4 +53,37 @@ describe("updateJobSchema", () => {
       updateJobSchema.parse({ status: JOB_STATUS.launched })
     ).toEqual({ status: "launched" });
   });
+
+  it("keeps explicit nulls so a job reset can clear columns", () => {
+    // postgrest serializes the PATCH body with JSON.stringify, which drops
+    // undefined keys — so only an explicit null actually clears a column.
+    const parsed = updateJobSchema.parse({
+      assigneeUserId: null,
+      claimChatId: null,
+      tier: null,
+      priceUsdCents: null,
+      fundedVia: null,
+    });
+
+    expect(parsed).toEqual({
+      assigneeUserId: null,
+      claimChatId: null,
+      tier: null,
+      priceUsdCents: null,
+      fundedVia: null,
+    });
+    expect(JSON.parse(JSON.stringify(parsed))).toHaveProperty(
+      "assigneeUserId",
+      null
+    );
+  });
+
+  it("drops undefined so a partial update leaves other columns alone", () => {
+    const parsed = updateJobSchema.parse({
+      status: JOB_STATUS.funded,
+      assigneeUserId: undefined,
+    });
+
+    expect(JSON.parse(JSON.stringify(parsed))).toEqual({ status: "funded" });
+  });
 });
