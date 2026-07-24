@@ -134,12 +134,12 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
       title: job.title,
       description: job.description ?? turn.text,
     });
-    let done = await updateJob(job.id, {
+    const done = await updateJob(job.id, {
       status: JOB_STATUS.paid,
       priceUsdCents: 0,
       evSummary: evLine,
     });
-    done = await syncJobHud(done, HUD_STAGE.answered);
+    await syncJobHud(done, HUD_STAGE.answered);
     return {
       action: AGENT_ACTION.answeredAi,
       reply: `${routeLine}\n\n${answer}`,

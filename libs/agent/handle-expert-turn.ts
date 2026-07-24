@@ -225,7 +225,7 @@ async function handleReview({ job, intent }: ExpertTurn): Promise<ExpertOutcome>
     if (job.status !== JOB_STATUS.inReview) {
       reviewing = await updateJob(job.id, { status: JOB_STATUS.inReview });
     }
-    reviewing = await syncJobHud(reviewing, HUD_STAGE.inReview);
+    await syncJobHud(reviewing, HUD_STAGE.inReview);
     return {
       action: AGENT_ACTION.workReady,
       reply: workReadyReply(awaiting.length),
@@ -243,8 +243,8 @@ async function handlePaymentPending({ job }: ExpertTurn): Promise<ExpertOutcome>
   const payment = await getPaymentByJobId(job.id);
 
   if (payment?.status === PAYMENT_STATUS.settled) {
-    let paid = await updateJob(job.id, { status: JOB_STATUS.paid });
-    paid = await syncJobHud(paid, HUD_STAGE.paid);
+    const paid = await updateJob(job.id, { status: JOB_STATUS.paid });
+    await syncJobHud(paid, HUD_STAGE.paid);
     const explorer = payment.escrowTxHash
       ? explorerTxUrl(payment.escrowTxHash)
       : undefined;

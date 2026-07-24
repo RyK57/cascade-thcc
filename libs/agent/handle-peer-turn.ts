@@ -9,7 +9,6 @@ import {
 import {
   adjustCredits,
   getUserByIdAdmin,
-  getUserByPhone,
   listPeers,
   upsertUserByPhone,
 } from "@/db/users";
@@ -83,14 +82,14 @@ export async function quotePeerJob(job: Job): Promise<PeerOutcome> {
     currency: "usd",
   });
 
-  let updated = await updateJob(job.id, {
+  const updated = await updateJob(job.id, {
     status: JOB_STATUS.quoted,
     priceUsdCents: priceCents,
     quotedTotalCents: priceCents,
     quotedCurrency: "usd",
   });
 
-  updated = await syncJobHud(updated, HUD_STAGE.quoted);
+  await syncJobHud(updated, HUD_STAGE.quoted);
 
   const requester = await ensurePhoneWallet(job.requesterHandle);
   const nudge =
@@ -386,13 +385,13 @@ async function handlePeerClaimed(turn: PeerTurn): Promise<PeerOutcome> {
 
   if (isAssignee && intent === AGENT_INTENT.freeform) {
     const bluff = looksLikeBluff(text);
-    let delivered = await updateJob(job.id, {
+    const delivered = await updateJob(job.id, {
       status: JOB_STATUS.delivered,
       description: job.description
         ? `${job.description}\n\nDeliverable:\n${text}`
         : text,
     });
-    delivered = await syncJobHud(delivered, HUD_STAGE.delivered);
+    await syncJobHud(delivered, HUD_STAGE.delivered);
 
     const warn = bluff
       ? "\n(Low-effort tell detected — routing to Terac trust audit.)"
@@ -606,8 +605,8 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     });
   }
 
-  let paid = await updateJob(job.id, { status: JOB_STATUS.paid });
-  paid = await syncJobHud(paid, HUD_STAGE.paid);
+  const paid = await updateJob(job.id, { status: JOB_STATUS.paid });
+  await syncJobHud(paid, HUD_STAGE.paid);
 
   if (job.claimChatId) {
     try {

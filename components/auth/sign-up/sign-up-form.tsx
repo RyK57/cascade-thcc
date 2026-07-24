@@ -27,7 +27,11 @@ export function SignUpForm() {
     signUpAction,
     INITIAL_AUTH_STATE,
   );
-  const [editing, setEditing] = useState(false);
+  // See ForgotPasswordForm: keyed on the result object so a fresh result
+  // clears it, instead of a boolean that never reset and left a successful
+  // resend with no visible confirmation.
+  const [editedFrom, setEditedFrom] = useState<typeof state | null>(null);
+  const editing = editedFrom === state;
 
   const fullName = useValidatedField(() => undefined);
   const email = useValidatedField(validateEmail);
@@ -61,7 +65,7 @@ export function SignUpForm() {
           </Button>
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => setEditedFrom(state)}
             className={`${AUTH_LINK} block w-full text-center text-sm text-muted-foreground`}
           >
             Wrong address? Edit it and send again

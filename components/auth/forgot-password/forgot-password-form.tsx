@@ -22,7 +22,13 @@ export function ForgotPasswordForm() {
     forgotPasswordAction,
     INITIAL_AUTH_STATE,
   );
-  const [editing, setEditing] = useState(false);
+  // Remember which result the user chose to edit from, rather than a plain
+  // boolean. useActionState hands back a fresh object per run, so the next
+  // result clears `editing` on its own — a boolean stayed true forever and,
+  // because state.success was already true, a successful resend changed
+  // nothing on screen and looked broken.
+  const [editedFrom, setEditedFrom] = useState<typeof state | null>(null);
+  const editing = editedFrom === state;
   const email = useValidatedField(validateEmail);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -49,7 +55,7 @@ export function ForgotPasswordForm() {
           </Button>
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => setEditedFrom(state)}
             className={`${AUTH_LINK} block w-full text-center text-sm text-muted-foreground`}
           >
             Nothing arrived? Check the address and resend

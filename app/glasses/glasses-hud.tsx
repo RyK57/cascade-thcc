@@ -58,6 +58,11 @@ export function GlassesHud() {
   }, []);
 
   useEffect(() => {
+    // Subscribing to an external system (the job feed) is what effects are
+    // for. The rule can't see past the async boundary: refresh awaits fetch
+    // before it ever calls setState, so nothing updates state synchronously
+    // during this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     const interval = setInterval(refresh, 4000);
     return () => clearInterval(interval);

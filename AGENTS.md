@@ -65,6 +65,6 @@ Node 22 + pnpm are preinstalled; the startup update script runs `pnpm install`. 
 - **Run:** `pnpm dev` serves the whole app (UI + all API routes) on `http://localhost:3000`. This is the only process needed.
 - **The app boots with zero external services configured.** Every integration (Linq, Terac, Dynamic, Supabase, Stripe, AI providers) is gated by an `isXConfigured()` check, so missing keys report `"missing"`/`"skipped"` instead of crashing. Copy `.env.example` → `.env.local` (gitignored) and only add keys for the integration you actually need to exercise end-to-end.
 - **Verify health without a browser:** `curl http://localhost:3000/api/health` returns `{"ok":true,...}` with per-integration status.
-- **Lint has a pre-existing failure:** `pnpm lint` exits non-zero due to a `react-hooks/set-state-in-effect` error in `components/theme/theme-toggle.tsx`. This is existing code, not an environment problem — expect the failure until that file is fixed.
+- **Lint is clean:** `pnpm lint` exits 0. (It previously failed on `components/theme/theme-toggle.tsx`, which no longer exists — the app is dark-only.) Note `next build` does not run ESLint, so lint has to be run on its own.
 - **Tests** (`pnpm test`, Vitest) run fully offline and pass without any env vars.
 - Exercising the real hiring/payment loop (`POST /api/linq/chats`, `/api/terac/opportunities`, Dynamic wallet login on `/main`) requires the corresponding provider API keys added to `.env.local`.
