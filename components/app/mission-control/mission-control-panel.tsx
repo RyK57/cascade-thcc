@@ -26,9 +26,13 @@ interface MissionControlPanelProps {
 /** Polls job + wallets and projects them into the live payment canvas. */
 export function MissionControlPanel({ jobId }: MissionControlPanelProps) {
   const { data: accounts = [] } = useGetWalletAccounts();
-  const requesterAddress = accounts[0]?.address;
+  // Match PayButton, which spends from the EVM account — accounts[0] is only
+  // incidentally the same one today.
+  const requesterAddress =
+    accounts.find((account) => account.chain === "EVM")?.address ??
+    accounts[0]?.address;
 
-  const [escrowTxHash, setEscrowTxHash] = useState<string | undefined>();
+  const [localEscrowTxHash, setLocalEscrowTxHash] = useState<string | undefined>();
 
   const jobQuery = useQuery({
     queryKey: ["job", jobId],
@@ -50,6 +54,9 @@ export function MissionControlPanel({ jobId }: MissionControlPanelProps) {
   const job = jobQuery.data?.job;
   const payment = jobQuery.data?.payment ?? null;
   const wallet = walletQuery.data;
+  // The persisted hash survives a reload; the local one only covers the gap
+  // before the next poll returns it.
+  const escrowTxHash = localEscrowTxHash ?? payment?.escrowTxHash;
 
   const flow = useMemo(() => {
     if (!job) return null;
@@ -82,12 +89,12 @@ export function MissionControlPanel({ jobId }: MissionControlPanelProps) {
         job={job}
         payment={payment}
         agentAddress={wallet?.agentAddress}
-        onEscrowTx={setEscrowTxHash}
+        onEscrowTx={setLocalEscrowTxHash}
       />
 
       {flow ? <FlowCanvas nodes={flow.nodes} edges={flow.edges} /> : null}
 
-      <FlowToolbar escrowTxHash={escrowTxHash ?? payment?.escrowTxHash} />
+      <FlowToolbar escrowTxHash={escrowTxHash} />
     </section>
   );
 }

@@ -33,6 +33,11 @@ export function CheckoutCard({
   const { data: initStatus } = useInitStatus();
   const { data: user } = useUser();
   const { data: accounts = [] } = useGetWalletAccounts();
+  // Show the account PayButton actually spends from, not whichever
+  // happens to be first.
+  const payingAddress =
+    accounts.find((account) => account.chain === "EVM")?.address ??
+    accounts[0]?.address;
 
   const amountCents = payment?.amountCents ?? job.quotedTotalCents ?? 0;
   const amountLabel = `$${(amountCents / 100).toFixed(2)}`;
@@ -92,7 +97,7 @@ export function CheckoutCard({
             <p className="text-xs text-muted-foreground">
               Wallet:{" "}
               <code className="text-foreground">
-                {accounts[0]?.address ?? "creating…"}
+                {payingAddress ?? "creating…"}
               </code>
             </p>
             <PayButton

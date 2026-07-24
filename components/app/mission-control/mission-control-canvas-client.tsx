@@ -33,7 +33,9 @@ export function MissionControlCanvasClient({
   jobId,
 }: MissionControlCanvasClientProps) {
   const { data: accounts = [] } = useGetWalletAccounts();
-  const requesterAddress = accounts[0]?.address;
+  const requesterAddress =
+    accounts.find((account) => account.chain === "EVM")?.address ??
+    accounts[0]?.address;
 
   const jobQuery = useQuery({
     queryKey: ["mission-control-canvas-job", jobId],
