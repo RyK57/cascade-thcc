@@ -1,0 +1,27 @@
+# Documentation
+
+This template is designed for fast prototyping with a subagent.
+
+## Architecture
+
+1. **Lander** — hardcoded data in `components/lander/`, composed in `app/page.tsx`
+2. **App** — product UI in `components/app/` + routes under `app/`
+3. **API** — route handlers in `app/api/`
+4. **CRUD** — `db/<domain>/index.ts` server-side data access
+5. **Business logic** — `libs/<domain>/` pure functions
+6. **Schemas** — `utils/schema/` Zod types shared across layers
+7. **Tests** — mirror source tree under `tests/`
+
+## Subagent workflow
+
+The prototype subagent should ask about:
+
+- Product name, tagline, logo
+- Brand accent color
+- Core user flows and pages
+- Auth requirements
+- Data models
+- AI features (OpenAI / Anthropic / xAI)
+- Payments (Stripe) if needed
+
+Then implement in small files — never 400+ line monoliths.

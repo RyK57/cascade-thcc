@@ -1,0 +1,94 @@
+---
+description: shadcn/ui styling conventions — props over className, global changes in components/ui
+globs:
+  - "components/**"
+  - "app/**"
+alwaysApply: true
+---
+
+# Styling Rules
+
+Prevent spaghetti styling. Prefer **shadcn component APIs** over ad-hoc Tailwind on every usage.
+
+## Golden rule
+
+**Style through props first. `className` is a last resort.**
+
+Every shadcn primitive exposes intentional props — use them:
+
+| Component | Prefer props |
+|-----------|----------------|
+| `Button` | `variant`, `size`, `asChild` |
+| `Badge` | `variant` |
+| `Alert` | `variant` |
+| `Card` | compose `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` |
+| `Input` / `Label` | native props + minimal layout wrapper |
+| `Tabs` / `Toggle` / `ToggleGroup` | component structure + variants |
+
+```tsx
+// ❌ Avoid
+<Button className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-12 rounded-full">
+
+// ✅ Prefer
+<Button variant="default" size="lg">
+```
+
+## Where to change styles
+
+| Change type | Location |
+|-------------|----------|
+| Brand-wide (accent, radius, colors) | `app/globals.css` CSS variables |
+| All buttons / inputs / cards behave differently | `components/ui/<component>.tsx` |
+| One-off layout (grid, flex, gap, max-width) | Consumer `className` on wrappers only |
+| Lander section layout | `components/lander/<section>/` wrapper divs |
+
+**If a UI pattern repeats across lander + app → update `components/ui/`, not each call site.**
+
+## className usage (allowed vs discouraged)
+
+### Allowed
+- Layout containers: `flex`, `grid`, `gap-*`, `max-w-*`, `mx-auto`, `px-*`, `py-*`
+- Responsive structure: `md:grid-cols-3`, `hidden md:flex`
+- Typography: `.font-primary` for body/UI, `.font-secondary` for headlines — no tertiary font
+- Spacing between sections: `space-y-*`, `mb-*`
+
+### Discouraged
+- Re-coloring primitives: `bg-*`, `text-*`, `border-*` on `Button`, `Badge`, `Input`, etc.
+- Duplicated hover/focus/active styles on consumers
+- Copy-pasting the same `className` string across multiple files
+- Long chained utility strings (>5 utilities) on a single element — extract to `components/ui` variant or a small wrapper component
+
+## Extending components correctly
+
+When existing variants are not enough:
+
+1. **Add a variant** in `components/ui/<component>.tsx` via `cva` — do not override in 10 places
+2. **Compose** with existing subcomponents (`Card` + `CardHeader` + …)
+3. **Create a lander-specific wrapper** only if layout is unique to marketing (e.g. `components/lander/pricing/pricing-card.tsx`) — still use `Card` + props inside, no raw div styled as a card
+
+```tsx
+// ✅ pricing-card.tsx — composition, not reinvention
+<Card>
+  <CardHeader>...</CardHeader>
+  <CardContent>...</CardContent>
+</Card>
+```
+
+## Theming
+
+- Accent / primary / ring → `app/globals.css` (`--brand-accent`)
+- Do not hardcode hex colors in components when a CSS variable or `variant` exists
+- Dark mode via `.dark` class + shadcn tokens — not per-component dark: prefixes for colors
+
+## Anti-patterns (spaghetti)
+
+- Same button style copy-pasted in navbar, hero, pricing, footer
+- `components/lander/` files that restyle shadcn internals with 15+ classes
+- Inline `style={{ }}` for things Tailwind tokens handle
+- Mixing one-off Framer Motion + custom CSS on every element
+
+## Before finishing UI work
+
+1. Grep for repeated `className` patterns — consolidate into `components/ui`
+2. Confirm primitives use `variant` / `size` props
+3. Confirm brand changes live in `globals.css` + `lib/constants/branding.ts`, not scattered hex values

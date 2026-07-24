@@ -1,0 +1,63 @@
+---
+description: Core architecture and code organization rules for prototype-template
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Prototype Template Rules
+
+## Goal
+
+Ship prototypes fast without creating unmaintainable code. Every feature should be easy to extend or delete.
+
+## File size
+
+- **Never** create 400+ line files with multiple responsibilities
+- One exported function/component per file when practical
+- Compose in `index.ts` / `index.tsx` in the same subdirectory
+
+## Layering
+
+| Layer | Location | Responsibility |
+|-------|----------|----------------|
+| Routes | `app/` | Page composition, minimal logic |
+| API | `app/api/` | HTTP handlers, validation, call libs/db |
+| UI (lander) | `components/lander/` | Marketing UI, hardcoded data |
+| UI (app) | `components/app/` | Product UI |
+| UI primitives | `components/ui/` | shadcn only |
+| CRUD | `db/<domain>/index.ts` | Supabase reads/writes |
+| Logic | `libs/<domain>/` | Pure business functions |
+| Schemas | `utils/schema/` | Zod schemas + inferred types |
+| Tests | `tests/` | Mirror source tree |
+
+## Data
+
+- **Landers**: hardcoded const data in component subdirs — no DB calls
+- **App**: fetch via server components, server actions, or API routes
+- **Never** put CRUD in React components
+
+## Types
+
+- Segment interfaces by domain in `lib/types/<domain>.ts` or colocate with schemas
+- Prefer `interface` over `type` for object shapes
+- No enums — use `as const` maps
+
+## Design system
+
+- Base theme: shadcn neutral black/white (light + `.dark`)
+- **Accent**: `--brand-accent` in `globals.css` — subagent must ask user and set
+- Accent drives: primary buttons, tabs, toggle groups, compact controls
+- Fonts: `.font-primary` (body/UI), `.font-secondary` (headlines/display) — two fonts only
+- **Styling**: read `styling.mdc` — props over `className`, global UI changes in `components/ui/`
+
+## Testing
+
+- Add tests when implementing a feature
+- Mirror path: `libs/auth/foo.ts` → `tests/libs/auth/foo.test.ts`
+
+## Dynamic design
+
+- Build reusable layout primitives before page-specific UI
+- Prefer composition over one-off styles
+- Use Framer Motion for meaningful transitions, not decoration everywhere
