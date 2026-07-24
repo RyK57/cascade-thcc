@@ -10,7 +10,6 @@ import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
 import { interpretPayAsset } from "./interpret-message";
 import { bestEvLine } from "./routing-ev";
 import { fallbackReply, routingReply } from "./reply-templates";
-import { HUD_STAGE, syncJobHud } from "./status-hud";
 import { AGENT_ACTION, AGENT_INTENT, type AgentAction, type AgentIntent } from "./types";
 
 export interface JobTurn {
