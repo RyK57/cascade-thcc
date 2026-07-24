@@ -1,5 +1,6 @@
 import { listJobBids, secondPriceClear, upsertJobBid } from "@/db/bids";
 import { claimJob, clearAssigneeAndReopen, updateJob } from "@/db/jobs";
+import { createPayout, getPayoutByJobId } from "@/db/payouts";
 import {
   claimEscrowRelease,
   createPayment,
@@ -27,6 +28,7 @@ import {
 import { sendChatMessage } from "@/libs/linq";
 import { FUNDED_VIA, JOB_STATUS, type Job } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
+import { PAYOUT_STATUS } from "@/utils/schema/payout";
 import { USER_ROLE } from "@/utils/schema/user";
 import { broadcastJobToPeers } from "./broadcast-peers";
 import { getPayUrl } from "./pay-url";
@@ -41,6 +43,7 @@ import {
   peerDeliveredRequesterReply,
   peerFundedReply,
   peerPaidReply,
+  peerPayoutInFlightReply,
   peerQuoteReply,
   paymentPendingReply,
 } from "./reply-templates";
@@ -458,42 +461,72 @@ async function handlePeerApproved(turn: PeerTurn): Promise<PeerOutcome> {
   return finalizePeerPayout(turn.job);
 }
 
+/** Explorer URL for a recorded payout, or null when none exists yet. */
+async function recordedPayoutUrl(jobId: string): Promise<string | null> {
+  const payout = await getPayoutByJobId(jobId).catch((error) => {
+    console.warn("[cascade] payout lookup failed", error);
+    return null;
+  });
+  return payout ? explorerTxUrl(payout.txHash) : null;
+}
+
+function paidOutcome(explorerUrl: string | null): PeerOutcome {
+  return {
+    action: AGENT_ACTION.paid,
+    reply: peerPaidReply(explorerUrl ?? "sandbox payout already sent"),
+    effect: "confetti",
+  };
+}
+
 export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
-  const payment = await getPaymentByJobId(job.id).catch(() => null);
+  // Deliberately not swallowed: a failed read used to yield null, which skipped
+  // the CAS below entirely and ran the payout unguarded.
+  const payment = await getPaymentByJobId(job.id);
 
   // Idempotent: iMessage approve + Mission Control release must not double-pay.
-  if (job.status === JOB_STATUS.paid || payment?.escrowReleasedAt) {
-    const explorerUrl = payment?.escrowTxHash
-      ? explorerTxUrl(payment.escrowTxHash)
-      : "sandbox payout already sent";
-    return {
-      action: AGENT_ACTION.paid,
-      reply: peerPaidReply(explorerUrl),
-      effect: "confetti",
-    };
+  if (job.status === JOB_STATUS.paid) {
+    return paidOutcome(await recordedPayoutUrl(job.id));
+  }
+
+  // escrow_released_at only means someone claimed the release slot — it is not
+  // proof the transfer happened. A payout row is. Without one, a previous
+  // release threw partway through (or is still in flight), so re-broadcasting
+  // could double-pay and reporting success would be a lie.
+  if (payment?.escrowReleasedAt) {
+    const payoutUrl = await recordedPayoutUrl(job.id);
+    if (!payoutUrl) {
+      console.error(
+        "[cascade] escrow release claimed with no payout recorded",
+        job.id
+      );
+      return {
+        action: AGENT_ACTION.errored,
+        reply: peerPayoutInFlightReply(),
+      };
+    }
+    // Payout landed; only the trailing status write failed. Finish the job.
+    const settled = await updateJob(job.id, { status: JOB_STATUS.paid });
+    await syncJobHud(settled, HUD_STAGE.paid).catch(() => undefined);
+    return paidOutcome(payoutUrl);
   }
 
   // Claim the release slot before any on-chain transfer (CAS on escrow_released_at).
   if (payment) {
-    const claimed = await claimEscrowRelease(payment.id).catch((error) => {
-      console.warn("[cascade] claimEscrowRelease failed", error);
-      return null;
-    });
+    const claimed = await claimEscrowRelease(payment.id);
     if (!claimed) {
-      const latest = await getPaymentByJobId(job.id).catch(() => payment);
-      const explorerUrl = latest?.escrowTxHash
-        ? explorerTxUrl(latest.escrowTxHash)
-        : "sandbox payout already sent";
-      await updateJob(job.id, { status: JOB_STATUS.paid }).catch(() => undefined);
+      // Another caller won the race and is mid-release. Don't claim success
+      // on their behalf — the confirmation follows from whoever is paying.
       return {
-        action: AGENT_ACTION.paid,
-        reply: peerPaidReply(explorerUrl),
-        effect: "confetti",
+        action: AGENT_ACTION.errored,
+        reply: peerPayoutInFlightReply(),
       };
     }
   }
 
-  const amount = job.priceUsdCents ?? job.quotedTotalCents ?? 0;
+  const amount = job.priceUsdCents || job.quotedTotalCents || 0;
+  if (amount <= 0) {
+    throw new Error(`Job ${job.id} has no payable amount`);
+  }
   const assignee = job.assigneeUserId
     ? await getUserByIdAdmin(job.assigneeUserId)
     : null;
@@ -507,6 +540,20 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     try {
       const payout = await payWorkerUsdc({ to: wallet, amountCents: amount });
       explorerUrl = payout.explorerUrl;
+      // payWorkerUsdc writes no ledger row of its own, so without this the
+      // agent-wallet path leaves no evidence the release happened.
+      await createPayout({
+        jobId: job.id,
+        txHash: payout.txHash,
+        amountUsdcCents: amount,
+        status: PAYOUT_STATUS.broadcast,
+      }).catch((error) => {
+        console.error(
+          "[cascade] agent wallet payout sent but not recorded",
+          payout.txHash,
+          error
+        );
+      });
     } catch (error) {
       console.warn(
         "[cascade] agent wallet payout failed; falling back to treasury",

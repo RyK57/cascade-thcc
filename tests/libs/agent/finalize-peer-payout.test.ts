@@ -21,6 +21,11 @@ vi.mock("@/db/payments", () => ({
   createPayment: vi.fn(),
 }));
 
+vi.mock("@/db/payouts", () => ({
+  createPayout: vi.fn(),
+  getPayoutByJobId: vi.fn(async () => null),
+}));
+
 vi.mock("@/db/users", () => ({
   adjustCredits: vi.fn(),
   getUserByIdAdmin: vi.fn(async () => null),
@@ -60,6 +65,7 @@ vi.mock("@/libs/agent/status-hud", () => ({
 }));
 
 import { claimEscrowRelease, getPaymentByJobId } from "@/db/payments";
+import { getPayoutByJobId } from "@/db/payouts";
 import { payoutFromTreasury } from "@/libs/dynamic/treasury";
 
 function job(status: Job["status"]): Job {
@@ -115,7 +121,57 @@ describe("finalizePeerPayout idempotency", () => {
     vi.mocked(claimEscrowRelease).mockResolvedValue(null);
 
     const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
+    // Losing the race must not re-broadcast, and must not claim success:
+    // the winner may still be mid-release, or may have died after claiming.
+    expect(payoutFromTreasury).not.toHaveBeenCalled();
+    expect(outcome.action).toBe(AGENT_ACTION.errored);
+    expect(outcome.effect).toBeUndefined();
+  });
+
+  it("reports in-flight, not paid, when release was claimed but no payout exists", async () => {
+    vi.mocked(getPaymentByJobId).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      escrowReleasedAt: "2026-07-24T01:00:00Z",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(getPayoutByJobId).mockResolvedValue(null);
+
+    const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
+    expect(outcome.action).toBe(AGENT_ACTION.errored);
+    expect(payoutFromTreasury).not.toHaveBeenCalled();
+    expect(claimEscrowRelease).not.toHaveBeenCalled();
+  });
+
+  it("completes the job when a payout exists but the status write was lost", async () => {
+    vi.mocked(getPaymentByJobId).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      escrowReleasedAt: "2026-07-24T01:00:00Z",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(getPayoutByJobId).mockResolvedValue({
+      id: "44444444-4444-4444-8444-444444444444",
+      jobId: job(JOB_STATUS.approved).id,
+      txHash: "0xpaid",
+      amountUsdcCents: 1200,
+      status: "broadcast",
+      createdAt: "t",
+    });
+
+    const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
     expect(outcome.action).toBe(AGENT_ACTION.paid);
+    expect(outcome.reply).toContain("0xpaid");
     expect(payoutFromTreasury).not.toHaveBeenCalled();
   });
 });

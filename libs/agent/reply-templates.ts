@@ -65,6 +65,15 @@ export function peerPaidReply(explorerUrl: string): string {
   return `Approved + sandbox payout sent. ${explorerUrl}`;
 }
 
+/**
+ * The escrow release slot is claimed but no payout is recorded yet — either a
+ * concurrent release is in flight, or an earlier one failed after claiming.
+ * Never say "paid" here; we have no evidence the transfer landed.
+ */
+export function peerPayoutInFlightReply(): string {
+  return `Approved. The payout is still confirming — you'll get the receipt here as soon as it lands.`;
+}
+
 export function fundedExplorerReply(explorerUrl: string): string {
   return `Sandbox escrow recorded: ${explorerUrl}`;
 }
