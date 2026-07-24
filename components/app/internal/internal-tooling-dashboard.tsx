@@ -2,12 +2,11 @@ import { AppShell } from "@/components/app/app-shell";
 import { InternalEnvPanel } from "./internal-env-panel";
 import { InternalIntegrationsPanel } from "./internal-integrations-panel";
 import { InternalRunbookPanel } from "./internal-runbook-panel";
+import { InternalSeedJobButton } from "./internal-seed-job-button";
 
 /**
- * Four identical cards in a 2×2 grid gave every panel the same weight and no
- * reading order. This runs top to bottom in the order an operator asks the
- * questions: is the product wired up, is the environment complete, what can I
- * run about it.
+ * Operator-only dashboard. Customers never see this route — layout 404s
+ * anyone outside the allowlist. Order: wiring → env → runbook → seed.
  */
 export function InternalToolingDashboard() {
   return (
@@ -15,8 +14,8 @@ export function InternalToolingDashboard() {
       <div className="max-w-[58ch]">
         <h1 className="font-secondary text-4xl sm:text-5xl">Tooling</h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Operator view of this deployment. Read-only — nothing here changes
-          state, and no secret value is ever rendered.
+          Operator view of this deployment. Secret values are never rendered —
+          only whether each integration is wired.
         </p>
       </div>
 
@@ -24,6 +23,22 @@ export function InternalToolingDashboard() {
         <InternalIntegrationsPanel />
         <InternalEnvPanel />
         <InternalRunbookPanel />
+        <section aria-labelledby="seed-heading">
+          <p className="label-caps text-muted-foreground">Demo</p>
+          <h2
+            id="seed-heading"
+            className="mt-6 font-secondary text-2xl sm:text-3xl"
+          >
+            Seed a checkout job
+          </h2>
+          <p className="mt-3 max-w-[56ch] text-sm leading-relaxed text-muted-foreground">
+            Creates a payment-ready job so you can exercise the customer pay
+            link without going through iMessage.
+          </p>
+          <div className="mt-6 max-w-xl">
+            <InternalSeedJobButton />
+          </div>
+        </section>
       </div>
     </AppShell>
   );
