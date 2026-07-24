@@ -16,6 +16,9 @@ export const ROUTES = {
     linqChats: "/api/linq/chats",
     linqWebhook: "/api/linq/webhook",
     teracOpportunities: "/api/terac/opportunities",
+    jobs: "/api/jobs",
+    agentWallet: "/api/agent-wallet",
+    internalSeedDemoJob: "/api/internal/seed-demo-job",
   },
 } as const;
 

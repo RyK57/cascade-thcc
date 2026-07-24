@@ -55,7 +55,12 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  if (!user && isProtectedPath(pathname)) {
+  // The pay link texted to requesters (/main?job=<id>) must open from any
+  // phone without a Supabase account — Dynamic handles auth on that page.
+  const isPayLink =
+    pathname === ROUTES.main && request.nextUrl.searchParams.has("job");
+
+  if (!user && isProtectedPath(pathname) && !isPayLink) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = ROUTES.auth.login;
     loginUrl.searchParams.set("next", pathname);
