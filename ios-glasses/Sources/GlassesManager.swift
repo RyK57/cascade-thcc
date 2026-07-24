@@ -20,6 +20,11 @@ final class GlassesManager: ObservableObject {
     /// Observe registration + device changes. Wearables.configure() runs in
     /// the App initializer before this.
     func configure() {
+        if let bootError = DATBootstrap.error {
+            statusText = "SDK init failed: \(bootError)"
+            return
+        }
+        statusText = "Glasses: SDK ready (\(Wearables.shared.registrationState))"
         Task {
             for await state in Wearables.shared.registrationStateStream() {
                 updateStatus(registration: state)
@@ -53,9 +58,16 @@ final class GlassesManager: ObservableObject {
     func connect() async {
         do {
             if Wearables.shared.registrationState != .registered {
-                statusText = "Opening Meta AI app to register…"
-                try await Wearables.shared.startRegistration()
+                statusText =
+                    "Opening Meta AI app to register… (state: \(Wearables.shared.registrationState))"
+                do {
+                    try await Wearables.shared.startRegistration()
+                } catch {
+                    statusText = "Registration failed: \(error)"
+                    return
+                }
                 for await state in Wearables.shared.registrationStateStream() {
+                    statusText = "Registration: \(state)"
                     if state == .registered { break }
                 }
             }
@@ -70,6 +82,13 @@ final class GlassesManager: ObservableObject {
             }
 
             let wearables = Wearables.shared
+            let deviceCount = wearables.devices.count
+            statusText = "Devices seen: \(deviceCount) — starting session…"
+            if deviceCount == 0 {
+                statusText =
+                    "Devices seen: 0 — open Meta AI app, confirm glasses show Connected, and check Cascade's Bluetooth + Local Network toggles in iOS Settings."
+                return
+            }
             let session = try wearables.createSession(
                 deviceSelector: AutoDeviceSelector(wearables: wearables)
             )

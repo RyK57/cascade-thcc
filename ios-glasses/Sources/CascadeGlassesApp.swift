@@ -1,10 +1,20 @@
 import MWDATCore
 import SwiftUI
 
+/// Surfaces the SDK bootstrap error in the UI instead of swallowing it.
+enum DATBootstrap {
+    nonisolated(unsafe) static var error: String?
+}
+
 @main
 struct CascadeGlassesApp: App {
     init() {
-        try? Wearables.configure()
+        do {
+            try Wearables.configure()
+        } catch {
+            DATBootstrap.error = "\(error)"
+            print("Wearables.configure failed: \(error)")
+        }
     }
 
     var body: some Scene {
