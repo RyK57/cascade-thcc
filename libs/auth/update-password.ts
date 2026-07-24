@@ -30,5 +30,7 @@ export async function updatePasswordAction(
     return { error: error.message };
   }
 
-  redirect(ROUTES.auth.login);
+  // Tell the user their password actually saved. /auth/login reads `reset=done`
+  // and confirms it — without this the flow ends in a silent redirect.
+  redirect(`${ROUTES.auth.login}?reset=done`);
 }

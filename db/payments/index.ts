@@ -1,3 +1,4 @@
+export { claimEscrowRelease } from "./claim-escrow-release";
 export { createPayment } from "./create-payment";
 export { getPaymentByJobId } from "./get-payment-by-job-id";
 export { updatePayment } from "./update-payment";

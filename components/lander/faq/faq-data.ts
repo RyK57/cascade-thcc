@@ -7,7 +7,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "What is Cascade?",
     answer:
-      "The OpenRouter for the real world — an iMessage agent that routes every task to the cheapest capable worker: AI (free), a seeded peer, or a verified Terac expert — paid with sandbox Dynamic USDC.",
+      "An iMessage agent that routes every task to the cheapest capable worker: AI (free), a seeded peer, or a verified Terac expert — paid with sandbox Dynamic USDC.",
   },
   {
     question: "Where do experts come from?",
