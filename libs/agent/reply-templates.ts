@@ -8,12 +8,19 @@ export function formatCents(cents: number, currency = "usd"): string {
   }).format(cents / 100);
 }
 
-export function routingReply(tier: string, reason: string): string {
-  return `Cascade → ${tier}: ${reason}`;
+/**
+ * The one line that precedes a quote. AI answers get no prefix at all — the
+ * answer is the product, and "Cascade → ai: <model reason>" is debug output.
+ */
+export function routingReply(tier: string, _reason: string): string {
+  void _reason;
+  if (tier === "peer") return "Getting a real person on this.";
+  if (tier === "expert") return "This needs a verified expert.";
+  return "";
 }
 
 export function aiFollowUpSuggest(related: string): string {
-  return `Related idea: ${related}`;
+  return related;
 }
 
 export function peerQuoteReply(params: {
@@ -25,18 +32,15 @@ export function peerQuoteReply(params: {
   const price = formatCents(params.priceCents);
   const trust = params.trustHint ? ` ${params.trustHint}` : "";
   return [
-    `Peer quote for "${params.title}": ${price} sandbox USDC.${trust}`,
-    `Fastest way to pay: your Cascade wallet — takes 20 seconds, just your email, no seed phrase, and payouts you earn land there instantly.`,
-    `Pay here: ${params.payUrl}`,
-    `Or reply "pay with credits" if you have enough.`,
-    `Tapback ❤️ to approve after funding — 👎 to reject.`,
+    `Quote for "${params.title}": ${price} USDC.${trust}`,
+    `Fund escrow here: ${params.payUrl}`,
+    `Nothing is paid out until you approve the work here with ❤️.`,
   ].join("\n");
 }
 
 export function peerFundedReply(title: string, evLine?: string): string {
-  const race =
-    `Escrow funded for "${title}" (sandbox). Broadcasting to Cascade peers — first tapback ❤️ claims it (reputation + EV matter).`;
-  return evLine ? `${race}\n${evLine}` : race;
+  void evLine;
+  return `Escrow held for "${title}". Sending it to peers now — first to claim gets it.`;
 }
 
 export function peerClaimBroadcast(params: {
@@ -46,7 +50,7 @@ export function peerClaimBroadcast(params: {
   priorityHint?: string;
 }): string {
   const priority = params.priorityHint ? ` ${params.priorityHint}` : "";
-  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} sandbox USDC • your trust ${params.trustScore}.${priority} Tapback ❤️ / YES to claim, or text "bid N" credits for a second-price auction.`;
+  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} USDC • your trust ${params.trustScore}.${priority} Tapback ❤️ / YES to claim, or text "bid N" credits for a second-price auction.`;
 }
 
 export function peerClaimedRequesterReply(peerName: string): string {
@@ -58,15 +62,16 @@ export function peerClaimedPeerReply(title: string): string {
 }
 
 export function peerDeliveredRequesterReply(): string {
-  return `Deliverable in — tapback ❤️ / YES to approve (sandbox payout fires instantly), or 👎 / NO to reject.`;
+  return `Deliverable is in — ❤️ to approve and release payment, 👎 to reject.`;
 }
 
 export function peerPaidReply(explorerUrl: string): string {
-  return `Approved + sandbox payout sent. ${explorerUrl}`;
+  const receipt = explorerUrl.startsWith("http") ? `\nReceipt: ${explorerUrl}` : "";
+  return `Approved — payment released to the peer.${receipt}`;
 }
 
 export function fundedExplorerReply(explorerUrl: string): string {
-  return `Sandbox escrow recorded: ${explorerUrl}`;
+  return `Receipt: ${explorerUrl}`;
 }
 
 export function draftReadyReply(params: {
@@ -109,14 +114,14 @@ export function searchStatusReply(stats?: TeracSubmissionStats): string {
 }
 
 export function workReadyReply(count: number): string {
-  return `${count} deliverable${count === 1 ? " is" : "s are"} ready. YES to accept (then sandbox pay), NO to reject. Billed on approval.`;
+  return `${count} deliverable${count === 1 ? " is" : "s are"} ready. YES to accept and pay, NO to reject. Billed on approval.`;
 }
 
 export function approvedWorkReply(payUrl: string, amountText?: string): string {
   const amount = amountText ? ` of ${amountText}` : "";
   return [
-    `Accepted! Sandbox escrow${amount} via your Cascade wallet.`,
-    `Fastest way to pay: email login, no seed phrase — ${payUrl}`,
+    `Accepted! Escrow${amount} from your Cascade wallet.`,
+    `Fund it here: ${payUrl}`,
   ].join("\n");
 }
 
@@ -125,12 +130,12 @@ export function rejectedWorkReply(): string {
 }
 
 export function paymentPendingReply(payUrl: string): string {
-  return `Sandbox payment still pending: ${payUrl}`;
+  return `Payment still pending: ${payUrl}`;
 }
 
 export function paidReply(explorerUrl?: string): string {
   const link = explorerUrl ? ` ${explorerUrl}` : "";
-  return `Sandbox payment settled.${link} Text ${BRAND.name} another task anytime.`;
+  return `Payment settled.${link} Text ${BRAND.name} another task anytime.`;
 }
 
 export function agentPayOfferReply(checkoutHint: string): string {

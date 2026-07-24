@@ -112,6 +112,17 @@ export async function triageJob(input: TriageJobInput | string): Promise<TriageR
   }
 }
 
+/**
+ * An explicit ask for a human. This beats the LLM's tier choice: when someone
+ * says "have someone…" they are buying a person's judgment, not an AI answer.
+ */
+const HUMAN_REQUEST_PATTERN =
+  /\b(someone|somebody|a human|real human|real person|real people|a person|have (a )?(guy|girl|friend|peer)|another person|second pair of eyes|human eyes)\b/i;
+
+export function wantsHuman(text: string): boolean {
+  return HUMAN_REQUEST_PATTERN.test(text);
+}
+
 /** Export for tests — keyword router used when LLM is off or over-clarifies. */
 export function heuristicTriage(text: string): TriageResult {
   const lower = text.toLowerCase();
@@ -147,6 +158,16 @@ export function heuristicTriage(text: string): TriageResult {
     });
   }
 
+  if (wantsHuman(text)) {
+    return maybeEvTieBreak({
+      tier: "peer",
+      jobSummary: clipSummary(text),
+      reason: "You asked for a real person, so this goes to a peer.",
+      needsClarification: false,
+      priceEstimateUsd: 12,
+    });
+  }
+
   if (
     /\b(test|phone|signup|sign[- ]?up|errand|opinion|label|compare|real (person|people|human|phone)|text (my|this|them)|qa|user test)\b/.test(
       lower
@@ -176,6 +197,19 @@ function mergeTriage(
   prompt: string
 ): TriageResult {
   if (!llm) return heuristic;
+
+  // "Have someone…" is a product signal, not a hint. Never answer it with AI.
+  const latestForHuman = prompt.split("Latest message:").pop() ?? prompt;
+  if (llm.tier === "ai" && wantsHuman(latestForHuman)) {
+    return {
+      ...llm,
+      tier: "peer",
+      needsClarification: false,
+      clarifyingQuestion: undefined,
+      reason: "You asked for a real person, so this goes to a peer.",
+      priceEstimateUsd: llm.priceEstimateUsd || 12,
+    };
+  }
 
   // Keyword peer/expert beats an LLM that stalls on clarification.
   if (

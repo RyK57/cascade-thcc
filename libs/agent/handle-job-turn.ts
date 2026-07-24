@@ -130,19 +130,20 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
 
   if (triage.tier === JOB_TIER.ai) {
     const { answer } = await answerAiTask({
-      title: job.title,
-      description: job.description ?? turn.text,
+      title: triage.jobSummary,
+      description,
+      latestMessage: turn.text,
     });
-    let done = await updateJob(job.id, {
+    await updateJob(job.id, {
       status: JOB_STATUS.paid,
       priceUsdCents: 0,
       evSummary: evLine,
     });
-    done = await syncJobHud(done, HUD_STAGE.answered);
+    // No HUD card for AI: a free in-thread answer is the whole deliverable,
+    // and a "Cascade · AI done · free" card on top of it is just noise.
     return {
       action: AGENT_ACTION.answeredAi,
-      reply: `${routeLine}\n\n${answer}`,
-      effect: "confetti",
+      reply: answer,
     };
   }
 
@@ -157,14 +158,14 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     const quoted = await quotePeerJob(job);
     return {
       ...quoted,
-      reply: `${routeLine}\n❤️ approve after funding · 👎 reject`,
+      reply: routeLine ? `${routeLine}\n${quoted.reply}` : quoted.reply,
     };
   }
 
   const drafted = await draftExpertJob(job);
   return {
     ...drafted,
-    reply: `${routeLine}\n❤️ launch Terac · 👎 revise`,
+    reply: routeLine ? `${routeLine}\n${drafted.reply}` : drafted.reply,
   };
 }
 
