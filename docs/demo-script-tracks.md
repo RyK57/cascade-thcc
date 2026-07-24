@@ -1,35 +1,38 @@
-# Cascade demo script — four tracks
+# Cascade demo script — one thread, four tracks (~150s)
 
-Narrate live gestures on the Linq Number. Sandbox only (Base Sepolia).
+Narrate live on a real Linq Number. Sandbox only (Base Sepolia).
 
-## Track 1 — Linq (status HUD + tapbacks)
+## Cold open (Linq + Game theory)
 
-1. Text a peer-shaped ask: `Need someone nearby campus to pick up a package in 30 min`.
-2. Point at the in-thread **Cascade · Quoted** status card (or plain-text fallback lines).
-3. Say: “Tapback ❤️ to approve after funding, 👎 to reject.”
-4. After escrow, show the card flip to **Funded → Claimed → Delivered → Paid**.
-5. Optional: 👎 a weak deliverable to reopen the race.
+1. In a group or 1:1, text: `Need 5 landing variants rated by real people tonight`.
+2. Point at the mutating **Cascade status HUD** (rich card when `CASCADE_IMESSAGE_*` is set; plain lines otherwise).
+3. Call out the EV line on the card: `EV peer wins (peer $… vs expert $…)`.
+4. Say: “Messaging is the UI — ❤️ launches, 👎 revises, typing = loading.”
 
-## Track 2 — Dynamic (escrow star)
+## Fund (Dynamic agent wallet)
 
-1. Open the pay link from the quote (`/main?job=…`).
-2. Sign in with email (no seed phrase). Hit **Confirm sandbox escrow**.
-3. Show Basescan links for treasury + escrow hash in the panel and iMessage.
-4. On peer approval, show payout explorer URL in the peer thread.
-5. Mention phone-keyed wallets: first inbound pre-creates a sandbox address.
+5. Open the pay link → Mission Control (`/main?job=…`).
+6. Email login (no seed phrase) → **Fund USDC** into the Cascade **agent wallet**.
+7. Emphasize: escrow is **held**, not paid to the worker yet. Card flips to **Funded · Agent wallet holding escrow**.
+8. Optional Basescan link from the job status page (`/job/<id>`).
 
-## Track 3 — Terac (filters + trust audit)
+## Humans (Terac)
 
-1. Text an expert ask: `Need a senior eng to review our Stripe webhook design`.
-2. Quote shows **Senior engineer · $X · ETA**; ❤️ launches Terac (drafts are free).
-3. When a peer deliverable lands, note the short Terac trust audit (rate 1–5).
-4. Broadcast copy: high-trust peers get the job first; others hear “priority queue.”
-5. Optional operator step: `pnpm exec tsx scripts/terac-feedback-job.ts` for before/after `demo_metrics`.
+9. If peer path: first peer ❤️ claims; deliverable lands; short Terac trust audit fires.
+10. If expert path: ❤️ launches Terac draft (free until confirm).
+11. Slide: `pnpm exec tsx scripts/terac-feedback-job.ts` baseline → tweak triage once → `--phase=ingest` → `GET /api/internal/demo-metrics` before/after.
 
-## Track 4 — Game theory
+## Close (mechanism + payout)
 
-1. On triage, call out the one-liner: `Cascade EV: peer $… beats expert $…`.
-2. After funding: claim race + EV of claiming now; losers get “already claimed.”
-3. Peer texts `bid 8` then another `bid 12` → second-price clear in credits.
-4. Bluff: peer sends `done` → Cascade flags Terac audit + warns requester.
-5. Wallet refuse twice (`no wallet` / `apple pay`) → Agent Pay backup offer only then.
+12. Requester ❤️ approves deliverable → agent wallet **releases** USDC (not at fund time).
+13. Card flips **Paid · released**. Confetti in-thread.
+14. One-liner: “Incomplete info → priced with EV → routed → verified by humans → settled by the agent wallet — same bubble.”
+
+## Track callouts (if judges ask)
+
+| Track | Gesture |
+|-------|---------|
+| Linq | Mutating HUD + tapbacks + deep link `/job/…` |
+| Dynamic | Agent wallet escrow hold → release on approve |
+| Terac | Trust-audit ingest + feedback before/after metrics |
+| Game theory | EV on card, claim race / second-price `bid N`, bluff→audit |
