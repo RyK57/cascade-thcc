@@ -27,5 +27,16 @@ export async function signInAction(
     return { error: error.message };
   }
 
-  redirect(next.startsWith("/") ? next : ROUTES.main);
+  redirect(safeNextPath(next));
+}
+
+/**
+ * Only same-origin paths. A leading `/` is not enough: `//evil.com` (and the
+ * backslash variants some browsers normalize) is protocol-relative, so it
+ * would redirect off-site straight from the login form.
+ */
+function safeNextPath(next: string): string {
+  if (!next.startsWith("/")) return ROUTES.main;
+  if (next.startsWith("//") || next.startsWith("/\\")) return ROUTES.main;
+  return next;
 }

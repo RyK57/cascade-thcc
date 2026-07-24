@@ -19,22 +19,38 @@ function teracError(error: unknown) {
   return NextResponse.json({ error: message }, { status: 502 });
 }
 
+/**
+ * `Number("abc")` is NaN and NaN is not undefined, so an unvalidated limit was
+ * serialized into the upstream query as `limit=NaN`. Validate like the POST
+ * handler below already does.
+ */
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().min(1).optional(),
+  status: z.string().min(1).optional(),
+  projectId: z.string().min(1).optional(),
+});
+
 export async function GET(request: Request) {
   if (!isTeracConfigured()) return teracNotConfigured();
 
   const { searchParams } = new URL(request.url);
-  const limit = searchParams.get("limit");
-  const cursor = searchParams.get("cursor") ?? undefined;
-  const status = searchParams.get("status") ?? undefined;
-  const projectId = searchParams.get("projectId") ?? undefined;
+  const parsed = listQuerySchema.safeParse({
+    limit: searchParams.get("limit") ?? undefined,
+    cursor: searchParams.get("cursor") ?? undefined,
+    status: searchParams.get("status") ?? undefined,
+    projectId: searchParams.get("projectId") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid query", issues: parsed.error.issues },
+      { status: 400 }
+    );
+  }
 
   try {
-    const result = await listOpportunities({
-      limit: limit ? Number(limit) : 25,
-      cursor,
-      status,
-      projectId,
-    });
+    const result = await listOpportunities(parsed.data);
     return NextResponse.json(result);
   } catch (error) {
     return teracError(error);

@@ -37,7 +37,10 @@ export async function listOpportunities(
       limit: params.limit,
       cursor: params.cursor,
       status: params.status,
-      projectId: params.projectId,
+      // snake_case, matching every other field sent to Terac (create sends
+      // project_id). A camelCase key is silently ignored upstream, so the
+      // filter did nothing and opportunities from all projects came back.
+      project_id: params.projectId,
     },
   });
 }

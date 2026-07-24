@@ -1,21 +1,35 @@
-function readEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
+function clean(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+/**
+ * Literal `process.env.NEXT_PUBLIC_*` access, not a computed lookup.
+ *
+ * Next inlines public env vars into the client bundle by substituting exact
+ * member expressions; `process.env[name]` is not matched, and in the browser
+ * `process.env` is an empty shim. A dynamic read therefore returns undefined
+ * on the client no matter how the vars are set, which would make every
+ * browser-side Supabase client silently fail to initialize.
+ */
+function publicUrl(): string | undefined {
+  return clean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+}
+
+function publicAnonKey(): string | undefined {
+  return clean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 /** True when both public Supabase env vars are set and non-empty. */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    readEnv("NEXT_PUBLIC_SUPABASE_URL") &&
-      readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  );
+  return Boolean(publicUrl() && publicAnonKey());
 }
 
 export function getSupabasePublicConfig():
   | { url: string; anonKey: string }
   | null {
-  const url = readEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const url = publicUrl();
+  const anonKey = publicAnonKey();
 
   if (!url || !anonKey) return null;
 
