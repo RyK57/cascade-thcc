@@ -6,21 +6,21 @@ export interface PricingPoint {
 export const PRICING = {
   headline: "Pay only when humans work.",
   support:
-    "AI is free. Peer and expert quotes show in chat. Sandbox Dynamic USDC escrow — never real dollars in this demo.",
+    "AI is free. Every human quote appears in the thread before anything moves, and the money settles in stablecoin through Dynamic.",
   points: [
     {
       title: "AI is free",
       description: "Cascade answers capable tasks in-thread at $0.",
     },
     {
-      title: "Peers + credits",
+      title: "Workers earn real money",
       description:
-        "Seeded peers claim jobs; earn credits that stay in a closed loop (never convert to crypto).",
+        "Payouts land in the worker's own wallet in stablecoin — theirs to hold or cash out, with no platform float in between.",
     },
     {
-      title: "Experts on confirm",
+      title: "Set a budget",
       description:
-        "Terac drafts are free; launch spends only after you tapback YES. Billed on approval.",
+        "Cap what Cascade may spend per task or per month. Anything above the cap waits in the thread for your yes.",
     },
   ] as PricingPoint[],
   cta: "Open Cascade",

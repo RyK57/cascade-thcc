@@ -19,7 +19,7 @@ export const HOW_IT_WORKS = {
 export const CONFIRM_GATE = {
   headline: "Nothing spends until you say yes.",
   description:
-    "AI is free. Peers and experts post a live price card in the thread, and a tapback or a plain YES is the only thing that releases budget.",
+    "AI is free. Anything with a human on the other end posts a live price card in the thread, and a tapback or a plain YES is the only thing that releases budget — up to the cap you set.",
 } as const;
 
 export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
@@ -28,20 +28,20 @@ export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
     system: "Linq",
     title: "Text the task",
     description:
-      "Message Cascade on Linq. One triage call routes to AI, a peer, or a Terac expert.",
+      "Message Cascade like you'd message a person. One triage call decides whether it answers itself or hires someone.",
   },
   {
     step: "02",
     system: "Confirm",
     title: "Confirm the quote",
     description:
-      "AI answers free. Peers and experts show a price card — tapback or YES before anything spends.",
+      "AI answers free. Hiring a professional shows a price card first — tapback or YES before anything spends.",
   },
   {
     step: "03",
     system: "Dynamic",
-    title: "Pay + deliver",
+    title: "Pay and get paid",
     description:
-      "Fund escrow from your Cascade wallet, approve the deliverable in-thread, and payout releases instantly.",
+      "Your money sits in escrow while the work happens. Approve it and the worker is paid in stablecoin, straight to their wallet.",
   },
 ] as const;

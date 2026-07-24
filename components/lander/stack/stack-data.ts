@@ -14,7 +14,7 @@ export interface StackBlock {
 
 export const STACK = {
   headline: "Three platforms. One thread.",
-  support: "Linq for chat, peers + Terac for humans, Dynamic sandbox for money.",
+  support: "Linq for the channel, Terac for the people, Dynamic for the money.",
 } as const;
 
 export const STACK_ITEMS: StackItem[] = [
@@ -24,14 +24,16 @@ export const STACK_ITEMS: StackItem[] = [
     description: "Real iMessage with typing, tapbacks, and status updates.",
   },
   {
-    name: "Peers + Terac",
+    name: "Terac",
     role: "Workers",
-    description: "Seeded peers for quick human work; Terac for verified experts.",
+    description:
+      "Vetted professionals, matched to the task and rated on what they deliver.",
   },
   {
     name: "Dynamic",
-    role: "Sandbox pay",
-    description: "Base Sepolia USDC escrow and payouts — no real dollars.",
+    role: "Payments",
+    description:
+      "Stablecoin escrow, and payouts straight into the worker's own wallet.",
   },
   {
     name: "Confirm",
@@ -50,10 +52,10 @@ export const STACK_BLOCKS: StackBlock[] = [
     tone: "secondary",
   },
   {
-    label: "Peer → expert",
+    label: "Human tier",
     title: "Quote, then go.",
     description:
-      "Peers claim by tapback. Experts launch on Terac only after you confirm the live quote.",
+      "A live quote lands in the thread. Confirm it and Cascade hires through Terac, holds the money in escrow, and releases it when you approve.",
     tone: "accent",
   },
 ];
