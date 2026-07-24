@@ -29,7 +29,7 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleDisplayName: Cascade Glasses
+        CFBundleDisplayName: Cascade
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSMicrophoneUsageDescription: Push-to-talk voice commands for Cascade.
@@ -52,5 +52,3 @@ targets:
       properties:
         keychain-access-groups:
           - $(AppIdentifierPrefix)com.cascade.glasses
-        com.apple.developer.networking.HotspotConfiguration: true
-        com.apple.developer.networking.wifi-info: true
