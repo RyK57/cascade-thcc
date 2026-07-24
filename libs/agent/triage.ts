@@ -1,17 +1,16 @@
 import { createAnthropicClient } from "@/libs/ai";
 import { TIER_VALUES, toTriageResult, type TriageResult } from "@/utils/schema/agent";
 
-/** Fast, cheap model for classification — swap up if routing quality matters more than latency. */
 const TRIAGE_MODEL = "claude-haiku-4-5-20251001";
 
-const TRIAGE_SYSTEM = `You are the routing brain of an iMessage concierge agent. A user texts you a task. Classify it into exactly one tier:
+const TRIAGE_SYSTEM = `You are the routing brain of Cascade, an iMessage task agent. Classify each task into exactly one tier:
 
-- "ai": you can fully complete it yourself right now with general knowledge or simple reasoning (quick answers, drafting text, summaries, math, recommendations that need no real-world action).
-- "crowd": it needs real people from the general public to execute, verify, rate, test, or gather real-world/local input (opinions, quick errands framed as info-gathering, data labeling, "call this place and ask", user testing, head-to-head comparisons). Prefer this whenever real human input would make the result meaningfully better.
-- "expert": it genuinely requires a verified specialist's professional judgment (legal, medical, financial, or engineering review). Use sparingly — only when a credentialed professional is truly required.
+- "ai": you can fully complete it yourself right now with general knowledge (plans, drafts, summaries, math, recommendations with no real-world action). price_estimate_usd=0.
+- "peer": needs a real person without a professional credential (user testing, phone checks, quick errands framed as info-gathering, opinions, labeling). Route here for seeded Cascade peers. price_estimate_usd typically 8-25.
+- "expert": needs a verified specialist via Terac (legal, medical, financial, senior engineering review). Use sparingly. price_estimate_usd typically 50-200.
 
-Bias toward "crowd" over "expert" unless a credential is clearly required.
-Set needs_clarification=true and provide ONE clarifying_question only when a critical detail is missing (location, budget, or the concrete deliverable). Keep job_summary short and action-oriented. Always answer by calling the route_job tool.`;
+Bias toward "peer" over "expert" unless a credential is clearly required.
+Set needs_clarification=true and provide ONE clarifying_question only when a critical detail is missing (location, budget, or the concrete deliverable). Keep job_summary short. Always answer by calling the route_job tool.`;
 
 const triageTool = {
   name: "route_job",
@@ -41,37 +40,83 @@ const triageTool = {
         type: "string" as const,
         description: "The single question to ask, when needs_clarification is true.",
       },
+      price_estimate_usd: {
+        type: "number" as const,
+        description: "Estimated USD price (0 for ai).",
+      },
     },
-    required: ["tier", "job_summary", "reason", "needs_clarification"],
+    required: [
+      "tier",
+      "job_summary",
+      "reason",
+      "needs_clarification",
+      "price_estimate_usd",
+    ],
   },
 };
 
 /**
  * Classify an inbound task into a worker tier using a tool-forced LLM call.
- * Falls back to the `expert` tier (human-in-the-loop) if the model misbehaves,
- * so we never silently drop a user's request.
+ * Falls back to peer (cheapest human) if the model misbehaves.
  */
 export async function triageJob(text: string): Promise<TriageResult> {
-  const client = createAnthropicClient();
+  if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+    return heuristicTriage(text);
+  }
 
-  const response = await client.messages.create({
-    model: TRIAGE_MODEL,
-    max_tokens: 512,
-    system: TRIAGE_SYSTEM,
-    tools: [triageTool],
-    tool_choice: { type: "tool", name: "route_job" },
-    messages: [{ role: "user", content: text }],
-  });
+  try {
+    const client = createAnthropicClient();
+    const response = await client.messages.create({
+      model: TRIAGE_MODEL,
+      max_tokens: 512,
+      system: TRIAGE_SYSTEM,
+      tools: [triageTool],
+      tool_choice: { type: "tool", name: "route_job" },
+      messages: [{ role: "user", content: text }],
+    });
 
-  const toolUse = response.content.find((block) => block.type === "tool_use");
-  const triage = toolUse ? toTriageResult(toolUse.input) : null;
+    const toolUse = response.content.find((block) => block.type === "tool_use");
+    const triage = toolUse ? toTriageResult(toolUse.input) : null;
+    return triage ?? heuristicTriage(text);
+  } catch (error) {
+    console.error("triageJob failed; using heuristic", error);
+    return heuristicTriage(text);
+  }
+}
 
-  return (
-    triage ?? {
+function heuristicTriage(text: string): TriageResult {
+  const lower = text.toLowerCase();
+  if (
+    /\b(senior|lawyer|attorney|doctor|cpa|engineer review|api design|legal|medical|financial)\b/.test(
+      lower
+    )
+  ) {
+    return {
       tier: "expert",
       jobSummary: text.slice(0, 140),
-      reason: "Triage was inconclusive; routing to a human for safety.",
+      reason: "Looks like it needs a verified specialist.",
       needsClarification: false,
-    }
-  );
+      priceEstimateUsd: 84,
+    };
+  }
+  if (
+    /\b(test|phone|signup|errand|opinion|label|compare|real (person|people|human))\b/.test(
+      lower
+    )
+  ) {
+    return {
+      tier: "peer",
+      jobSummary: text.slice(0, 140),
+      reason: "A peer can do this without a credential.",
+      needsClarification: false,
+      priceEstimateUsd: 12,
+    };
+  }
+  return {
+    tier: "ai",
+    jobSummary: text.slice(0, 140),
+    reason: "Cascade can answer this directly.",
+    needsClarification: false,
+    priceEstimateUsd: 0,
+  };
 }
