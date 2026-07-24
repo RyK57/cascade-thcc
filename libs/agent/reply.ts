@@ -12,8 +12,8 @@ export function draftReply(triage: TriageResult): string {
   switch (triage.tier) {
     case "ai":
       return `On it — ${triage.jobSummary}. Give me a sec and I'll drop the answer right here.`;
-    case "crowd":
-      return `Got it: "${triage.jobSummary}". I'll put this in front of a few real people to get it done, then report back in this thread.`;
+    case "peer":
+      return `Got it: "${triage.jobSummary}". I'll put this in front of a Cascade peer, then report back in this thread.`;
     case "expert":
       return `Understood: "${triage.jobSummary}". This one needs a verified specialist — I'll line one up and confirm the cost with you before anything is spent.`;
   }
