@@ -3,8 +3,14 @@ import { AGENT_INTENT, type AgentIntent } from "./types";
 const AFFIRM_PATTERN =
   /^(y|yes|yep|yeah|yea|ok|okay|sure|confirm|confirmed|approve|approved|accept|launch( it)?|go( ahead)?|do it|ship it|lgtm|sounds good|claim)( please)?[.!\s]*$/;
 
+// A bare "no" is contextual — it rejects whatever was just offered. "stop" and
+// "cancel" are not: they mean end the whole job, at any stage. Kept out of
+// DECLINE_PATTERN so the two can never be confused.
+const STOP_PATTERN =
+  /^(stop|cancel( (it|that|this|the (job|task|order)))?|abort|never ?mind|forget it|call it off)[.!\s]*$/;
+
 const DECLINE_PATTERN =
-  /^(n|no|nope|nah|cancel|stop|pass|reject|rejected|decline|hold( off)?|not (yet|now)|don'?t)[.!\s]*$/;
+  /^(n|no|nope|nah|pass|reject|rejected|decline|hold( off)?|not (yet|now)|don'?t)[.!\s]*$/;
 
 const STATUS_PATTERN =
   /\b(status|progress|update|any news|how'?s it going|where are we|eta)\b/;
@@ -34,6 +40,8 @@ export function interpretMessage(text: string): AgentIntent {
   const normalized = text.trim().toLowerCase();
 
   if (PAY_CREDITS_PATTERN.test(normalized)) return AGENT_INTENT.payCredits;
+  // Before affirm/decline: "stop" outranks whatever the thread was asking.
+  if (STOP_PATTERN.test(normalized)) return AGENT_INTENT.stop;
   if (AFFIRM_PATTERN.test(normalized)) return AGENT_INTENT.affirm;
   if (DECLINE_PATTERN.test(normalized)) return AGENT_INTENT.decline;
   if (STATUS_PATTERN.test(normalized)) return AGENT_INTENT.status;
