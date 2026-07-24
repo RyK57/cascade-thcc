@@ -1,6 +1,6 @@
 export const BRAND = {
   name: "Cascade",
-  tagline: "Text a task. AI, peers, or verified experts — paid in sandbox USDC.",
+  tagline: "Cascade is the OpenRouter for the real world.",
   accent: "#E8501F",
   accentForeground: "#ffffff",
   secondary: "#6F68FF",

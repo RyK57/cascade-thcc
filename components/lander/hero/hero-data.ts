@@ -1,8 +1,8 @@
 export const HERO = {
-  headlineLead: "Cascade routes every task",
-  headlineAccent: "over iMessage.",
+  headlineLead: "Cascade is the OpenRouter",
+  headlineAccent: "for the real world.",
   support:
-    "AI answers free. Peers handle real-world checks. Verified experts come from Terac — escrowed with sandbox Dynamic USDC.",
+    "Text a task over iMessage. Cascade routes to AI, peers, or verified Terac experts — escrowed with sandbox Dynamic USDC.",
   primaryCta: "Open the app",
   secondaryCta: "See how it works",
 } as const;
