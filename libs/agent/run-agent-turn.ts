@@ -14,6 +14,7 @@ import {
   setTyping,
   type InboundLinqEvent,
 } from "@/libs/linq";
+import { captionImage, isRunwareConfigured } from "@/libs/runware";
 import { JOB_STATUS, type Job } from "@/utils/schema/job";
 import { USER_ROLE } from "@/utils/schema/user";
 import { clipTitle, handleJobTurn } from "./handle-job-turn";
@@ -38,12 +39,32 @@ export async function runAgentTurn(
   const senderHandle = inbound.senderHandle;
   const messageId =
     inbound.kind === "reaction" ? inbound.reactionId : inbound.messageId;
-  const text =
+  let text =
     inbound.kind === "reaction"
       ? inbound.isAffirm
         ? "yes"
         : "no"
       : inbound.text;
+
+  // Vision: caption inbound photos (texted or voice-sent from smart glasses)
+  // so triage sees what the requester is looking at.
+  if (
+    inbound.kind === "text" &&
+    inbound.mediaUrls?.length &&
+    isRunwareConfigured()
+  ) {
+    const caption = await captionImage(
+      inbound.mediaUrls[0],
+      "Describe this photo as context for a task request. Note any objects, text, or problems visible."
+    );
+    if (caption) {
+      text = text ? `${text}\n[Photo shows: ${caption}]` : `[Photo shows: ${caption}] Figure out what task I need from this.`;
+    } else if (!text) {
+      text = "I sent a photo — ask me what I need done with it.";
+    }
+  } else if (inbound.kind === "text" && !text && inbound.mediaUrls?.length) {
+    text = "I sent a photo — ask me what I need done with it.";
+  }
 
   let typingStarted = false;
   try {

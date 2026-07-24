@@ -1,5 +1,6 @@
 import { updateJob } from "@/db/jobs";
 import { isLinqConfigured, sendStatusCard, updateStatusCard } from "@/libs/linq";
+import { generateCardImage, isRunwareConfigured } from "@/libs/runware";
 import type { Job } from "@/utils/schema/job";
 import { formatCents } from "./reply-templates";
 
@@ -99,6 +100,17 @@ export async function syncJobHud(
 
   const copy = stageCopy(job, stage);
 
+  // Runware hero art — deterministic seed per job keeps the same artwork
+  // across HUD updates. Best-effort; cards render fine without it.
+  let imageUrl: string | undefined;
+  if (isRunwareConfigured()) {
+    imageUrl = await generateCardImage({
+      jobId: job.id,
+      title: job.title,
+      tier: job.tier,
+    });
+  }
+
   try {
     let messageId: string;
     let usedCard: boolean;
@@ -111,6 +123,7 @@ export async function syncJobHud(
         layout: {
           caption: copy.caption,
           subcaption: copy.subcaption,
+          imageUrl,
         },
         fallbackText: copy.fallbackText,
         wasCard: Boolean(job.statusCardIsRich),
@@ -122,6 +135,7 @@ export async function syncJobHud(
         layout: {
           caption: copy.caption,
           subcaption: copy.subcaption,
+          imageUrl,
         },
         fallbackText: copy.fallbackText,
         idempotencyKey: `hud-${job.id}-${stage}`,

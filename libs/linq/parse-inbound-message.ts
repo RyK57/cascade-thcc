@@ -8,6 +8,8 @@ export interface InboundLinqMessage {
   chatId: string;
   senderHandle: string;
   text: string;
+  /** Presigned image URLs from media parts (photos texted in). */
+  mediaUrls?: string[];
 }
 
 export interface InboundLinqReaction {
@@ -94,7 +96,18 @@ export function parseInboundMessage(
     .join("\n")
     .trim();
 
-  if (!text) return null;
+  // Presigned URLs (1h expiry) for inbound photos — glasses shots, task
+  // context images. Caption them promptly; don't persist the URLs.
+  const mediaUrls = data.parts.flatMap((part) =>
+    part.type === "media" &&
+    "url" in part &&
+    part.mime_type?.startsWith("image/") &&
+    part.url
+      ? [part.url]
+      : []
+  );
+
+  if (!text && mediaUrls.length === 0) return null;
 
   return {
     kind: "text",
@@ -103,5 +116,6 @@ export function parseInboundMessage(
     chatId: data.chat.id,
     senderHandle: data.sender_handle.handle,
     text,
+    mediaUrls,
   };
 }
