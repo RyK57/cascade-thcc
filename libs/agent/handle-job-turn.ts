@@ -1,11 +1,15 @@
 import { updateJob } from "@/db/jobs";
+import { listPeers } from "@/db/users";
+import { needsLocationHint, requestLocation } from "@/libs/linq/location";
 import type { Job } from "@/utils/schema/job";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { JOB_TIER, type TriageResult } from "@/utils/schema/agent";
 import { answerAiTask } from "./answer-ai";
 import { draftExpertJob, handleExpertTurn } from "./handle-expert-turn";
 import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
+import { bestEvLine } from "./routing-ev";
 import { fallbackReply, routingReply } from "./reply-templates";
+import { HUD_STAGE, syncJobHud } from "./status-hud";
 import { AGENT_ACTION, AGENT_INTENT, type AgentAction, type AgentIntent } from "./types";
 
 export interface JobTurn {
@@ -91,14 +95,31 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     status: JOB_STATUS.intake,
   });
 
-  const routeLine = routingReply(triage.tier, triage.reason);
+  const peers = await listPeers().catch(() => []);
+  const avgTrust =
+    peers.reduce((s, p) => s + p.trustScore, 0) / Math.max(1, peers.length);
+  const peerCost = Math.max(5, (priceUsdCents || 1200) / 100);
+  const expertCost = Math.max(peerCost * 3, 45);
+  const valueUsd = Math.max(peerCost * 2, expertCost);
+  const evLine = bestEvLine({
+    valueUsd,
+    peerCostUsd: peerCost,
+    expertCostUsd: expertCost,
+    avgPeerTrust: avgTrust || 70,
+  });
+
+  const routeLine = `${routingReply(triage.tier, triage.reason)}\n${evLine}`;
 
   if (triage.tier === JOB_TIER.ai) {
     const { answer } = await answerAiTask({
       title: job.title,
       description: job.description ?? turn.text,
     });
-    await updateJob(job.id, { status: JOB_STATUS.paid, priceUsdCents: 0 });
+    let done = await updateJob(job.id, {
+      status: JOB_STATUS.paid,
+      priceUsdCents: 0,
+    });
+    done = await syncJobHud(done, HUD_STAGE.answered);
     return {
       action: AGENT_ACTION.answeredAi,
       reply: `${routeLine}\n\n${answer}`,
@@ -107,6 +128,13 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   }
 
   if (triage.tier === JOB_TIER.peer) {
+    if (needsLocationHint(turn.text)) {
+      try {
+        await requestLocation(turn.chatId);
+      } catch (error) {
+        console.warn("[cascade] location request failed", error);
+      }
+    }
     const quoted = await quotePeerJob(job);
     return {
       ...quoted,
@@ -135,8 +163,10 @@ async function handleClosed(turn: JobTurn): Promise<JobTurnOutcome> {
       assigneeUserId: undefined,
       claimChatId: undefined,
       statusCardMessageId: undefined,
+      statusCardIsRich: undefined,
       fundedVia: undefined,
       priceUsdCents: undefined,
+      walletRefuseCount: 0,
     });
     return handleJobTurn({
       ...turn,

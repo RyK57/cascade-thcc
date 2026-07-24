@@ -3,6 +3,10 @@ import { CascadePayPanel } from "@/components/app/cascade-pay-panel";
 import { IntegrationsPanel } from "@/components/app";
 import { getJobById, listOpenJobs } from "@/db/jobs";
 import { getPaymentByJobId } from "@/db/payments";
+import {
+  explorerAddressUrl,
+  explorerTxUrl,
+} from "@/libs/dynamic/sandbox";
 import { ensureSandboxTreasury } from "@/libs/dynamic/treasury";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
@@ -44,6 +48,12 @@ export default async function MainPage({ searchParams }: MainPageProps) {
           payment?.amountCents ?? job.priceUsdCents ?? job.quotedTotalCents ?? 0
         }
         treasuryAddress={treasury.address}
+        treasuryExplorerUrl={explorerAddressUrl(treasury.address)}
+        escrowExplorerUrl={
+          payment?.escrowTxHash
+            ? explorerTxUrl(payment.escrowTxHash)
+            : null
+        }
         status={payment?.status ?? job.status}
       />
 

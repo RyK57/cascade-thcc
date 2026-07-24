@@ -26,6 +26,8 @@ export async function upsertUserByPhone(
         credit_balance: parsed.creditBalance ?? existing.credit_balance,
         wallet_address: parsed.walletAddress ?? existing.wallet_address,
         trust_score: parsed.trustScore ?? existing.trust_score,
+        last_lat: parsed.lastLat ?? existing.last_lat,
+        last_lng: parsed.lastLng ?? existing.last_lng,
       })
       .eq("id", existing.id)
       .select(USER_ROW_COLUMNS)
@@ -47,6 +49,8 @@ export async function upsertUserByPhone(
       credit_balance: parsed.creditBalance ?? 0,
       wallet_address: parsed.walletAddress,
       trust_score: parsed.trustScore ?? 50,
+      last_lat: parsed.lastLat,
+      last_lng: parsed.lastLng,
     })
     .select(USER_ROW_COLUMNS)
     .single<UserRow>();

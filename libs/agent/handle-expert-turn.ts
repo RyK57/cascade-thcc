@@ -1,7 +1,9 @@
 import { createPayment, getPaymentByJobId } from "@/db/payments";
 import { updateJob } from "@/db/jobs";
+import { explorerTxUrl } from "@/libs/dynamic/sandbox";
 import {
   createDraftOpportunity,
+  expertFiltersForJob,
   getOpportunity,
   getTeracProjectId,
   isTeracConfigured,
@@ -30,6 +32,7 @@ import {
   teracUnavailableReply,
   workReadyReply,
 } from "./reply-templates";
+import { HUD_STAGE, syncJobHud } from "./status-hud";
 import { AGENT_ACTION, AGENT_INTENT, type AgentAction, type AgentIntent } from "./types";
 
 const DEFAULT_NUM_PARTICIPANTS = 1;
@@ -56,30 +59,47 @@ export async function draftExpertJob(job: Job): Promise<ExpertOutcome> {
     };
   }
 
+  const filters = expertFiltersForJob(job.title, job.description);
+
   const opportunity = await createDraftOpportunity({
     title: job.title,
-    description: job.description,
+    description: job.description
+      ? `${job.description}\n\nScreening: ${filters.screeningHint}`
+      : filters.screeningHint,
     projectId,
     numParticipants: DEFAULT_NUM_PARTICIPANTS,
     businessType: "b2c",
     internalTitle: `cascade-job-${job.id}`,
+    screeningQuestions: [
+      {
+        key: "seniority",
+        text: `Are you a ${filters.roleLabel}?`,
+        pick: "one",
+        answers: [
+          { text: "Yes", qualify_logic: "qualify" },
+          { text: "No", qualify_logic: "disqualify" },
+        ],
+      },
+    ],
   });
 
-  await updateJob(job.id, {
+  let updated = await updateJob(job.id, {
     status: JOB_STATUS.quoted,
     teracOpportunityId: opportunity.id,
     quotedTotalCents: opportunity.pricing?.total_cost_cents,
     quotedCurrency: opportunity.pricing?.currency,
     priceUsdCents: opportunity.pricing?.total_cost_cents,
   });
+  updated = await syncJobHud(updated, HUD_STAGE.quoted);
 
   return {
     action: AGENT_ACTION.quoted,
     reply: draftReadyReply({
-      title: job.title,
+      title: updated.title,
       numParticipants: DEFAULT_NUM_PARTICIPANTS,
       totalCents: opportunity.pricing?.total_cost_cents,
       currency: opportunity.pricing?.currency,
+      roleLabel: filters.roleLabel,
     }),
   };
 }
@@ -109,8 +129,9 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
 
   if (intent === AGENT_INTENT.affirm) {
     await launchOpportunity(job.teracOpportunityId);
-    await updateJob(job.id, { status: JOB_STATUS.launched });
-    return { action: AGENT_ACTION.launched, reply: launchedReply(job.title) };
+    let launched = await updateJob(job.id, { status: JOB_STATUS.launched });
+    launched = await syncJobHud(launched, HUD_STAGE.launched);
+    return { action: AGENT_ACTION.launched, reply: launchedReply(launched.title) };
   }
 
   if (intent === AGENT_INTENT.decline) {
@@ -124,6 +145,7 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
     return { action: AGENT_ACTION.refined, reply: refinedReply() };
   }
 
+  const filters = expertFiltersForJob(job.title, job.description);
   return {
     action: AGENT_ACTION.statusReported,
     reply: draftReadyReply({
@@ -131,6 +153,7 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
       numParticipants: DEFAULT_NUM_PARTICIPANTS,
       totalCents: job.quotedTotalCents,
       currency: job.quotedCurrency,
+      roleLabel: filters.roleLabel,
     }),
   };
 }
@@ -173,15 +196,16 @@ async function handleReview({ job, intent }: ExpertTurn): Promise<ExpertOutcome>
       });
     }
 
-    await updateJob(job.id, {
+    let pending = await updateJob(job.id, {
       status: JOB_STATUS.paymentPending,
       teracSubmissionId: submission.id,
     });
+    pending = await syncJobHud(pending, HUD_STAGE.paymentPending);
 
     return {
       action: AGENT_ACTION.approvedWork,
       reply: approvedWorkReply(
-        getPayUrl(job.id),
+        getPayUrl(pending.id),
         amountCents ? formatCents(amountCents, job.quotedCurrency) : undefined
       ),
     };
@@ -197,9 +221,11 @@ async function handleReview({ job, intent }: ExpertTurn): Promise<ExpertOutcome>
   }
 
   if (awaiting.length) {
+    let reviewing = job;
     if (job.status !== JOB_STATUS.inReview) {
-      await updateJob(job.id, { status: JOB_STATUS.inReview });
+      reviewing = await updateJob(job.id, { status: JOB_STATUS.inReview });
     }
+    reviewing = await syncJobHud(reviewing, HUD_STAGE.inReview);
     return {
       action: AGENT_ACTION.workReady,
       reply: workReadyReply(awaiting.length),
@@ -217,10 +243,14 @@ async function handlePaymentPending({ job }: ExpertTurn): Promise<ExpertOutcome>
   const payment = await getPaymentByJobId(job.id);
 
   if (payment?.status === PAYMENT_STATUS.settled) {
-    await updateJob(job.id, { status: JOB_STATUS.paid });
+    let paid = await updateJob(job.id, { status: JOB_STATUS.paid });
+    paid = await syncJobHud(paid, HUD_STAGE.paid);
+    const explorer = payment.escrowTxHash
+      ? explorerTxUrl(payment.escrowTxHash)
+      : undefined;
     return {
       action: AGENT_ACTION.paid,
-      reply: paidReply(),
+      reply: paidReply(explorer),
       effect: "confetti",
     };
   }
@@ -253,10 +283,11 @@ export async function pollExpertSubmissions(job: Job): Promise<{
   if (!awaiting.length) return { notified: false };
 
   if (job.status !== JOB_STATUS.inReview) {
-    await updateJob(job.id, {
+    const reviewing = await updateJob(job.id, {
       status: JOB_STATUS.inReview,
       teracSubmissionId: awaiting[0].id,
     });
+    await syncJobHud(reviewing, HUD_STAGE.inReview);
   }
 
   return { notified: true, reply: workReadyReply(awaiting.length) };

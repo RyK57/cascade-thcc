@@ -7,7 +7,9 @@ import { JOB_STATUS } from "@/utils/schema/job";
 export const runtime = "nodejs";
 
 /**
- * Poll Terac submissions every ~60s (configure Vercel cron + CRON_SECRET).
+ * Poll Terac submissions for expert jobs.
+ * Vercel Hobby allows at most one cron run per day (`0 0 * * *` in vercel.json).
+ * Hit this route manually (Authorization: Bearer CRON_SECRET) for faster demo polling.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

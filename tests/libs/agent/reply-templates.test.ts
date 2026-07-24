@@ -50,3 +50,16 @@ describe("approvedWorkReply", () => {
     expect(reply).toContain("$150.00");
   });
 });
+
+describe("draftReadyReply role label", () => {
+  it("surfaces seniority in the quote", () => {
+    const reply = draftReadyReply({
+      title: "API review",
+      numParticipants: 1,
+      totalCents: 4500,
+      roleLabel: "senior engineer",
+    });
+    expect(reply).toContain("senior engineer");
+    expect(reply).toContain("👎");
+  });
+});

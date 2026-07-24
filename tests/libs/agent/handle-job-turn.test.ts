@@ -39,9 +39,37 @@ vi.mock("@/libs/linq", () => ({
   isLinqConfigured: vi.fn(() => false),
 }));
 
+vi.mock("@/libs/linq/location", () => ({
+  needsLocationHint: vi.fn(() => false),
+  requestLocation: vi.fn(),
+}));
+
+vi.mock("@/libs/linq/payment-requests", () => ({
+  createAgentPayRequest: vi.fn(),
+  sendCheckoutLink: vi.fn(),
+}));
+
 vi.mock("@/libs/dynamic/treasury", () => ({
   payoutFromTreasury: vi.fn(),
   ensureSandboxTreasury: vi.fn(),
+}));
+
+vi.mock("@/libs/dynamic/phone-wallet", () => ({
+  ensurePhoneWallet: vi.fn(async (phone: string) => ({
+    id: "33333333-3333-4333-8333-333333333333",
+    phone,
+    role: "both",
+    creditBalance: 0,
+    trustScore: 50,
+    walletAddress: "0xabc",
+    createdAt: "2026-07-24T00:00:00.000Z",
+  })),
+}));
+
+vi.mock("@/db/bids", () => ({
+  listJobBids: vi.fn(async () => []),
+  upsertJobBid: vi.fn(),
+  secondPriceClear: vi.fn(() => null),
 }));
 
 vi.mock("@/libs/terac", () => ({
@@ -53,6 +81,10 @@ vi.mock("@/libs/terac", () => ({
   listSubmissions: vi.fn(),
   reviewSubmission: vi.fn(),
   updateOpportunity: vi.fn(),
+  expertFiltersForJob: vi.fn(() => ({
+    roleLabel: "senior engineer",
+    screeningHint: "Senior IC experience reviewing production systems.",
+  })),
   TERAC_SUBMISSION_STATUS: {
     inProgress: "in_progress",
     awaitingReview: "awaiting_review",

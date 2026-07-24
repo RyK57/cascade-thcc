@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getJobById } from "@/db/jobs";
 import { getPaymentByJobId, updatePaymentStatus } from "@/db/payments";
 import { settlePayment } from "@/libs/agent";
+import { explorerAddressUrl, explorerTxUrl } from "@/libs/dynamic/sandbox";
 import { ensureSandboxTreasury } from "@/libs/dynamic/treasury";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
 
@@ -11,9 +12,15 @@ interface RouteContext {
   params: Promise<{ jobId: string }>;
 }
 
+function simulatedEscrowHash(paymentId: string): string {
+  const compact = paymentId.replace(/-/g, "").slice(0, 36);
+  return `0xesc${compact.padEnd(36, "0")}`;
+}
+
 /**
  * Sandbox fund confirm — marks payment settled and advances the job
  * (peer → funded+broadcast, expert → paid). No mainnet / real USD.
+ * Accepts a real Base Sepolia `txHash` from the pay panel when available.
  */
 export async function POST(request: Request, context: RouteContext) {
   const { jobId } = await context.params;
@@ -31,6 +38,7 @@ export async function POST(request: Request, context: RouteContext) {
     dynamicWalletAddress?: string;
     simulated?: boolean;
     txHash?: string;
+    escrowTxHash?: string;
   } = {};
   try {
     body = (await request.json()) as typeof body;
@@ -39,13 +47,8 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const treasury = await ensureSandboxTreasury();
-
-  const settled = await settlePayment({
-    paymentId: payment.id,
-    status: PAYMENT_STATUS.settled,
-    dynamicWalletAddress: body.dynamicWalletAddress,
-    escrowTxHash: body.txHash,
-  });
+  const escrowTxHash =
+    body.txHash ?? body.escrowTxHash ?? simulatedEscrowHash(payment.id);
 
   // Keep a wallet_connected breadcrumb when address provided before settle.
   if (body.dynamicWalletAddress && payment.status === PAYMENT_STATUS.pending) {
@@ -56,11 +59,21 @@ export async function POST(request: Request, context: RouteContext) {
     ).catch(() => undefined);
   }
 
+  const settled = await settlePayment({
+    paymentId: payment.id,
+    status: PAYMENT_STATUS.settled,
+    dynamicWalletAddress: body.dynamicWalletAddress,
+    escrowTxHash,
+  });
+
   return NextResponse.json({
     ok: true,
     mode: "sandbox",
     chain: "base-sepolia",
     treasuryAddress: treasury.address,
+    treasuryExplorerUrl: explorerAddressUrl(treasury.address),
+    escrowTxHash,
+    escrowExplorerUrl: explorerTxUrl(escrowTxHash),
     payment: settled,
     simulated: !body.txHash && (body.simulated ?? true),
     txHash: body.txHash,
@@ -79,6 +92,10 @@ export async function GET(_request: Request, context: RouteContext) {
     job,
     payment,
     treasuryAddress: treasury.address,
+    treasuryExplorerUrl: explorerAddressUrl(treasury.address),
+    escrowExplorerUrl: payment?.escrowTxHash
+      ? explorerTxUrl(payment.escrowTxHash)
+      : null,
     mode: "sandbox",
     chain: "base-sepolia",
   });

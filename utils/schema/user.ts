@@ -21,6 +21,8 @@ export const userSchema = z.object({
   creditBalance: z.number().int(),
   walletAddress: z.string().optional(),
   trustScore: z.number().int(),
+  lastLat: z.number().optional(),
+  lastLng: z.number().optional(),
   createdAt: z.string(),
 });
 
@@ -32,6 +34,8 @@ export const createUserSchema = z.object({
   creditBalance: z.number().int().optional(),
   walletAddress: z.string().optional(),
   trustScore: z.number().int().optional(),
+  lastLat: z.number().optional(),
+  lastLng: z.number().optional(),
 });
 
 export type User = z.infer<typeof userSchema>;

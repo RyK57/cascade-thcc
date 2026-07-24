@@ -16,6 +16,8 @@ interface CascadePayPanelProps {
   title: string;
   amountCents: number;
   treasuryAddress: string;
+  treasuryExplorerUrl?: string;
+  escrowExplorerUrl?: string | null;
   status: string;
 }
 
@@ -24,6 +26,8 @@ export function CascadePayPanel({
   title,
   amountCents,
   treasuryAddress,
+  treasuryExplorerUrl,
+  escrowExplorerUrl,
   status,
 }: CascadePayPanelProps) {
   const { data: initStatus } = useInitStatus();
@@ -31,6 +35,9 @@ export function CascadePayPanel({
   const { data: accounts = [] } = useGetWalletAccounts();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [lastEscrowUrl, setLastEscrowUrl] = useState<string | null>(
+    escrowExplorerUrl ?? null
+  );
 
   const amount = (amountCents / 100).toFixed(2);
   const address = accounts[0]?.address;
@@ -88,12 +95,20 @@ export function CascadePayPanel({
           txHash: txHash ?? undefined,
         }),
       });
-      const data = (await res.json()) as { error?: string; ok?: boolean };
+      const data = (await res.json()) as {
+        error?: string;
+        ok?: boolean;
+        escrowExplorerUrl?: string;
+        escrowTxHash?: string;
+      };
       if (!res.ok) throw new Error(data.error ?? "Fund failed");
+      if (data.escrowExplorerUrl) setLastEscrowUrl(data.escrowExplorerUrl);
       setMessage(
         txHash
-          ? `Escrow broadcast on Base Sepolia (${txHash.slice(0, 10)}…). Cascade will text your iMessage thread.`
-          : "Sandbox escrow recorded. Cascade will text your iMessage thread."
+          ? `Escrow broadcast on Base Sepolia (${txHash.slice(0, 10)}…). ${data.escrowExplorerUrl ?? ""}`.trim()
+          : data.escrowExplorerUrl
+            ? `Sandbox escrow recorded. ${data.escrowExplorerUrl}`
+            : "Sandbox escrow recorded. Cascade will text your iMessage thread."
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Fund failed");
@@ -117,8 +132,33 @@ export function CascadePayPanel({
           on Base Sepolia (testnet — no real dollars).
         </p>
         <p className="text-muted-foreground">
-          Treasury: <code className="text-foreground">{treasuryAddress}</code>
+          Treasury:{" "}
+          {treasuryExplorerUrl ? (
+            <a
+              className="text-foreground underline"
+              href={treasuryExplorerUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {treasuryAddress}
+            </a>
+          ) : (
+            <code className="text-foreground">{treasuryAddress}</code>
+          )}
         </p>
+        {lastEscrowUrl ? (
+          <p className="text-muted-foreground">
+            Escrow tx:{" "}
+            <a
+              className="text-foreground underline"
+              href={lastEscrowUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Basescan
+            </a>
+          </p>
+        ) : null}
         <p className="text-muted-foreground">Status: {status}</p>
 
         {initStatus !== "finished" ? (

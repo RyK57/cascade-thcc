@@ -50,6 +50,11 @@ Prefer: listen → clarify → act → confirm → reply on the same thread.
 - Dynamic is **sandbox / Base Sepolia only** — never mainnet or real USD
 - Never put API secrets in client components
 
+## Payments
+
+- **Primary rail:** Dynamic sandbox wallet escrow (Base Sepolia) — email login, no seed phrase
+- **Agent Pay backup:** Linq Agent Pay (Apple Pay in-thread) is allowed only after **two** explicit wallet refusals (`wallet_refuse_count >= 2`). Mark `funded_via=agentpay`. Wallet users keep escrow + instant payout advantages; Agent Pay is the fallback, never the default pitch.
+
 ## Out of scope (unless user asks)
 
 - Replacing Terac experts with a public custom expert marketplace (seeded peers are allowed)
