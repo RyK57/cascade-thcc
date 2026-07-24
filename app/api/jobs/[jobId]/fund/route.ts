@@ -27,7 +27,11 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
-  let body: { dynamicWalletAddress?: string; simulated?: boolean } = {};
+  let body: {
+    dynamicWalletAddress?: string;
+    simulated?: boolean;
+    txHash?: string;
+  } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -40,6 +44,7 @@ export async function POST(request: Request, context: RouteContext) {
     paymentId: payment.id,
     status: PAYMENT_STATUS.settled,
     dynamicWalletAddress: body.dynamicWalletAddress,
+    escrowTxHash: body.txHash,
   });
 
   // Keep a wallet_connected breadcrumb when address provided before settle.
@@ -57,7 +62,8 @@ export async function POST(request: Request, context: RouteContext) {
     chain: "base-sepolia",
     treasuryAddress: treasury.address,
     payment: settled,
-    simulated: body.simulated ?? true,
+    simulated: !body.txHash && (body.simulated ?? true),
+    txHash: body.txHash,
   });
 }
 

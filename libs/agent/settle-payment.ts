@@ -5,6 +5,7 @@ import {
   updateJob,
 } from "@/db/jobs";
 import { updatePaymentStatus } from "@/db/payments";
+import { explorerTxUrl } from "@/libs/dynamic/sandbox";
 import { isLinqConfigured, sendChatMessage } from "@/libs/linq";
 import type { Payment, PaymentStatus } from "@/utils/schema/payment";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
@@ -16,6 +17,7 @@ interface SettlePaymentInput {
   paymentId: string;
   status: PaymentStatus;
   dynamicWalletAddress?: string;
+  escrowTxHash?: string;
 }
 
 /**
@@ -26,6 +28,7 @@ export async function settlePayment({
   paymentId,
   status,
   dynamicWalletAddress,
+  escrowTxHash,
 }: SettlePaymentInput): Promise<Payment> {
   const payment = await updatePaymentStatus(
     paymentId,
@@ -38,12 +41,16 @@ export async function settlePayment({
   const job = await getJobById(payment.jobId);
   if (!job) return payment;
 
+  const escrowNote = escrowTxHash
+    ? ` Escrow on-chain: ${explorerTxUrl(escrowTxHash)}`
+    : "";
+
   if (job.tier === JOB_TIER.peer) {
     const outcome = await markPeerFunded(job);
     if (isLinqConfigured()) {
       const sent = await sendChatMessage({
         chatId: job.linqChatId,
-        text: outcome.reply,
+        text: `${outcome.reply}${escrowNote}`,
         idempotencyKey: `funded-${job.id}`,
       });
       await recordJobMessage({
@@ -59,7 +66,7 @@ export async function settlePayment({
   await updateJob(job.id, { status: JOB_STATUS.paid });
 
   if (isLinqConfigured()) {
-    const reply = paidReply();
+    const reply = `${paidReply()}${escrowNote}`;
     const sent = await sendChatMessage({
       chatId: job.linqChatId,
       text: reply,
