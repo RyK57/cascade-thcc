@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DynamicAuthButton } from "@/components/dynamic";
+import { DynamicAuthPanel } from "@/components/dynamic";
 import { isDynamicConfigured } from "@/libs/dynamic";
 import { isLinqConfigured } from "@/libs/linq";
 import { isTeracConfigured } from "@/libs/terac";
@@ -21,7 +21,7 @@ const INTEGRATIONS = [
     name: "Dynamic",
     status: isDynamicConfigured() ? "configured" : "missing",
     env: "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID",
-    note: "Wallet + auth via Dynamic React SDK",
+    note: "Email OTP + embedded EVM wallet via JS SDK",
   },
 ] as const;
 
@@ -29,7 +29,7 @@ export function IntegrationsPanel() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
       <div className="space-y-1">
-        <h1 className="font-secondary text-3xl">Hackathon stack</h1>
+        <h1 className="font-secondary text-3xl">Integrations</h1>
         <p className="text-sm text-muted-foreground">
           Linq messaging, Terac human labor, and Dynamic wallets are wired in.
         </p>
@@ -61,7 +61,7 @@ export function IntegrationsPanel() {
           <CardTitle className="text-base">Dynamic login</CardTitle>
         </CardHeader>
         <CardContent>
-          <DynamicAuthButton />
+          <DynamicAuthPanel />
         </CardContent>
       </Card>
     </div>
