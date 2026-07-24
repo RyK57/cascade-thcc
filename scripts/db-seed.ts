@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import { resolve } from "node:path";
 import { getDemoCredentials } from "../libs/seed/demo-credentials";
+import { seedCascadePeers } from "../libs/seed/seed-cascade-peers";
 import { seedDemoAccount } from "../libs/seed/seed-demo-account";
 import { isSupabaseAdminConfigured } from "../utils/supabase/admin";
 
@@ -29,19 +30,24 @@ async function main() {
 
   if (!isSupabaseAdminConfigured()) {
     console.error(
-      "Cannot seed demo account. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.",
+      "Cannot seed. Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY."
     );
     process.exit(1);
   }
 
   const credentials = getDemoCredentials();
-  const result = await seedDemoAccount();
+  const demo = await seedDemoAccount();
+  const peers = await seedCascadePeers();
 
   console.log("Demo account ready");
   console.log(`- email: ${credentials.email}`);
   console.log(`- password: ${credentials.password}`);
-  console.log(`- userId: ${result.userId}`);
-  console.log(`- auth user created: ${result.created ? "yes" : "no (updated)"}`);
+  console.log(`- userId: ${demo.userId}`);
+  console.log(`- auth user created: ${demo.created ? "yes" : "no (updated)"}`);
+  console.log("Cascade peers ready (must already text the Linq number):");
+  for (const phone of peers.phones) {
+    console.log(`- ${phone}`);
+  }
 }
 
 main().catch((error: unknown) => {
