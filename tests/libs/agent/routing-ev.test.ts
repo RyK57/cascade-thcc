@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   bestEvLine,
   claimExpectedCredits,
+  comparePeerExpertEv,
   computeTierEv,
+  EV_TIEBREAK_GAP_USD,
 } from "@/libs/agent/routing-ev";
 
 describe("computeTierEv", () => {
@@ -29,6 +31,30 @@ describe("bestEvLine", () => {
     expect(line).toMatch(/Cascade EV:/);
     expect(line).toMatch(/peer/);
     expect(line).toMatch(/expert/);
+  });
+});
+
+describe("comparePeerExpertEv", () => {
+  it("prefers peer when expert is expensive", () => {
+    const result = comparePeerExpertEv({
+      valueUsd: 40,
+      peerCostUsd: 12,
+      expertCostUsd: 90,
+      avgPeerTrust: 70,
+    });
+    expect(result.winner).toBe("peer");
+    expect(result.gapUsd).toBeGreaterThan(EV_TIEBREAK_GAP_USD);
+    expect(result.line).toContain("peer wins");
+  });
+
+  it("prefers expert when peer EV collapses", () => {
+    const result = comparePeerExpertEv({
+      valueUsd: 100,
+      peerCostUsd: 80,
+      expertCostUsd: 40,
+      avgPeerTrust: 20,
+    });
+    expect(result.winner).toBe("expert");
   });
 });
 
