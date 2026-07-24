@@ -22,12 +22,22 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Do workers get paid in real money?",
     answer:
-      "Yes. Payouts settle in stablecoin directly into the worker's own wallet the moment you approve. It's theirs immediately — hold it, spend it, or cash it out. Cascade never takes custody in between.",
+      "Yes. Payouts settle directly into the worker's own wallet the moment you approve — in USDC by default, or ETH. It's theirs immediately: hold it, spend it, or cash it out. Cascade never takes custody in between.",
   },
   {
     question: "Can I cap what it spends?",
     answer:
       "Set a per-task and per-month budget. Cascade works freely under the cap and stops in the thread for your approval above it, so an agent with your wallet never surprises you.",
+  },
+  {
+    question: "Which currencies can I pay in?",
+    answer:
+      "USDC or ETH. Prices are quoted in dollars either way — pick ETH and Cascade converts at the live rate and shows you the exact amount, the rate it used, and the network fee before you confirm.",
+  },
+  {
+    question: "How long does a professional take?",
+    answer:
+      "Longer than AI, and Cascade says so before quoting. Hiring a person takes two confirmations: one for the turnaround estimate, then one for the price. Nothing is charged at the first.",
   },
   {
     question: "Will this spam people cold?",

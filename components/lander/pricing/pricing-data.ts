@@ -15,7 +15,7 @@ export const PRICING = {
     {
       title: "Workers earn real money",
       description:
-        "Payouts land in the worker's own wallet in stablecoin — theirs to hold or cash out, with no platform float in between.",
+        "Payouts land in the worker's own wallet in USDC or ETH — theirs to hold or cash out, with no platform float in between.",
     },
     {
       title: "Set a budget",
