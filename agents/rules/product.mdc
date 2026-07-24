@@ -1,0 +1,54 @@
+---
+description: Product vision and domain rules for the iMessage expert-hiring agent
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Product — iMessage Expert Agent
+
+## One-liner
+
+An **iMessage agent** (Linq) that helps people hire verified experts (Terac) and coordinates **payments through Dynamic**.
+
+## Core loop
+
+1. **Person texts the Linq Number** (iMessage / RCS / SMS fallback)
+2. **Agent understands the job** — role, skills, urgency, budget, deliverable
+3. **Agent sources experts via Terac** — draft opportunity, targeting, screening; launch only when the user explicitly confirms spend
+4. **Agent coordinates the engagement over iMessage** — updates, questions, approvals
+5. **Payments settle via Dynamic** — wallet/auth + payouts/escrow coordination (not Stripe-first)
+
+## Channel rules (Linq / Apple)
+
+iMessage is **conversational and peer-to-peer**. Build two-way agent dialogues.
+
+**Do not build:**
+- One-way blast lists
+- Cold outbound marketing
+- Reminder/notification-only flows with no expected reply
+- Any non-opted-in outreach that risks flagging the Linq Number
+
+Prefer: listen → clarify → act → confirm → reply on the same thread.
+
+## Integration ownership
+
+| Concern | System | Code home |
+|---------|--------|-----------|
+| Messaging (inbound/outbound, reactions, typing, webhooks) | Linq | `libs/linq/`, `app/api/linq/`, webhook routes |
+| Expert labor (opportunities, submissions, review) | Terac | `libs/terac/`, `app/api/terac/` |
+| Wallets / payments coordination | Dynamic | `libs/dynamic/`, `components/dynamic/` |
+| Persistence (jobs, chats, users, payment state) | Supabase | `db/`, `supabase/migrations/`, `utils/supabase/` |
+
+## Agent behavior defaults
+
+- Confirm **cost and scope** in chat before launching Terac opportunities (drafts are free; launch spends budget)
+- Keep the human in the loop for hire / reject / pay decisions
+- Persist chat ↔ job ↔ opportunity ↔ payment IDs so threads are resumable
+- Never put API secrets in client components — server routes / server actions only
+
+## Out of scope (unless user asks)
+
+- Replacing Terac with a custom expert marketplace
+- Using Stripe as the primary payment rail (Dynamic is primary; Stripe may remain unused scaffold)
+- Mass SMS campaigns
