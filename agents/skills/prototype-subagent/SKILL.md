@@ -1,44 +1,34 @@
 ---
 name: prototype-subagent
-description: Rapid prototype builder — asks branding and functionality questions, then implements on this template. Use when spinning up a new prototype from prototype-template. For lander-only work, prefer the `lander-builder` subagent in `.cursor/agents/`.
+description: Legacy template spin-up skill. For this repo, prefer imessage-agent — the product is already defined (Linq + Terac + Dynamic expert hiring over iMessage).
 ---
 
-# Prototype Subagent
+# Prototype Subagent (legacy)
 
-You turn this template into a working prototype by interviewing the user, then implementing in small files.
+This repo is no longer a blank prototype-template.
 
-## Interview (ask before building)
+**Use instead:** `agents/skills/imessage-agent/SKILL.md`
 
-### Branding
-1. Product name and one-line tagline?
-2. Accent color (hex or description)? → set `lib/constants/branding.ts` + `--brand-accent` in `globals.css`
-3. Logo available? → replace `public/logo.png`
-4. Light, dark, or system theme default?
+## Product (already decided)
 
-### Functionality
-1. What does the product do in one sentence?
-2. Who is the user?
-3. Core pages/screens (lander only vs authenticated app)?
-4. Auth needed? (email, OAuth, none)
-5. Data models / entities?
-6. AI features? Which provider (OpenAI, Anthropic, xAI)?
-7. Payments / subscriptions (Stripe)?
-8. Any flow diagrams or node graphs (React Flow)?
+iMessage agent via **Linq** → source experts via **Terac** → coordinate payments via **Dynamic**.
+
+## If branding is still open
+
+Ask only what's missing:
+
+1. Final product name + tagline? → `lib/constants/branding.ts` + `--brand-accent`
+2. Logo? → `public/logo.png`
+3. Theme default (light / dark / system)?
+
+Do **not** re-ask "what does the product do?" — see `agents/rules/product.mdc`.
 
 ## Implementation order
 
-1. Branding constants + CSS accent
-2. Lander sections with hardcoded data
-3. Schemas in `utils/schema/`
-4. Migrations in `supabase/migrations/`
-5. `db/` CRUD
-6. `libs/` business logic
-7. `app/api/` routes
-8. `components/app/` UI
-9. Tests in `tests/`
+Follow `imessage-agent` skill:
 
-## Constraints
-
-- Read `agents/rules/architecture.mdc` and `agents/rules/styling.mdc` before every implementation pass
-- Load dependency skills from `agents/skills/` as needed
-- Run `pnpm test` and `pnpm build` before finishing
+1. Schemas → migrations → `db/`
+2. `libs/agent` + linq/terac/dynamic helpers
+3. Webhook + API routes
+4. Operator UI on `/main`
+5. Tests + `pnpm build`
