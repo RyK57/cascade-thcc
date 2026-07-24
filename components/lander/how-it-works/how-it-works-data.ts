@@ -5,29 +5,29 @@ export interface HowItWorksStep {
 }
 
 export const HOW_IT_WORKS = {
-  label: "Conversation-native hiring",
-  headline: "One thread from job to paid.",
-  cta: "See the hiring loop",
+  label: "Cascade over iMessage",
+  headline: "Cheapest capable worker, every time.",
+  cta: "See the loop",
   ctaHref: "#stack",
 } as const;
 
 export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
   {
     step: "01",
-    title: "Text the job",
+    title: "Text the task",
     description:
-      "Message the Linq Number like a coworker. Role, timeline, and what “done” looks like — all in chat.",
+      "Message Cascade on Linq. One triage call routes to AI, a peer, or a Terac expert.",
   },
   {
     step: "02",
-    title: "Meet verified experts",
+    title: "Confirm the quote",
     description:
-      "The agent drafts a Terac opportunity, shows estimated cost, and launches only after you confirm.",
+      "AI answers free. Peers and experts show a price card — tapback or YES before anything spends.",
   },
   {
     step: "03",
-    title: "Pay through Dynamic",
+    title: "Sandbox pay + deliver",
     description:
-      "Approve work in the thread. Wallet checkout and payouts stay tied to that approval.",
+      "Escrow test USDC via Dynamic, approve the deliverable in-thread, payout fires with confetti.",
   },
 ] as const;
