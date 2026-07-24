@@ -1,42 +1,116 @@
 "use client";
 
+import { useEffect } from "react";
 import type { EvmWalletAccount } from "@dynamic-labs-sdk/evm";
 import {
-  useGetNativeBalance,
-  useGetWalletAccounts,
-  useUser,
-} from "@dynamic-labs-sdk/react-hooks";
+  getActiveNetworkId,
+  switchActiveNetwork,
+} from "@dynamic-labs-sdk/client";
+import { useGetWalletAccounts, useUser } from "@dynamic-labs-sdk/react-hooks";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/constants/routes";
+import { BASE_SEPOLIA_CHAIN_ID } from "@/libs/dynamic/sandbox";
 import { DynamicLogoutButton } from "./dynamic-logout-button";
 import { DynamicStatus } from "./dynamic-status";
 import { WalletAddress } from "./wallet-address";
+
+const BASE_SEPOLIA_NETWORK_ID = String(BASE_SEPOLIA_CHAIN_ID);
+
+interface WalletBalances {
+  eth: string;
+  usdc: string;
+}
+
+async function fetchWalletBalances(address: string): Promise<WalletBalances> {
+  const response = await fetch(
+    `${ROUTES.api.agentWallet}?extra=${encodeURIComponent(address)}`
+  );
+  const data = (await response.json()) as {
+    error?: string;
+    balances?: Record<string, WalletBalances>;
+  };
+  if (!response.ok) {
+    throw new Error(data.error ?? "Could not load balances");
+  }
+
+  const match = Object.entries(data.balances ?? {}).find(
+    ([key]) => key.toLowerCase() === address.toLowerCase()
+  );
+  return match?.[1] ?? { eth: "0", usdc: "0" };
+}
+
+function formatEth(value: string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return n.toFixed(4);
+}
+
+function formatUsdc(value: string): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 /**
  * The wallet, once someone is signed in. It has to answer three questions at a
  * glance — whose account is this, which address holds the money, and how much
  * is in it — and say plainly that nothing leaves without a confirmation.
  *
- * Rendered inside `DynamicProvider`, below `DynamicAuthPanel`'s init gate, so
- * init status is already settled here.
+ * Balances come from our Base Sepolia RPC (same source as checkout), not
+ * Dynamic's active-network native balance — which fails when the wallet is
+ * still on the wrong chain.
  */
 export function DynamicDashboard() {
   const { data: user } = useUser();
   const { data: accounts = [], isLoading: loadingAccounts } =
     useGetWalletAccounts();
 
-  // Only the EVM extension is registered, and the balance hook is typed against
-  // that chain — narrow rather than cast.
   const evmAccount = accounts.find(
     (account): account is EvmWalletAccount => account.chain === "EVM"
   );
   const walletAccount = evmAccount ?? accounts[0];
+  const address = walletAccount?.address;
+
+  useEffect(() => {
+    if (!evmAccount) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const active = await getActiveNetworkId({ walletAccount: evmAccount });
+        if (cancelled || active.networkId === BASE_SEPOLIA_NETWORK_ID) return;
+        await switchActiveNetwork({
+          walletAccount: evmAccount,
+          networkId: BASE_SEPOLIA_NETWORK_ID,
+        });
+      } catch {
+        // Checkout still switches explicitly on pay; dashboard can show RPC
+        // balances even if the wallet network switch is blocked.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [evmAccount]);
 
   const {
-    data: balance,
+    data: balances,
     isLoading: loadingBalance,
     isError: balanceFailed,
     refetch: refetchBalance,
-  } = useGetNativeBalance({ walletAccount: evmAccount });
+  } = useQuery({
+    queryKey: ["wallet-balances", address],
+    queryFn: () => fetchWalletBalances(address!),
+    enabled: Boolean(address),
+    refetchInterval: 10_000,
+    retry: 1,
+  });
 
   if (!user) {
     return (
@@ -84,13 +158,15 @@ export function DynamicDashboard() {
         <div className="space-y-1.5">
           <dt className="label-caps text-muted-foreground">Balance</dt>
           <dd className="text-sm">
-            {!evmAccount ? (
+            {!address ? (
               <span className="text-muted-foreground">
                 Available once the wallet exists
               </span>
             ) : balanceFailed ? (
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-destructive">Balance unavailable</span>
+                <span className="text-muted-foreground">
+                  Couldn’t load balances just now
+                </span>
                 <Button
                   variant="ghost"
                   size="xs"
@@ -102,11 +178,14 @@ export function DynamicDashboard() {
             ) : loadingBalance ? (
               <span
                 aria-hidden
-                className="block h-6 w-24 animate-pulse rounded-sm bg-foreground/10"
+                className="block h-6 w-40 animate-pulse rounded-sm bg-foreground/10"
               />
             ) : (
               <span className="font-mono text-base text-foreground">
-                {balance?.balance ?? "0"}
+                {formatUsdc(balances?.usdc ?? "0")} USDC
+                <span className="ml-2 text-sm text-muted-foreground">
+                  · {formatEth(balances?.eth ?? "0")} ETH
+                </span>
               </span>
             )}
           </dd>
