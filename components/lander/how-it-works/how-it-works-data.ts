@@ -40,8 +40,8 @@ export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
   {
     step: "03",
     system: "Dynamic",
-    title: "Sandbox pay + deliver",
+    title: "Pay + deliver",
     description:
-      "Escrow test USDC via Dynamic, approve the deliverable in-thread, payout fires with confetti.",
+      "Fund escrow from your Cascade wallet, approve the deliverable in-thread, and payout releases instantly.",
   },
 ] as const;

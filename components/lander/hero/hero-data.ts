@@ -2,10 +2,10 @@ export const HERO = {
   headlineLead: "Cascade routes every task",
   headlineAccent: "over iMessage.",
   support:
-    "AI answers free. Peers handle real-world checks. Verified experts come from Terac — escrowed with sandbox Dynamic USDC.",
+    "AI answers free. Peers handle real-world checks. Verified experts come from Terac — paid from escrow when you approve.",
   primaryCta: "Open the app",
   secondaryCta: "See how it works",
-  trust: "Base Sepolia sandbox USDC — never real dollars in this demo.",
+  trust: "Escrow held until you approve in Messages.",
 } as const;
 
 /** Chrome for the thread artifact. Kept beside the messages it annotates. */
@@ -13,7 +13,7 @@ export const THREAD = {
   channel: "Live on iMessage",
   agent: "Cascade",
   stamp: "Today 9:41",
-  notes: ["AI free", "Quote first", "Sandbox USDC"],
+  notes: ["AI free", "Quote first", "Approve to pay"],
 } as const;
 
 /** Speaker names, announced to screen readers before each message. */
@@ -37,6 +37,6 @@ export const HERO_THREAD = [
   },
   {
     from: "agent" as const,
-    text: "Peer quote: $12 USDC sandbox escrow. Pay → tapback claim → approve → instant payout.",
+    text: "Peer quote: $12 USDC escrow. Pay → tapback claim → approve → instant payout.",
   },
 ] as const;
