@@ -1,10 +1,12 @@
-# YC Hackathon
+# Hire experts over iMessage
 
-Next.js hackathon starter cloned from `prototype-template`, pre-wired with:
+iMessage agent that helps people hire verified experts and pay them.
 
-- **Linq** (`@linqapp/sdk`) — messaging API
-- **Terac** — verified human labor REST client
-- **Dynamic** (`@dynamic-labs/sdk-react-core`) — wallet auth
+- **Linq** — conversational iMessage / RCS / SMS channel
+- **Terac** — source verified experts for the job
+- **Dynamic** — coordinate wallets and payments
+
+Agent rules/skills live in `agents/` (see `AGENTS.md`).
 
 ## Quick start
 
