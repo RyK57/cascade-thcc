@@ -7,6 +7,7 @@ import { JOB_TIER, type TriageResult } from "@/utils/schema/agent";
 import { answerAiTask } from "./answer-ai";
 import { draftExpertJob, handleExpertTurn } from "./handle-expert-turn";
 import { handlePeerTurn, quotePeerJob } from "./handle-peer-turn";
+import { interpretPayAsset } from "./interpret-message";
 import { bestEvLine } from "./routing-ev";
 import { fallbackReply, routingReply } from "./reply-templates";
 import { HUD_STAGE, syncJobHud } from "./status-hud";
@@ -155,7 +156,7 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
         console.warn("[cascade] location request failed", error);
       }
     }
-    const quoted = await quotePeerJob(job);
+    const quoted = await quotePeerJob(job, interpretPayAsset(turn.text) ?? undefined);
     return {
       ...quoted,
       reply: `${routeLine}\n❤️ approve after funding · 👎 reject`,

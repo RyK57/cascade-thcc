@@ -1,3 +1,4 @@
+import type { PayAsset } from "@/libs/dynamic/assets";
 import type { Payment, PaymentStatus } from "@/utils/schema/payment";
 
 export interface PaymentRow {
@@ -6,6 +7,7 @@ export interface PaymentRow {
   terac_submission_id: string | null;
   amount_cents: number;
   currency: string;
+  asset: string | null;
   status: string;
   dynamic_wallet_address: string | null;
   escrow_tx_hash: string | null;
@@ -16,7 +18,7 @@ export interface PaymentRow {
 }
 
 export const PAYMENT_ROW_COLUMNS =
-  "id, job_id, terac_submission_id, amount_cents, currency, status, dynamic_wallet_address, escrow_tx_hash, escrow_held_at, escrow_released_at, created_at, updated_at";
+  "id, job_id, terac_submission_id, amount_cents, currency, asset, status, dynamic_wallet_address, escrow_tx_hash, escrow_held_at, escrow_released_at, created_at, updated_at";
 
 export function mapPaymentRow(row: PaymentRow): Payment {
   return {
@@ -25,6 +27,7 @@ export function mapPaymentRow(row: PaymentRow): Payment {
     teracSubmissionId: row.terac_submission_id ?? undefined,
     amountCents: row.amount_cents,
     currency: row.currency,
+    asset: (row.asset as PayAsset | null) ?? "usdc",
     status: row.status as PaymentStatus,
     dynamicWalletAddress: row.dynamic_wallet_address ?? undefined,
     escrowTxHash: row.escrow_tx_hash ?? undefined,

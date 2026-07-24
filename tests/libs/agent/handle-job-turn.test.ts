@@ -183,29 +183,76 @@ describe("ai triage", () => {
 });
 
 describe("expert quoted", () => {
-  it("launches on affirm", async () => {
+  function expertTurn(job: Job) {
+    return {
+      job,
+      intent: AGENT_INTENT.affirm,
+      text: "yes",
+      isNewJob: false,
+      senderHandle: "+15555550123",
+      chatId: "chat_1",
+    };
+  }
+
+  it("does not launch on the first affirm — that one only accepts the timeline", async () => {
+    const job = makeJob({
+      status: JOB_STATUS.quoted,
+      tier: "expert",
+      teracOpportunityId: "opp_1",
+      quotedTotalCents: 4500,
+    });
+    vi.mocked(updateJob).mockResolvedValue({ ...job, expertTimelineAck: true });
+
+    const outcome = await handleJobTurn(expertTurn(job));
+
+    // Terac hires a real person on a real schedule; agreeing to that must not
+    // also authorize the charge.
+    expect(launchOpportunity).not.toHaveBeenCalled();
+    expect(updateJob).toHaveBeenCalledWith(
+      job.id,
+      expect.objectContaining({ expertTimelineAck: true })
+    );
+    expect(outcome.reply).toMatch(/YES once more/i);
+  });
+
+  it("launches on the second affirm, once the timeline is acknowledged", async () => {
     vi.mocked(launchOpportunity).mockResolvedValue({
       id: "opp_1",
       title: "x",
       status: "live",
       num_participants: 1,
     });
-
-    const outcome = await handleJobTurn({
-      job: makeJob({
-        status: JOB_STATUS.quoted,
-        tier: "expert",
-        teracOpportunityId: "opp_1",
-      }),
-      intent: AGENT_INTENT.affirm,
-      text: "yes",
-      isNewJob: false,
-      senderHandle: "+15555550123",
-      chatId: "chat_1",
+    const job = makeJob({
+      status: JOB_STATUS.quoted,
+      tier: "expert",
+      teracOpportunityId: "opp_1",
+      expertTimelineAck: true,
     });
+    vi.mocked(updateJob).mockResolvedValue({
+      ...job,
+      status: JOB_STATUS.launched,
+    });
+
+    const outcome = await handleJobTurn(expertTurn(job));
 
     expect(launchOpportunity).toHaveBeenCalledWith("opp_1");
     expect(outcome.action).toBe(AGENT_ACTION.launched);
+  });
+
+  it("leads with the turnaround before any price", async () => {
+    const outcome = await handleJobTurn({
+      ...expertTurn(
+        makeJob({
+          status: JOB_STATUS.quoted,
+          tier: "expert",
+          teracOpportunityId: "opp_1",
+        })
+      ),
+      intent: AGENT_INTENT.status,
+    });
+
+    expect(outcome.reply).toMatch(/hours/i);
+    expect(outcome.reply).toMatch(/Nothing is charged yet/i);
   });
 });
 
@@ -233,6 +280,7 @@ describe("expert review", () => {
       jobId: "11111111-1111-4111-8111-111111111111",
       amountCents: 15000,
       currency: "usd",
+      asset: "usdc" as const,
       status: PAYMENT_STATUS.pending,
       createdAt: "2026-07-24T00:00:00.000Z",
       updatedAt: "2026-07-24T00:00:00.000Z",
@@ -264,6 +312,7 @@ describe("expert payment pending", () => {
       jobId: "11111111-1111-4111-8111-111111111111",
       amountCents: 15000,
       currency: "usd",
+      asset: "usdc" as const,
       status: PAYMENT_STATUS.settled,
       createdAt: "2026-07-24T00:00:00.000Z",
       updatedAt: "2026-07-24T00:00:00.000Z",

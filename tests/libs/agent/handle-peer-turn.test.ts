@@ -83,6 +83,7 @@ beforeEach(() => {
     jobId: "22222222-2222-4222-8222-222222222222",
     amountCents: 1200,
     currency: "usd",
+    asset: "usdc" as const,
     status: "payment_pending",
     createdAt: "2026-07-24T00:00:00.000Z",
     updatedAt: "2026-07-24T00:00:00.000Z",

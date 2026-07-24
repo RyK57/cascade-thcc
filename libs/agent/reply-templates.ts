@@ -21,11 +21,14 @@ export function peerQuoteReply(params: {
   priceCents: number;
   payUrl: string;
   trustHint?: string;
+  /** Pre-rendered amount + rate + gas line from `buildPaymentQuote`. */
+  quoteLine?: string;
 }): string {
-  const price = formatCents(params.priceCents);
+  const price = params.quoteLine ?? `${formatCents(params.priceCents)} USDC`;
   const trust = params.trustHint ? ` ${params.trustHint}` : "";
   return [
-    `Quote for "${params.title}": ${price} USDC.${trust}`,
+    `Quote for "${params.title}": ${price}.${trust}`,
+    `Paying in ETH instead? Reply "pay in eth" and I'll requote at the live rate.`,
     `Fastest way to pay: your Cascade wallet — takes 20 seconds, just your email, no seed phrase, and payouts you earn land there instantly.`,
     `Pay here: ${params.payUrl}`,
     `Or reply "pay with balance" to use your Cascade balance.`,
@@ -92,6 +95,39 @@ export function draftReadyReply(params: {
       ? `${formatCents(params.totalCents, params.currency)}`
       : "quoting…";
   return `Expert quote for "${params.title}" — ${experts} • ${cost} • tapback ❤️ / YES to launch (drafts are free; launch spends), 👎 to hold. Billed on approval.`;
+}
+
+/**
+ * First of two gates for expert work. Terac hires a real person on a real
+ * schedule, so the turnaround is disclosed and acknowledged on its own —
+ * a "yes" to a timeline must never double as a "yes" to a charge.
+ */
+export function expertTimelineDisclaimer(params: {
+  title: string;
+  roleLabel?: string;
+}): string {
+  const role = params.roleLabel ?? "vetted professional";
+  return [
+    `Heads up before I quote "${params.title}": this goes to a ${role} through Terac, not to AI.`,
+    `Real people work on a real schedule — expect hours, and sometimes a day or two, not minutes. You'll get every update in this thread.`,
+    `Reply YES if that timeline works and I'll bring you the price. Nothing is charged yet.`,
+  ].join("\n");
+}
+
+/** Second gate: the timeline is accepted, this is the actual spend. */
+export function expertPaymentConfirm(params: {
+  title: string;
+  quoteLine: string;
+  numParticipants: number;
+  roleLabel?: string;
+}): string {
+  const role = params.roleLabel ?? "vetted professional";
+  const who = `${params.numParticipants} ${role}${params.numParticipants === 1 ? "" : "s"}`;
+  return [
+    `Timeline accepted. Here's the price for "${params.title}": ${params.quoteLine}`,
+    `That hires ${who} on Terac. Funds are held in escrow and only released when you approve the work.`,
+    `Reply YES once more to confirm the payment, or NO to hold.`,
+  ].join("\n");
 }
 
 export function teracUnavailableReply(title: string): string {

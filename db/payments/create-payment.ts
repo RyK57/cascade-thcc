@@ -16,6 +16,7 @@ export async function createPayment(
       terac_submission_id: parsed.teracSubmissionId,
       amount_cents: parsed.amountCents,
       currency: parsed.currency,
+      asset: parsed.asset,
       status: PAYMENT_STATUS.pending,
     })
     .select(PAYMENT_ROW_COLUMNS)

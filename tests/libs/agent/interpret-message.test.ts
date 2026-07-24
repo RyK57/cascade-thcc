@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AGENT_INTENT, interpretMessage } from "@/libs/agent";
+import { interpretPayAsset } from "@/libs/agent/interpret-message";
 
 describe("interpretMessage", () => {
   it.each([
@@ -46,5 +47,29 @@ describe("interpretMessage", () => {
     expect(interpretMessage("yesterday's meeting notes need cleanup")).toBe(
       AGENT_INTENT.freeform
     );
+  });
+});
+
+describe("interpretPayAsset", () => {
+  it("picks up an explicit ETH request", () => {
+    expect(interpretPayAsset("pay in eth")).toBe("eth");
+    expect(interpretPayAsset("Yes, pay with ethereum")).toBe("eth");
+  });
+
+  it("picks up an explicit stablecoin request", () => {
+    expect(interpretPayAsset("pay in usdc")).toBe("usdc");
+    expect(interpretPayAsset("use stablecoin")).toBe("usdc");
+  });
+
+  it("returns null when the requester didn't say", () => {
+    expect(interpretPayAsset("yes")).toBeNull();
+    expect(interpretPayAsset("find me a plumber")).toBeNull();
+  });
+});
+
+describe("pay-from-balance intent", () => {
+  it("accepts both the balance and the legacy credits wording", () => {
+    expect(interpretMessage("pay with balance")).toBe(AGENT_INTENT.payCredits);
+    expect(interpretMessage("pay with credits")).toBe(AGENT_INTENT.payCredits);
   });
 });

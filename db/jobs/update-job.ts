@@ -33,6 +33,7 @@ export async function updateJob(
       wallet_refuse_count: parsed.walletRefuseCount,
       requester_lat: parsed.requesterLat,
       requester_lng: parsed.requesterLng,
+      expert_timeline_ack: parsed.expertTimelineAck,
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId)

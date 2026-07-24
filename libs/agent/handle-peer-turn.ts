@@ -1,6 +1,8 @@
 import { listJobBids, secondPriceClear, upsertJobBid } from "@/db/bids";
 import { claimJob, clearAssigneeAndReopen, updateJob } from "@/db/jobs";
 import { createPayout, getPayoutByJobId } from "@/db/payouts";
+import { buildPaymentQuote, quoteLine } from "@/libs/chain";
+import { PAY_ASSET, type PayAsset } from "@/libs/dynamic/assets";
 import {
   claimEscrowRelease,
   createPayment,
@@ -74,12 +76,16 @@ const BID_PATTERN = /^bid\s+(\d+)\s*$/i;
 const WALLET_REFUSE_PATTERN =
   /\b(no wallet|refuse(d)?( wallet)?|don'?t want (a )?wallet|apple pay|skip wallet)\b/i;
 
-export async function quotePeerJob(job: Job): Promise<PeerOutcome> {
+export async function quotePeerJob(
+  job: Job,
+  asset: PayAsset = PAY_ASSET.usdc
+): Promise<PeerOutcome> {
   const priceCents = job.priceUsdCents || 1200;
   await createPayment({
     jobId: job.id,
     amountCents: priceCents,
     currency: "usd",
+    asset,
   });
 
   const updated = await updateJob(job.id, {
@@ -97,6 +103,10 @@ export async function quotePeerJob(job: Job): Promise<PeerOutcome> {
       ? `\n${alreadyHaveBalanceNudge()}`
       : "";
 
+  // Spell out what actually leaves the wallet: the asset amount, what it's
+  // worth right now, and the network fee on top.
+  const quote = await buildPaymentQuote({ amountCents: priceCents, asset });
+
   return {
     action: AGENT_ACTION.quoted,
     reply:
@@ -104,6 +114,7 @@ export async function quotePeerJob(job: Job): Promise<PeerOutcome> {
         title: job.title,
         priceCents,
         payUrl: getPayUrl(job.id),
+        quoteLine: quoteLine(quote),
       }) + nudge,
   };
 }

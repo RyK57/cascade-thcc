@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PAY_ASSET_VALUES } from "@/libs/dynamic/assets";
 
 export const PAYMENT_STATUS = {
   pending: "payment_pending",
@@ -24,6 +25,8 @@ export const paymentSchema = z.object({
   teracSubmissionId: z.string().optional(),
   amountCents: z.number().int().positive(),
   currency: z.string().min(1),
+  /** Settlement asset. USD stays the unit of account; this is what moves. */
+  asset: z.enum(PAY_ASSET_VALUES).default("usdc"),
   status: paymentStatusSchema,
   dynamicWalletAddress: z.string().optional(),
   escrowTxHash: z.string().optional(),
@@ -38,8 +41,10 @@ export const createPaymentSchema = paymentSchema.pick({
   teracSubmissionId: true,
   amountCents: true,
   currency: true,
+  asset: true,
 });
 
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 export type Payment = z.infer<typeof paymentSchema>;
-export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
+/** `z.input` so callers may omit `asset` and take the schema default. */
+export type CreatePaymentInput = z.input<typeof createPaymentSchema>;

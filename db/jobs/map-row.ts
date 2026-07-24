@@ -25,12 +25,13 @@ export interface JobRow {
   wallet_refuse_count: number | null;
   requester_lat: number | null;
   requester_lng: number | null;
+  expert_timeline_ack: boolean | null;
   created_at: string;
   updated_at: string;
 }
 
 export const JOB_ROW_COLUMNS =
-  "id, linq_chat_id, requester_handle, title, description, status, tier, terac_opportunity_id, terac_submission_id, terac_task_url, quoted_total_cents, quoted_currency, price_usd_cents, assignee_user_id, status_card_message_id, status_card_is_rich, funded_via, claim_chat_id, triage_reason, ev_summary, wallet_refuse_count, requester_lat, requester_lng, created_at, updated_at";
+  "id, linq_chat_id, requester_handle, title, description, status, tier, terac_opportunity_id, terac_submission_id, terac_task_url, quoted_total_cents, quoted_currency, price_usd_cents, assignee_user_id, status_card_message_id, status_card_is_rich, funded_via, claim_chat_id, triage_reason, ev_summary, wallet_refuse_count, requester_lat, requester_lng, expert_timeline_ack, created_at, updated_at";
 
 export function mapJobRow(row: JobRow): Job {
   return {
@@ -57,6 +58,7 @@ export function mapJobRow(row: JobRow): Job {
     walletRefuseCount: row.wallet_refuse_count ?? 0,
     requesterLat: row.requester_lat ?? undefined,
     requesterLng: row.requester_lng ?? undefined,
+    expertTimelineAck: row.expert_timeline_ack ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

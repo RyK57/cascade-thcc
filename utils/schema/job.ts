@@ -70,6 +70,8 @@ export const jobSchema = z.object({
   walletRefuseCount: z.number().int().nonnegative().optional(),
   requesterLat: z.number().optional(),
   requesterLng: z.number().optional(),
+  /** Requester has acknowledged the Terac turnaround estimate. */
+  expertTimelineAck: z.boolean().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -110,6 +112,7 @@ export const updateJobSchema = jobSchema
     walletRefuseCount: true,
     requesterLat: true,
     requesterLng: true,
+    expertTimelineAck: true,
   })
   .partial()
   .extend({

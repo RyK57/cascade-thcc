@@ -14,6 +14,22 @@ const STATUS_PATTERN =
 const PAY_CREDITS_PATTERN =
   /\b(pay (with |in |from )?(credits?|balance)|use (credits?|balance)|(credits?|balance) please)\b/;
 
+const PAY_IN_ETH_PATTERN = /\b(pay (with |in )?eth(er(eum)?)?|use eth(er(eum)?)?|in eth)\b/;
+const PAY_IN_USDC_PATTERN =
+  /\b(pay (with |in )?(usdc|stablecoins?|stables?)|use (usdc|stablecoins?)|in usdc)\b/;
+
+/**
+ * Which asset the requester asked to settle in, or null when they didn't say.
+ * Kept separate from `interpretMessage` because it is orthogonal to intent —
+ * "yes, pay in eth" is both an affirm and an asset choice.
+ */
+export function interpretPayAsset(text: string): "eth" | "usdc" | null {
+  const normalized = text.trim().toLowerCase();
+  if (PAY_IN_ETH_PATTERN.test(normalized)) return "eth";
+  if (PAY_IN_USDC_PATTERN.test(normalized)) return "usdc";
+  return null;
+}
+
 export function interpretMessage(text: string): AgentIntent {
   const normalized = text.trim().toLowerCase();
 

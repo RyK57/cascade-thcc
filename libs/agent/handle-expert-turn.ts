@@ -1,5 +1,7 @@
 import { createPayment, getPaymentByJobId } from "@/db/payments";
 import { updateJob } from "@/db/jobs";
+import { buildPaymentQuote, quoteLine } from "@/libs/chain";
+import { PAY_ASSET, type PayAsset } from "@/libs/dynamic/assets";
 import { explorerTxUrl } from "@/libs/dynamic/sandbox";
 import {
   createDraftOpportunity,
@@ -17,9 +19,12 @@ import type { Job } from "@/utils/schema/job";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import { getPayUrl } from "./pay-url";
+import { interpretPayAsset } from "./interpret-message";
 import {
   approvedWorkReply,
   draftReadyReply,
+  expertPaymentConfirm,
+  expertTimelineDisclaimer,
   fallbackReply,
   formatCents,
   keptDraftReply,
@@ -127,7 +132,28 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
   const { job, intent, text } = turn;
   if (!job.teracOpportunityId) return draftExpertJob(job);
 
+  const filtersForQuote = expertFiltersForJob(job.title, job.description);
+
   if (intent === AGENT_INTENT.affirm) {
+    // Two gates, because these are two different questions. The first YES
+    // accepts the turnaround; only the second one spends.
+    if (!job.expertTimelineAck) {
+      const acked = await updateJob(job.id, { expertTimelineAck: true });
+      const quote = await buildPaymentQuote({
+        amountCents: acked.quotedTotalCents || acked.priceUsdCents || 0,
+        asset: assetForJob(turn),
+      });
+      return {
+        action: AGENT_ACTION.draftPending,
+        reply: expertPaymentConfirm({
+          title: acked.title,
+          quoteLine: quoteLine(quote),
+          numParticipants: DEFAULT_NUM_PARTICIPANTS,
+          roleLabel: filtersForQuote.roleLabel,
+        }),
+      };
+    }
+
     await launchOpportunity(job.teracOpportunityId);
     let launched = await updateJob(job.id, { status: JOB_STATUS.launched });
     launched = await syncJobHud(launched, HUD_STAGE.launched);
@@ -135,6 +161,11 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
   }
 
   if (intent === AGENT_INTENT.decline) {
+    // Back out of the payment gate to the timeline gate, so NO never leaves
+    // the job silently pre-acknowledged.
+    if (job.expertTimelineAck) {
+      await updateJob(job.id, { expertTimelineAck: false });
+    }
     return { action: AGENT_ACTION.keptDraft, reply: keptDraftReply() };
   }
 
@@ -145,7 +176,17 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
     return { action: AGENT_ACTION.refined, reply: refinedReply() };
   }
 
-  const filters = expertFiltersForJob(job.title, job.description);
+  // Not yet acknowledged: lead with the turnaround, not the price.
+  if (!job.expertTimelineAck) {
+    return {
+      action: AGENT_ACTION.draftPending,
+      reply: expertTimelineDisclaimer({
+        title: job.title,
+        roleLabel: filtersForQuote.roleLabel,
+      }),
+    };
+  }
+
   return {
     action: AGENT_ACTION.statusReported,
     reply: draftReadyReply({
@@ -153,9 +194,14 @@ async function handleQuoted(turn: ExpertTurn): Promise<ExpertOutcome> {
       numParticipants: DEFAULT_NUM_PARTICIPANTS,
       totalCents: job.quotedTotalCents,
       currency: job.quotedCurrency,
-      roleLabel: filters.roleLabel,
+      roleLabel: filtersForQuote.roleLabel,
     }),
   };
+}
+
+/** Requester's asset choice for this turn, defaulting to the stablecoin. */
+function assetForJob(turn: ExpertTurn): PayAsset {
+  return interpretPayAsset(turn.text) ?? PAY_ASSET.usdc;
 }
 
 async function handleReview({ job, intent }: ExpertTurn): Promise<ExpertOutcome> {
