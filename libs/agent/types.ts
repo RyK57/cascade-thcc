@@ -5,6 +5,7 @@ export const AGENT_INTENT = {
   stop: "stop",
   status: "status",
   payCredits: "pay_credits",
+  accountLink: "account_link",
   freeform: "freeform",
 } as const;
 
@@ -21,6 +22,8 @@ export const AGENT_ACTION = {
   launched: "launched",
   keptDraft: "kept_draft",
   statusReported: "status_reported",
+  accountLinked: "account_linked",
+  signupRequired: "signup_required",
   workReady: "work_ready",
   funded: "funded",
   claimed: "claimed",
