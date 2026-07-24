@@ -3,8 +3,11 @@ export const ROUTES = {
   main: "/main",
   internal: "/internal",
   job: (jobId: string) => `/job/${jobId}` as const,
+  /** One-time sign-in link texted into an iMessage thread. */
+  accountLink: (token: string) => `/l/${token}` as const,
   auth: {
     login: "/auth/login",
+    phone: "/auth/phone",
     signUp: "/auth/sign-up",
     forgotPassword: "/auth/forgot-password",
     updatePassword: "/auth/update-password",
@@ -13,6 +16,9 @@ export const ROUTES = {
   },
   api: {
     health: "/api/health",
+    accountCode: "/api/account/code",
+    accountVerify: "/api/account/verify",
+    accountSession: "/api/account/session",
     integrationsStatus: "/api/integrations/status",
     linqChats: "/api/linq/chats",
     linqWebhook: "/api/linq/webhook",
