@@ -182,7 +182,7 @@ async function handleReview({ job, intent }: ExpertTurn): Promise<ExpertOutcome>
       });
     }
 
-    let amountCents = job.quotedTotalCents ?? job.priceUsdCents;
+    let amountCents = job.quotedTotalCents || job.priceUsdCents;
     if (amountCents === undefined) {
       const opportunity = await getOpportunity(job.teracOpportunityId);
       amountCents = opportunity.pricing?.total_cost_cents;

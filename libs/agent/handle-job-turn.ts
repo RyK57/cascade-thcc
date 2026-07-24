@@ -67,6 +67,13 @@ export async function handleJobTurn(turn: JobTurn): Promise<JobTurnOutcome> {
   return handleExpertTurn(turn);
 }
 
+/** Keeps the original request alongside any clarifying answer. */
+function mergeBrief(existing: string | undefined, latest: string): string {
+  if (!existing) return latest;
+  if (existing === latest || existing.includes(latest)) return existing;
+  return `${existing}\n${latest}`;
+}
+
 async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
   const triage = turn.triage;
   if (!triage) {
@@ -85,10 +92,20 @@ async function startFromTriage(turn: JobTurn): Promise<JobTurnOutcome> {
     };
   }
 
-  const priceUsdCents = Math.round((triage.priceEstimateUsd ?? 0) * 100);
+  // `?? 0` let a missing or zero estimate through, and every downstream
+  // fallback uses `??`, which does not catch 0 — createPayment then rejected
+  // amountCents: 0 and the job wedged in intake, re-failing on every message.
+  const estimateUsd = triage.priceEstimateUsd || 0;
+  const priceUsdCents =
+    triage.tier === JOB_TIER.ai
+      ? Math.max(0, Math.round(estimateUsd * 100))
+      : Math.max(1, Math.round((estimateUsd || 12) * 100));
+
   let job = await updateJob(turn.job.id, {
     title: clipTitle(triage.jobSummary),
-    description: turn.job.description ?? turn.text,
+    // Append, don't coalesce: createJob always sets description, so `??` never
+    // fell through and the answer to a clarifying question was never stored.
+    description: mergeBrief(turn.job.description, turn.text),
     tier: triage.tier,
     triageReason: triage.reason,
     priceUsdCents,

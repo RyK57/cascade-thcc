@@ -53,10 +53,17 @@ export async function runAgentTurn(
     inbound.mediaUrls?.length &&
     isRunwareConfigured()
   ) {
+    // Best-effort, like every other optional integration in this turn. An
+    // unguarded throw here escapes runAgentTurn entirely: the webhook answers
+    // 200 so Linq never retries, the inbound message is never recorded, and
+    // the user gets silence.
     const caption = await captionImage(
       inbound.mediaUrls[0],
       "Describe this photo as context for a task request. Note any objects, text, or problems visible."
-    );
+    ).catch((error) => {
+      console.warn("[cascade] image caption failed", error);
+      return null;
+    });
     if (caption) {
       text = text ? `${text}\n[Photo shows: ${caption}]` : `[Photo shows: ${caption}] Figure out what task I need from this.`;
     } else if (!text) {
@@ -125,7 +132,14 @@ export async function runAgentTurn(
     let effect: "confetti" | undefined;
 
     try {
-      const triage = needsTriage ? await triageJob(text) : undefined;
+      // Triage on the accumulated brief, not just the newest message. After a
+      // clarifying question the follow-up is often a bare answer ("https://…"),
+      // and triaging that alone loses the original request entirely.
+      const triageText =
+        job.status === JOB_STATUS.intake && job.description && job.description !== text
+          ? `${job.description}\n${text}`
+          : text;
+      const triage = needsTriage ? await triageJob(triageText) : undefined;
       ({ action, reply, effect } = await handleJobTurn({
         job,
         intent,

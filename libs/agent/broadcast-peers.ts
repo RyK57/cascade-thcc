@@ -15,7 +15,7 @@ export async function broadcastJobToPeers(job: Job): Promise<number> {
   if (!isLinqConfigured()) return 0;
 
   let peers = await listPeers();
-  const priceCents = job.priceUsdCents ?? job.quotedTotalCents ?? 0;
+  const priceCents = job.priceUsdCents || job.quotedTotalCents || 0;
   let sent = 0;
 
   if (

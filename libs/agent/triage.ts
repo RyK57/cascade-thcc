@@ -129,15 +129,25 @@ function heuristicTriage(text: string): TriageResult {
 function maybeEvTieBreak(result: TriageResult): TriageResult {
   if (result.tier !== "peer" && result.tier !== "expert") return result;
 
-  const peerCost = Math.max(5, result.priceEstimateUsd ?? 12);
+  const estimate = result.priceEstimateUsd || 0;
+
+  // Price each side on its own scale. Reusing the estimate for both made the
+  // two costs equal whenever the heuristic said "expert", so `ev.winner`
+  // always came back as the incoming tier and the guard below always
+  // short-circuited — the tie-break could never actually redirect anything.
+  const peerCost =
+    result.tier === "peer"
+      ? Math.max(5, estimate || 12)
+      : Math.max(5, Math.min(estimate ? estimate / 3 : 12, 40));
   const expertCost =
     result.tier === "expert"
-      ? Math.max(peerCost, result.priceEstimateUsd ?? 84)
+      ? Math.max(peerCost * 2, estimate || 84)
       : Math.max(peerCost * 3, 45);
+
   const valueUsd = Math.max(peerCost * 2, expertCost);
   const ev = comparePeerExpertEv({
     valueUsd,
-    peerCostUsd: result.tier === "peer" ? peerCost : peerCost,
+    peerCostUsd: peerCost,
     expertCostUsd: expertCost,
     avgPeerTrust: 70,
   });

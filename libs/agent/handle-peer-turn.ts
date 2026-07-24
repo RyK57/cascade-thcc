@@ -76,7 +76,7 @@ const WALLET_REFUSE_PATTERN =
   /\b(no wallet|refuse(d)?( wallet)?|don'?t want (a )?wallet|apple pay|skip wallet)\b/i;
 
 export async function quotePeerJob(job: Job): Promise<PeerOutcome> {
-  const priceCents = job.priceUsdCents ?? 1200;
+  const priceCents = job.priceUsdCents || 1200;
   await createPayment({
     jobId: job.id,
     amountCents: priceCents,
@@ -139,7 +139,7 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
     const count = (job.walletRefuseCount ?? 0) + 1;
     await updateJob(job.id, { walletRefuseCount: count });
     if (count >= 2) {
-      const amount = job.priceUsdCents ?? 1200;
+      const amount = job.priceUsdCents || 1200;
       try {
         const pay = await createAgentPayRequest({
           amountCents: amount,
@@ -182,7 +182,7 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
     });
     const priceCredits = Math.max(
       1,
-      Math.ceil((job.priceUsdCents ?? 1200) / 100)
+      Math.ceil((job.priceUsdCents || 1200) / 100)
     );
     if (requester.creditBalance < priceCredits) {
       return {
@@ -249,7 +249,7 @@ export async function markPeerFunded(
   const avgTrust =
     peers.reduce((s, p) => s + p.trustScore, 0) / Math.max(1, peers.length);
   const ev = claimExpectedCredits({
-    priceUsdCents: job.priceUsdCents ?? 1200,
+    priceUsdCents: job.priceUsdCents || 1200,
     trustScore: avgTrust,
     competingPeers: Math.max(1, peers.length),
   });
