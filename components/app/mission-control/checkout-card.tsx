@@ -4,6 +4,7 @@ import { useGetWalletAccounts, useInitStatus, useUser } from "@dynamic-labs-sdk/
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DynamicLogin } from "@/components/dynamic/dynamic-login";
+import { labelPaymentStatus } from "@/lib/constants/status-labels";
 import { JOB_STATUS } from "@/utils/schema/job";
 import type { Job } from "@/utils/schema/job";
 import type { Payment } from "@/utils/schema/payment";
@@ -50,7 +51,9 @@ export function CheckoutCard({
         <CardTitle className="flex items-center justify-between gap-2 text-base">
           <span>{job.title}</span>
           {payment ? (
-            <Badge variant={statusVariant(payment.status)}>{payment.status}</Badge>
+            <Badge variant={statusVariant(payment.status)}>
+              {labelPaymentStatus(payment.status)}
+            </Badge>
           ) : null}
         </CardTitle>
       </CardHeader>
@@ -60,11 +63,10 @@ export function CheckoutCard({
         ) : null}
         <p className="text-sm">
           Amount due:{" "}
-          <span className="font-medium text-foreground">{amountLabel} USDC</span>{" "}
-          <span className="text-muted-foreground">(Base Sepolia testnet)</span>
+          <span className="font-medium text-foreground">{amountLabel} USDC</span>
         </p>
         <p className="text-xs text-muted-foreground">
-          Cascade agent wallet holds escrow. Worker payout releases only after approve.
+          Funds stay in escrow until you approve the work in Messages.
         </p>
 
         {initStatus !== "finished" ? (
@@ -72,17 +74,18 @@ export function CheckoutCard({
         ) : !user ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Sign in to fund escrow from your embedded wallet:
+              Sign in to fund escrow from your wallet:
             </p>
             <DynamicLogin />
           </div>
         ) : jobPaid ? (
           <p className="text-sm text-muted-foreground">
-            This job is paid and closed. ✓
+            This job is paid and closed.
           </p>
         ) : escrowHeld ? (
           <p className="text-sm text-muted-foreground">
-            Escrow held in the agent wallet. Approve the deliverable in iMessage to release payout.
+            Escrow is held. Approve the deliverable in Messages to release
+            payment.
           </p>
         ) : payment ? (
           <div className="space-y-2">
