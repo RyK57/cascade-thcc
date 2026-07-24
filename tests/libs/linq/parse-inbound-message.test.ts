@@ -52,13 +52,32 @@ describe("parseInboundMessage", () => {
     });
   });
 
-  it("ignores non-affirming reactions", () => {
+  it("parses dislike tapbacks as decline", () => {
     const body = JSON.stringify({
       event_type: "reaction.added",
       event_id: "evt_r2",
       data: {
         is_from_me: false,
         reaction_type: "dislike",
+        chat_id: "chat_1",
+        message_id: "msg_card",
+        from_handle: { handle: "+15550001111" },
+      },
+    });
+    expect(parseInboundMessage(body, {})).toMatchObject({
+      kind: "reaction",
+      isAffirm: false,
+      messageId: "msg_card",
+    });
+  });
+
+  it("ignores laugh reactions", () => {
+    const body = JSON.stringify({
+      event_type: "reaction.added",
+      event_id: "evt_r3",
+      data: {
+        is_from_me: false,
+        reaction_type: "laugh",
         chat_id: "chat_1",
         message_id: "msg_card",
         from_handle: { handle: "+15550001111" },

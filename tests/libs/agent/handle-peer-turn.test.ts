@@ -30,8 +30,31 @@ vi.mock("@/libs/linq", () => ({
   isLinqConfigured: vi.fn(() => false),
 }));
 
+vi.mock("@/libs/linq/payment-requests", () => ({
+  createAgentPayRequest: vi.fn(),
+  sendCheckoutLink: vi.fn(),
+}));
+
 vi.mock("@/libs/dynamic/treasury", () => ({
   payoutFromTreasury: vi.fn(),
+}));
+
+vi.mock("@/libs/dynamic/phone-wallet", () => ({
+  ensurePhoneWallet: vi.fn(async (phone: string) => ({
+    id: "33333333-3333-4333-8333-333333333333",
+    phone,
+    role: "both",
+    creditBalance: 0,
+    trustScore: 50,
+    walletAddress: "0xabc",
+    createdAt: "2026-07-24T00:00:00.000Z",
+  })),
+}));
+
+vi.mock("@/db/bids", () => ({
+  listJobBids: vi.fn(async () => []),
+  upsertJobBid: vi.fn(),
+  secondPriceClear: vi.fn(() => null),
 }));
 
 function makeJob(overrides: Partial<Job> = {}): Job {
