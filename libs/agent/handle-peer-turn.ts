@@ -29,6 +29,7 @@ import { FUNDED_VIA, JOB_STATUS, type Job } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import { USER_ROLE } from "@/utils/schema/user";
 import { broadcastJobToPeers } from "./broadcast-peers";
+import { isDerivedPlaceholder } from "./link-requester-wallet";
 import { getPayUrl } from "./pay-url";
 import {
   agentPayOfferReply,
@@ -161,7 +162,7 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
       return {
         action: AGENT_ACTION.paymentPending,
         reply: agentPayOfferReply(
-          "Agent Pay unavailable in this sandbox — use the Cascade wallet link."
+          "Agent Pay isn't available here — use the Cascade wallet link."
         ),
       };
     }
@@ -457,7 +458,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
   if (job.status === JOB_STATUS.paid || payment?.escrowReleasedAt) {
     const explorerUrl = payment?.escrowTxHash
       ? explorerTxUrl(payment.escrowTxHash)
-      : "sandbox payout already sent";
+      : "payout already sent";
     return {
       action: AGENT_ACTION.paid,
       reply: peerPaidReply(explorerUrl),
@@ -475,7 +476,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
       const latest = await getPaymentByJobId(job.id).catch(() => payment);
       const explorerUrl = latest?.escrowTxHash
         ? explorerTxUrl(latest.escrowTxHash)
-        : "sandbox payout already sent";
+        : "payout already sent";
       await updateJob(job.id, { status: JOB_STATUS.paid }).catch(() => undefined);
       return {
         action: AGENT_ACTION.paid,
@@ -493,9 +494,12 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     assignee?.walletAddress ||
     `0xpeer${(job.assigneeUserId ?? "unknown").replace(/-/g, "").slice(0, 32)}`;
 
+  // A derived address has no key holder — sending real USDC there burns it.
+  const payoutIsRealAddress = !isDerivedPlaceholder(assignee?.phone, wallet);
+
   // Prefer Cascade agent wallet release; fall back to treasury stack.
   let explorerUrl: string;
-  if (isAgentWalletConfigured() && getAgentWalletAddress()) {
+  if (payoutIsRealAddress && isAgentWalletConfigured() && getAgentWalletAddress()) {
     try {
       const payout = await payWorkerUsdc({ to: wallet, amountCents: amount });
       explorerUrl = payout.explorerUrl;
@@ -536,7 +540,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     try {
       await sendChatMessage({
         chatId: job.claimChatId,
-        text: `Payout complete (sandbox): ${explorerUrl}`,
+        text: `Payout complete: ${explorerUrl}`,
         effect: "confetti",
         idempotencyKey: `payout-peer-${job.id}`,
       });
