@@ -5,6 +5,7 @@ export interface UserRow {
   email: string | null;
   full_name: string | null;
   phone: string | null;
+  phone_verified_at: string | null;
   role: string;
   credit_balance: number;
   wallet_address: string | null;
@@ -15,7 +16,7 @@ export interface UserRow {
 }
 
 export const USER_ROW_COLUMNS =
-  "id, email, full_name, phone, role, credit_balance, wallet_address, trust_score, last_lat, last_lng, created_at";
+  "id, email, full_name, phone, phone_verified_at, role, credit_balance, wallet_address, trust_score, last_lat, last_lng, created_at";
 
 export function mapUserRow(row: UserRow): User {
   return {
@@ -23,6 +24,7 @@ export function mapUserRow(row: UserRow): User {
     email: row.email ?? undefined,
     fullName: row.full_name ?? undefined,
     phone: row.phone ?? undefined,
+    phoneVerifiedAt: row.phone_verified_at ?? undefined,
     role: row.role as UserRole,
     creditBalance: row.credit_balance,
     walletAddress: row.wallet_address ?? undefined,
