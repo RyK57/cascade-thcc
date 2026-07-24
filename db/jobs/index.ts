@@ -1,3 +1,8 @@
+export {
+  APPROVAL_SOURCE,
+  claimJobApproval,
+  type ApprovalSource,
+} from "./approve-job";
 export { claimJob } from "./claim-job";
 export { clearAssigneeAndReopen } from "./clear-assignee";
 export { createJob } from "./create-job";
@@ -12,6 +17,10 @@ export {
   listJobMessages,
   type JobMessage,
 } from "./list-job-messages";
+export {
+  listJobsByAssignee,
+  listJobsByRequesterHandle,
+} from "./list-jobs-by-handle";
 export { listJobsByStatus } from "./list-jobs-by-status";
 export { listRecentJobs } from "./list-recent-jobs";
 export { listOpenJobs } from "./list-open-jobs";
