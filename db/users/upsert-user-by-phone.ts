@@ -3,6 +3,20 @@ import type { CreateUserInput, User } from "@/utils/schema/user";
 import { createUserSchema, USER_ROLE } from "@/utils/schema/user";
 import { mapUserRow, USER_ROW_COLUMNS, type UserRow } from "./map-row";
 
+/**
+ * Placeholder email for a handle that has none. `users.email` is NOT NULL
+ * UNIQUE, so this must be unique per handle: stripping to digits collapses
+ * every email-style handle (iMessage regularly delivers Apple IDs, not phone
+ * numbers) to the same empty string and the insert then fails the constraint.
+ */
+function placeholderEmail(handle: string): string {
+  const slug = handle
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `${slug || "handle"}@cascade.local`;
+}
+
 export async function upsertUserByPhone(
   input: CreateUserInput & { phone: string }
 ): Promise<User> {
@@ -42,7 +56,7 @@ export async function upsertUserByPhone(
   const { data, error } = await supabase
     .from("users")
     .insert({
-      email: parsed.email ?? `${phone.replace(/\D/g, "")}@cascade.local`,
+      email: parsed.email ?? placeholderEmail(phone),
       full_name: parsed.fullName,
       phone,
       role: parsed.role ?? USER_ROLE.requester,
