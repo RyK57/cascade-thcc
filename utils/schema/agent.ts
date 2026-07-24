@@ -1,12 +1,17 @@
 import { z } from "zod";
 
 /**
- * Worker tiers the agent can route an inbound job to.
- * `crowd` = general-population humans (Terac), `expert` = verified specialist (Terac).
- * No TS enums per architecture rules — `as const` tuple.
+ * Worker tiers Cascade routes an inbound job to.
+ * `peer` = seeded Linq humans (no credential); `expert` = Terac verified specialist.
  */
-export const TIER_VALUES = ["ai", "crowd", "expert"] as const;
+export const TIER_VALUES = ["ai", "peer", "expert"] as const;
 export type Tier = (typeof TIER_VALUES)[number];
+
+export const JOB_TIER = {
+  ai: "ai",
+  peer: "peer",
+  expert: "expert",
+} as const;
 
 /**
  * Raw shape the triage tool returns (snake_case, matches the Anthropic tool schema).
@@ -17,6 +22,7 @@ export const triageToolInputSchema = z.object({
   reason: z.string().min(1),
   needs_clarification: z.boolean(),
   clarifying_question: z.string().optional(),
+  price_estimate_usd: z.number().nonnegative().optional(),
 });
 
 export interface TriageResult {
@@ -25,6 +31,7 @@ export interface TriageResult {
   reason: string;
   needsClarification: boolean;
   clarifyingQuestion?: string;
+  priceEstimateUsd?: number;
 }
 
 /**
@@ -41,5 +48,6 @@ export function toTriageResult(input: unknown): TriageResult | null {
     reason: d.reason,
     needsClarification: d.needs_clarification,
     clarifyingQuestion: d.clarifying_question,
+    priceEstimateUsd: d.price_estimate_usd,
   };
 }
