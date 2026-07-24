@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { authorizeInternalRequest } from "@/components/app/internal/authorize-internal-request";
 import { getJobById } from "@/db/jobs";
 import { claimEscrowRelease, getPaymentByJobId } from "@/db/payments";
 import { finalizePeerPayout } from "@/libs/agent";
@@ -19,17 +20,20 @@ const bodySchema = z.object({
 });
 
 /**
- * Release escrow from the agent wallet to the worker — only after approve.
- * Peer jobs: prefer finalizePeerPayout (credits + HUD + peer notify).
- * Never pays at fund/escrow time.
+ * Operator-only manual escrow release. Customers approve in iMessage;
+ * the agent path calls `finalizePeerPayout` directly — never this route.
  */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ paymentId: string }> }
 ) {
+  if (!(await authorizeInternalRequest(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
+      { error: "Database admin is not configured." },
       { status: 503 }
     );
   }

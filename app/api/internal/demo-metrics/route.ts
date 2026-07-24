@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
+import { authorizeInternalRequest } from "@/components/app/internal/authorize-internal-request";
 import { createAdminClient, isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
-/**
- * Dump demo_metrics rows for Terac before/after slides.
- * Local/demo only — gated by CRON_SECRET when set (same as other operator routes).
- */
+/** Operator-only dump of demo_metrics rows. */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!(await authorizeInternalRequest(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { error: "Supabase admin is not configured." },
+      { error: "Database admin is not configured." },
       { status: 503 }
     );
   }

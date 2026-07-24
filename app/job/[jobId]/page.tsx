@@ -4,6 +4,11 @@ import { getJobById } from "@/db/jobs";
 import { getPaymentByJobId } from "@/db/payments";
 import { BRAND } from "@/lib/constants/branding";
 import { ROUTES } from "@/lib/constants/routes";
+import {
+  labelJobStatus,
+  labelJobTier,
+  labelPaymentStatus,
+} from "@/lib/constants/status-labels";
 import { explorerTxUrl } from "@/libs/dynamic/sandbox";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
@@ -26,7 +31,8 @@ export default async function JobStatusPage({ params }: JobPageProps) {
       <main className="mx-auto max-w-lg px-4 py-16">
         <h1 className="font-secondary text-3xl">{BRAND.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Job status unavailable — Supabase is not configured.
+          Job status isn’t available right now. Open the latest link from your
+          Messages thread.
         </p>
       </main>
     );
@@ -56,45 +62,21 @@ export default async function JobStatusPage({ params }: JobPageProps) {
       <dl className="space-y-3 text-sm">
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Status</dt>
-          <dd className="font-medium">{job.status}</dd>
+          <dd className="font-medium">{labelJobStatus(job.status)}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">Tier</dt>
-          <dd className="font-medium">{job.tier ?? "—"}</dd>
+          <dt className="text-muted-foreground">Worker</dt>
+          <dd className="font-medium">{labelJobTier(job.tier)}</dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Price</dt>
           <dd className="font-medium">{formatCents(price)} USDC</dd>
         </div>
-        {job.evSummary ? (
-          <div className="space-y-1">
-            <dt className="text-muted-foreground">Routing EV</dt>
-            <dd className="font-medium">{job.evSummary}</dd>
-          </div>
-        ) : null}
         {payment ? (
-          <>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Payment</dt>
-              <dd className="font-medium">{payment.status}</dd>
-            </div>
-            {payment.escrowHeldAt ? (
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Escrow held</dt>
-                <dd className="font-medium">
-                  {new Date(payment.escrowHeldAt).toLocaleString()}
-                </dd>
-              </div>
-            ) : null}
-            {payment.escrowReleasedAt ? (
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Escrow released</dt>
-                <dd className="font-medium">
-                  {new Date(payment.escrowReleasedAt).toLocaleString()}
-                </dd>
-              </div>
-            ) : null}
-          </>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Payment</dt>
+            <dd className="font-medium">{labelPaymentStatus(payment.status)}</dd>
+          </div>
         ) : null}
       </dl>
 
@@ -104,7 +86,7 @@ export default async function JobStatusPage({ params }: JobPageProps) {
             href={`${ROUTES.main}?job=${job.id}`}
             className="underline underline-offset-4"
           >
-            Fund agent escrow
+            Pay for this job
           </Link>
         ) : null}
         {escrowExplorer ? (
@@ -114,13 +96,13 @@ export default async function JobStatusPage({ params }: JobPageProps) {
             rel="noreferrer"
             className="underline underline-offset-4"
           >
-            View escrow on Basescan
+            View escrow receipt
           </a>
         ) : null}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Tapbacks in iMessage drive this job: ❤️ affirm · 👎 decline.
+        Approve or decline in Messages: ❤️ affirm · 👎 decline.
       </p>
     </main>
   );

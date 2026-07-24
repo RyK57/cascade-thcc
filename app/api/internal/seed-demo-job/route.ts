@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireOperator } from "@/libs/auth";
+import { authorizeInternalRequest } from "@/components/app/internal/authorize-internal-request";
 import { seedDemoJob } from "@/libs/seed";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
@@ -11,14 +11,15 @@ const bodySchema = z
   })
   .default({});
 
-/** Internal tooling: seed a checkout-ready demo job (no Linq/Terac needed). */
+/** Internal tooling: seed a checkout-ready demo job (operators only). */
 export async function POST(request: Request) {
-  const denied = await requireOperator(request);
-  if (denied) return denied;
+  if (!(await authorizeInternalRequest(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
+      { error: "Database admin is not configured." },
       { status: 503 }
     );
   }

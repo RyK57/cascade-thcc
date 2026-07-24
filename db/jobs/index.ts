@@ -5,6 +5,7 @@ export { getJobByChatId } from "./get-job-by-chat-id";
 export { getJobByClaimChatId } from "./get-job-by-claim-chat";
 export { getJobById } from "./get-job-by-id";
 export { getJobByStatusCardMessageId } from "./get-job-by-status-card";
+export { getLatestJobByHandle } from "./get-latest-job-by-handle";
 export { getOldestClaimablePeerJob } from "./get-oldest-claimable-job";
 export { listJobsByStatus } from "./list-jobs-by-status";
 export { listRecentJobs } from "./list-recent-jobs";

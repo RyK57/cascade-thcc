@@ -30,9 +30,8 @@ interface IMessageHandoffProps {
 }
 
 /**
- * The one thing an operator can actually do today. There is no in-app compose
- * box on purpose — the product rule is that jobs start in a real iMessage
- * thread the person opens themselves, never with outreach from us.
+ * Primary product CTA: open a real iMessage thread. No in-app compose —
+ * jobs start when the person texts Cascade themselves.
  */
 export function IMessageHandoff({ number }: IMessageHandoffProps) {
   return (
@@ -53,9 +52,9 @@ export function IMessageHandoff({ number }: IMessageHandoffProps) {
               Text {formatNumber(number)}
             </h2>
             <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-              Describe the job the way you would to a colleague. The agent
-              replies in the same thread, drafts a brief for free, and waits for
-              your explicit yes before anything is launched or charged.
+              Describe the job the way you would to a colleague. Cascade replies
+              in the same thread, drafts a brief for free, and waits for your
+              explicit yes before anything is launched or charged.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button size="lg" asChild>
@@ -73,18 +72,18 @@ export function IMessageHandoff({ number }: IMessageHandoffProps) {
               id="start-heading"
               className="mt-6 font-secondary text-2xl sm:text-3xl"
             >
-              The agent’s number isn’t live here yet
+              Continue from your payment link
             </h2>
             <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-              This deployment has no iMessage number connected, so there is
-              nothing to text yet — and we’d rather show you that than print a
-              number that won’t answer. Once one is connected it appears here,
-              and every job you start in that thread lands on this page.
+              Texting Cascade isn’t available from this screen right now. If you
+              already have a payment link from Messages, open it to fund escrow —
+              or connect your wallet below so you’re ready when the next one
+              arrives.
             </p>
             <div className="mt-6">
               <Button variant="outline" size="lg" asChild>
                 <Link href={`${ROUTES.home}#how-it-works`}>
-                  See how the loop works
+                  See how Cascade works
                 </Link>
               </Button>
             </div>

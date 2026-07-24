@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOperator } from "@/libs/auth";
+import { authorizeInternalRequest } from "@/components/app/internal/authorize-internal-request";
 import { isTeracConfigured, launchOpportunity } from "@/libs/terac";
 
 /**
@@ -11,8 +11,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ opportunityId: string }> }
 ) {
-  const denied = await requireOperator(request);
-  if (denied) return denied;
+  if (!(await authorizeInternalRequest(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   if (!isTeracConfigured()) {
     return NextResponse.json(

@@ -17,10 +17,8 @@ export function AuthNotConfigured() {
     >
       <div className="space-y-5">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Nothing you type here would be saved. If you own this deployment, set{" "}
-          <span className="text-foreground">NEXT_PUBLIC_SUPABASE_URL</span> and{" "}
-          <span className="text-foreground">NEXT_PUBLIC_SUPABASE_ANON_KEY</span>,
-          then reload.
+          Sign-in can’t be completed here right now. Nothing you enter would be
+          saved. Try again later, or head back home.
         </p>
         <Button size="lg" variant="outline" className="w-full" asChild>
           <Link href={ROUTES.home}>Back to home</Link>

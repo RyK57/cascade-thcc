@@ -32,16 +32,17 @@ export function MissionControl({ jobId }: MissionControlProps) {
 
   if (!isDynamicConfigured()) {
     return (
-      <p className="mx-auto max-w-3xl px-4 py-8 text-sm text-muted-foreground">
-        Set <code>NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID</code> to open checkout.
+      <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
+        Wallet checkout isn’t available in this environment right now. Nothing
+        was charged — try again from the link in Messages later.
       </p>
     );
   }
 
   if (!Panel) {
     return (
-      <p className="mx-auto max-w-3xl px-4 py-8 text-sm text-muted-foreground">
-        Loading Mission Control…
+      <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
+        Loading checkout…
       </p>
     );
   }

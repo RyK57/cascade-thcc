@@ -1,0 +1,56 @@
+import AVFoundation
+import UIKit
+
+/// One-shot rear-camera capture used when glasses aren't connected —
+/// mirrors VisionClaw's phone-camera fallback so teammates without
+/// hardware can exercise the full voice+vision loop.
+final class PhoneCameraFallback: NSObject, AVCapturePhotoCaptureDelegate {
+    private let session = AVCaptureSession()
+    private let output = AVCapturePhotoOutput()
+    private var continuation: CheckedContinuation<UIImage?, Never>?
+
+    override init() {
+        super.init()
+        session.sessionPreset = .photo
+        guard
+            let device = AVCaptureDevice.default(
+                .builtInWideAngleCamera, for: .video, position: .back
+            ),
+            let input = try? AVCaptureDeviceInput(device: device),
+            session.canAddInput(input),
+            session.canAddOutput(output)
+        else { return }
+        session.addInput(input)
+        session.addOutput(output)
+    }
+
+    func capture() async -> UIImage? {
+        guard !session.inputs.isEmpty else { return nil }
+        if !session.isRunning {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    self.session.startRunning()
+                    continuation.resume()
+                }
+            }
+        }
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            output.capturePhoto(
+                with: AVCapturePhotoSettings(),
+                delegate: self
+            )
+        }
+    }
+
+    func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
+        let image = photo.fileDataRepresentation().flatMap(UIImage.init(data:))
+        continuation?.resume(returning: image)
+        continuation = nil
+        session.stopRunning()
+    }
+}
