@@ -26,6 +26,7 @@ export const paymentSchema = z.object({
   currency: z.string().min(1),
   status: paymentStatusSchema,
   dynamicWalletAddress: z.string().optional(),
+  escrowTxHash: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

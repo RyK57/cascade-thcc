@@ -24,7 +24,7 @@ importers:
         specifier: ^1.22.1
         version: 1.22.1(@dynamic-labs-sdk/client@1.22.1(@dynamic-labs-wallet/primitives@1.0.84)(bufferutil@4.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6))(@tanstack/react-query@5.101.4(react@19.2.4))(react@19.2.4)
       '@dynamic-labs-wallet/node-evm':
-        specifier: ^1.0.71
+        specifier: ^1.0.84
         version: 1.0.84(@dynamic-labs-wallet/forward-mpc-client@1.0.1(@dynamic-labs-wallet/primitives@1.0.84)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@dynamic-labs-wallet/primitives@1.0.84)(@types/react@19.2.17)(@zerodev/webauthn-key@5.5.0(viem@2.55.8(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)))(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.2.4))(utf-8-validate@6.0.6)(viem@2.55.8(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(zod@4.4.3)
       '@linqapp/sdk':
         specifier: ^0.29.0
@@ -93,7 +93,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       viem:
-        specifier: ^2.38.6
+        specifier: ^2.55.8
         version: 2.55.8(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
       zod:
         specifier: ^4.4.3
@@ -7111,7 +7111,7 @@ snapshots:
       '@dynamic-labs-wallet/primitives': 1.0.84
       '@evervault/wasm-attestation-bindings': 0.3.1
       '@noble/hashes': 2.2.0
-      eventemitter3: 5.0.4
+      eventemitter3: 5.0.1
       fp-ts: 2.16.11
       isows: 1.0.7(ws@8.21.1(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       ws: 8.21.1(bufferutil@4.1.0)(utf-8-validate@6.0.6)

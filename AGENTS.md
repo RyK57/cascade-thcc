@@ -1,6 +1,6 @@
 # Agent Guide
 
-**Product:** iMessage agent (Linq) that finds verified experts (Terac) and coordinates payments (Dynamic).
+**Product:** Cascade — iMessage agent (Linq) that routes tasks to AI, seeded peers, or Terac experts, with sandbox Dynamic payments.
 
 Read before implementing:
 

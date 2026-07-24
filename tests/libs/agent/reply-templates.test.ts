@@ -26,7 +26,7 @@ describe("draftReadyReply", () => {
     });
     expect(reply).toContain("$150.00");
     expect(reply).toContain("YES");
-    expect(reply).toContain("Drafts are free");
+    expect(reply.toLowerCase()).toContain("drafts are free");
   });
 
   it("still asks for confirmation when pricing is pending", () => {
@@ -48,5 +48,18 @@ describe("approvedWorkReply", () => {
     const reply = approvedWorkReply("http://localhost:3000/main?job=j1", "$150.00");
     expect(reply).toContain("http://localhost:3000/main?job=j1");
     expect(reply).toContain("$150.00");
+  });
+});
+
+describe("draftReadyReply role label", () => {
+  it("surfaces seniority in the quote", () => {
+    const reply = draftReadyReply({
+      title: "API review",
+      numParticipants: 1,
+      totalCents: 4500,
+      roleLabel: "senior engineer",
+    });
+    expect(reply).toContain("senior engineer");
+    expect(reply).toContain("👎");
   });
 });

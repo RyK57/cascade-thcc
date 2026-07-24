@@ -1,70 +1,184 @@
 import {
   createJob,
   getJobByChatId,
+  getJobByClaimChatId,
+  getJobByStatusCardMessageId,
+  getOldestClaimablePeerJob,
   MESSAGE_DIRECTION,
   recordJobMessage,
 } from "@/db/jobs";
-import { sendChatMessage, type InboundLinqMessage } from "@/libs/linq";
+import { getUserByPhone } from "@/db/users";
+import { ensurePhoneWallet } from "@/libs/dynamic/phone-wallet";
+import {
+  sendChatMessage,
+  setTyping,
+  type InboundLinqEvent,
+} from "@/libs/linq";
+import { JOB_STATUS, type Job } from "@/utils/schema/job";
+import { USER_ROLE } from "@/utils/schema/user";
 import { clipTitle, handleJobTurn } from "./handle-job-turn";
 import { interpretMessage } from "./interpret-message";
 import { errorReply } from "./reply-templates";
+import { triageJob } from "./triage";
 import {
   AGENT_ACTION,
+  AGENT_INTENT,
   type AgentAction,
   type AgentTurnResult,
 } from "./types";
 
 /**
- * One full agent turn: persist the inbound Linq message, advance the job
- * state machine (Terac drafts/launch/review + Dynamic payment state), and
- * reply on the same iMessage thread.
+ * One full Cascade turn: persist inbound, triage when needed, advance the
+ * tier state machine, reply on the same iMessage thread.
  */
 export async function runAgentTurn(
-  inbound: InboundLinqMessage
+  inbound: InboundLinqEvent
 ): Promise<AgentTurnResult> {
-  const existing = await getJobByChatId(inbound.chatId);
-  const job =
-    existing ??
-    (await createJob({
-      linqChatId: inbound.chatId,
-      requesterHandle: inbound.senderHandle,
-      title: clipTitle(inbound.text),
-      description: inbound.text,
-    }));
+  const chatId = inbound.chatId;
+  const senderHandle = inbound.senderHandle;
+  const messageId =
+    inbound.kind === "reaction" ? inbound.reactionId : inbound.messageId;
+  const text =
+    inbound.kind === "reaction"
+      ? inbound.isAffirm
+        ? "yes"
+        : "no"
+      : inbound.text;
 
-  const isNewMessage = await recordJobMessage({
-    jobId: job.id,
-    linqMessageId: inbound.messageId,
-    direction: MESSAGE_DIRECTION.inbound,
-    body: inbound.text,
-  });
-  if (!isNewMessage) {
-    return { action: AGENT_ACTION.duplicate, jobId: job.id };
-  }
-
-  let action: AgentAction;
-  let reply: string;
+  let typingStarted = false;
   try {
-    ({ action, reply } = await handleJobTurn({
-      job,
-      intent: interpretMessage(inbound.text),
-      text: inbound.text,
-      isNewJob: !existing,
-    }));
-  } catch (error) {
-    // Still reply on the thread — silence reads as a dead agent.
-    console.error("Job turn failed:", error);
-    action = AGENT_ACTION.errored;
-    reply = errorReply();
+    await setTyping(chatId, true);
+    typingStarted = true;
+  } catch {
+    // typing is best-effort
   }
 
-  const sent = await sendChatMessage({ chatId: inbound.chatId, text: reply });
-  await recordJobMessage({
-    jobId: job.id,
-    linqMessageId: sent.message?.id ?? `out_${crypto.randomUUID()}`,
-    direction: MESSAGE_DIRECTION.outbound,
-    body: reply,
-  });
+  try {
+    // Pregenerate sandbox wallet on first inbound phone.
+    try {
+      await ensurePhoneWallet(senderHandle);
+    } catch (error) {
+      console.warn("[cascade] ensurePhoneWallet failed", error);
+    }
 
-  return { action, reply, jobId: job.id };
+    const intent =
+      inbound.kind === "reaction"
+        ? inbound.isAffirm
+          ? AGENT_INTENT.affirm
+          : AGENT_INTENT.decline
+        : interpretMessage(text);
+
+    const resolved = await resolveJob({
+      chatId,
+      senderHandle,
+      messageId: inbound.kind === "reaction" ? inbound.messageId : undefined,
+      intent,
+    });
+
+    const job =
+      resolved.job ??
+      (await createJob({
+        linqChatId: chatId,
+        requesterHandle: senderHandle,
+        title: clipTitle(text),
+        description: text,
+      }));
+
+    const isNewMessage = await recordJobMessage({
+      jobId: job.id,
+      linqMessageId: messageId,
+      direction: MESSAGE_DIRECTION.inbound,
+      body: text,
+    });
+    if (!isNewMessage) {
+      return { action: AGENT_ACTION.duplicate, jobId: job.id };
+    }
+
+    const needsTriage =
+      job.status === JOB_STATUS.intake ||
+      ((job.status === JOB_STATUS.paid || job.status === JOB_STATUS.cancelled) &&
+        intent === AGENT_INTENT.freeform);
+
+    let action: AgentAction;
+    let reply: string;
+    let effect: "confetti" | undefined;
+
+    try {
+      const triage = needsTriage ? await triageJob(text) : undefined;
+      ({ action, reply, effect } = await handleJobTurn({
+        job,
+        intent,
+        text,
+        isNewJob: !resolved.job || resolved.created,
+        senderHandle,
+        chatId,
+        triage,
+      }));
+    } catch (error) {
+      console.error("Job turn failed:", error);
+      action = AGENT_ACTION.errored;
+      reply = errorReply();
+    }
+
+    if (typingStarted) {
+      try {
+        await setTyping(chatId, false);
+        typingStarted = false;
+      } catch {
+        // ignore
+      }
+    }
+
+    const sent = await sendChatMessage({
+      chatId,
+      text: reply,
+      idempotencyKey: `turn-${messageId}`,
+      effect,
+    });
+    await recordJobMessage({
+      jobId: job.id,
+      linqMessageId: sent.message?.id ?? `out_${crypto.randomUUID()}`,
+      direction: MESSAGE_DIRECTION.outbound,
+      body: reply,
+    });
+
+    return { action, reply, jobId: job.id, effect };
+  } finally {
+    if (typingStarted) {
+      try {
+        await setTyping(chatId, false);
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+async function resolveJob(params: {
+  chatId: string;
+  senderHandle: string;
+  messageId?: string;
+  intent: string;
+}): Promise<{ job: Job | null; created: boolean }> {
+  if (params.messageId) {
+    const byCard = await getJobByStatusCardMessageId(params.messageId);
+    if (byCard) return { job: byCard, created: false };
+  }
+
+  const byChat = await getJobByChatId(params.chatId);
+  if (byChat) return { job: byChat, created: false };
+
+  const byClaim = await getJobByClaimChatId(params.chatId);
+  if (byClaim) return { job: byClaim, created: false };
+
+  const user = await getUserByPhone(params.senderHandle);
+  const isPeer =
+    user?.role === USER_ROLE.peer || user?.role === USER_ROLE.both;
+
+  if (isPeer && params.intent === AGENT_INTENT.affirm) {
+    const claimable = await getOldestClaimablePeerJob();
+    if (claimable) return { job: claimable, created: false };
+  }
+
+  return { job: null, created: true };
 }

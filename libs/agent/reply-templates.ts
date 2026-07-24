@@ -1,4 +1,5 @@
 import type { TeracSubmissionStats } from "@/libs/terac";
+import { BRAND } from "@/lib/constants/branding";
 
 export function formatCents(cents: number, currency = "usd"): string {
   return new Intl.NumberFormat("en-US", {
@@ -7,75 +8,155 @@ export function formatCents(cents: number, currency = "usd"): string {
   }).format(cents / 100);
 }
 
-interface DraftReadyContext {
+export function routingReply(tier: string, reason: string): string {
+  return `Cascade → ${tier}: ${reason}`;
+}
+
+export function aiFollowUpSuggest(related: string): string {
+  return `Related idea: ${related}`;
+}
+
+export function peerQuoteReply(params: {
+  title: string;
+  priceCents: number;
+  payUrl: string;
+  trustHint?: string;
+}): string {
+  const price = formatCents(params.priceCents);
+  const trust = params.trustHint ? ` ${params.trustHint}` : "";
+  return [
+    `Peer quote for "${params.title}": ${price} sandbox USDC.${trust}`,
+    `Fastest way to pay: your Cascade wallet — takes 20 seconds, just your email, no seed phrase, and payouts you earn land there instantly.`,
+    `Pay here: ${params.payUrl}`,
+    `Or reply "pay with credits" if you have enough.`,
+    `Tapback ❤️ to approve after funding — 👎 to reject.`,
+  ].join("\n");
+}
+
+export function peerFundedReply(title: string, evLine?: string): string {
+  const race =
+    `Escrow funded for "${title}" (sandbox). Broadcasting to Cascade peers — first tapback ❤️ claims it (reputation + EV matter).`;
+  return evLine ? `${race}\n${evLine}` : race;
+}
+
+export function peerClaimBroadcast(params: {
+  title: string;
+  priceCents: number;
+  trustScore: number;
+  priorityHint?: string;
+}): string {
+  const priority = params.priorityHint ? ` ${params.priorityHint}` : "";
+  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} sandbox USDC • your trust ${params.trustScore}.${priority} Tapback ❤️ / YES to claim, or text "bid N" credits for a second-price auction.`;
+}
+
+export function peerClaimedRequesterReply(peerName: string): string {
+  return `${peerName} claimed your job. I'll forward their deliverable here when it lands.`;
+}
+
+export function peerClaimedPeerReply(title: string): string {
+  return `You're on "${title}". Text your deliverable in this thread when done.`;
+}
+
+export function peerDeliveredRequesterReply(): string {
+  return `Deliverable in — tapback ❤️ / YES to approve (sandbox payout fires instantly), or 👎 / NO to reject.`;
+}
+
+export function peerPaidReply(explorerUrl: string): string {
+  return `Approved + sandbox payout sent. ${explorerUrl}`;
+}
+
+export function fundedExplorerReply(explorerUrl: string): string {
+  return `Sandbox escrow recorded: ${explorerUrl}`;
+}
+
+export function draftReadyReply(params: {
   title: string;
   numParticipants: number;
   totalCents?: number;
   currency?: string;
-}
-
-export function draftReadyReply({
-  title,
-  numParticipants,
-  totalCents,
-  currency,
-}: DraftReadyContext): string {
-  const experts = `${numParticipants} verified expert${numParticipants === 1 ? "" : "s"}`;
+  roleLabel?: string;
+}): string {
+  const role = params.roleLabel ?? "verified expert";
+  const experts = `${params.numParticipants} ${role}${params.numParticipants === 1 ? "" : "s"}`;
   const cost =
-    totalCents !== undefined
-      ? `Estimated total: ${formatCents(totalCents, currency)}.`
-      : "Terac is quoting the price now.";
-  return `Draft ready for "${title}" — sourcing ${experts}. ${cost} Drafts are free; launching spends budget. Reply YES to launch, or tell me what to change.`;
+    params.totalCents !== undefined
+      ? `${formatCents(params.totalCents, params.currency)}`
+      : "quoting…";
+  return `Expert quote for "${params.title}" — ${experts} • ${cost} • tapback ❤️ / YES to launch (drafts are free; launch spends), 👎 to hold. Billed on approval.`;
 }
 
 export function teracUnavailableReply(title: string): string {
-  return `Got it — I've logged "${title}". Expert sourcing isn't connected yet, so I'll start the search as soon as it comes online and text you the quote.`;
+  return `Logged "${title}". Terac isn't connected yet — I'll quote a verified expert as soon as it comes online.`;
 }
 
 export function launchedReply(title: string): string {
-  return `Launched! I'm sourcing verified experts for "${title}" now. I'll text you here the moment work comes in for review.`;
+  return `Launched on Terac for "${title}". I'll text when a deliverable needs review (billed only if you approve).`;
 }
 
 export function keptDraftReply(): string {
-  return `No problem — the draft stays free and unlaunched. Tell me what to change, or reply YES anytime to launch.`;
+  return `Draft stays free. Tell me what to change, or YES anytime to launch.`;
 }
 
 export function refinedReply(): string {
-  return `Noted — I've updated the brief on the draft. Reply YES to launch when it looks right.`;
+  return `Brief updated. Reply YES to launch when it looks right.`;
 }
 
 export function searchStatusReply(stats?: TeracSubmissionStats): string {
   if (!stats) {
-    return `The search is live. No expert activity yet — I'll text you as soon as something needs your review.`;
+    return `Search is live. No expert activity yet — I'll ping you when something needs review.`;
   }
-  return `Search update: ${stats.in_progress} in progress, ${stats.awaiting_review} awaiting review, ${stats.approved} approved. I'll ping you when a deliverable needs your call.`;
+  return `Search update: ${stats.in_progress} in progress, ${stats.awaiting_review} awaiting review, ${stats.approved} approved.`;
 }
 
 export function workReadyReply(count: number): string {
-  return `${count} deliverable${count === 1 ? " is" : "s are"} in for your review. Reply YES to accept and kick off payment, or NO to reject and keep searching.`;
+  return `${count} deliverable${count === 1 ? " is" : "s are"} ready. YES to accept (then sandbox pay), NO to reject. Billed on approval.`;
 }
 
 export function approvedWorkReply(payUrl: string, amountText?: string): string {
-  const amount = amountText ? `Payment of ${amountText}` : "Payment";
-  return `Accepted! ${amount} is queued through your Dynamic wallet — finish it here: ${payUrl}. I'll confirm on this thread once it settles.`;
+  const amount = amountText ? ` of ${amountText}` : "";
+  return [
+    `Accepted! Sandbox escrow${amount} via your Cascade wallet.`,
+    `Fastest way to pay: email login, no seed phrase — ${payUrl}`,
+  ].join("\n");
 }
 
 export function rejectedWorkReply(): string {
-  return `Rejected — the search stays live and I'll flag the next deliverable that comes in.`;
+  return `Rejected — search stays live for the next deliverable.`;
 }
 
 export function paymentPendingReply(payUrl: string): string {
-  return `Payment is still pending. Complete it at ${payUrl} and I'll confirm here as soon as it settles.`;
+  return `Sandbox payment still pending: ${payUrl}`;
 }
 
-export function paidReply(): string {
-  return `Payment settled — you're all set! Text me a new request anytime and I'll spin up the next search.`;
+export function paidReply(explorerUrl?: string): string {
+  const link = explorerUrl ? ` ${explorerUrl}` : "";
+  return `Sandbox payment settled.${link} Text ${BRAND.name} another task anytime.`;
+}
+
+export function agentPayOfferReply(checkoutHint: string): string {
+  return [
+    `Got it — wallet path declined twice.`,
+    `Fallback: Linq Agent Pay (Apple Pay in-thread). ${checkoutHint}`,
+    `Note: wallet users skip fees and get escrow + instant payouts.`,
+  ].join("\n");
+}
+
+export function claimEvLine(expectedValueCredits: number): string {
+  return `Claim EV now ≈ ${expectedValueCredits.toFixed(1)} credits (higher trust peers see this first).`;
+}
+
+export function fundedViaCreditsReply(title: string): string {
+  return `Paid with Cascade credits for "${title}". Broadcasting to peers now.`;
 }
 
 export function errorReply(): string {
-  return `I hit a snag on my end handling that — nothing was launched or spent. Give me a minute and text again.`;
+  return `Hit a snag — nothing was launched or spent. Text again in a moment.`;
 }
 
 export function fallbackReply(): string {
-  return `I'm your expert-hiring agent. Text me what you need done — role, skills, timeline, budget — and I'll draft a search for verified experts on Terac. Drafts are free; nothing spends until you say launch.`;
+  return `${BRAND.name} routes tasks to AI (free), peers, or Terac experts over iMessage. Text what you need done.`;
+}
+
+export function alreadyHaveBalanceNudge(): string {
+  return `You already have a Cascade wallet balance from peer earnings — pay from there in one tap.`;
 }

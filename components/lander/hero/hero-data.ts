@@ -1,8 +1,8 @@
 export const HERO = {
-  headlineLead: "Text a job. Hire experts",
+  headlineLead: "Cascade routes every task",
   headlineAccent: "over iMessage.",
   support:
-    "Describe the work in chat. We source verified people on Terac and settle pay with Dynamic — in one conversation.",
+    "AI answers free. Peers handle real-world checks. Verified experts come from Terac — escrowed with sandbox Dynamic USDC.",
   primaryCta: "Open the app",
   secondaryCta: "See how it works",
 } as const;
@@ -10,18 +10,18 @@ export const HERO = {
 export const HERO_THREAD = [
   {
     from: "user" as const,
-    text: "Need a senior React eng to review our auth PR today.",
+    text: "Plan my week around Startup School.",
   },
   {
     from: "agent" as const,
-    text: "Got it — scoping a Terac draft for React + auth reviewers. Est. ~$84 for 3 experts.",
+    text: "AI tier — here's a focused plan. Want a peer to stress-test your signup next?",
   },
   {
     from: "user" as const,
-    text: "Launch it. Pay from my Dynamic wallet when done.",
+    text: "Have someone test my signup on a real phone.",
   },
   {
     from: "agent" as const,
-    text: "Launched. I’ll text you when submissions land for approval.",
+    text: "Peer quote: $12 USDC sandbox escrow. Pay → tapback claim → approve → instant payout.",
   },
 ] as const;
