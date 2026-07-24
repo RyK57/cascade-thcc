@@ -32,6 +32,20 @@ describe("heuristicTriage", () => {
   });
 });
 
+describe("explicit human requests", () => {
+  it("routes 'someone to review my poem' to peer, not ai", () => {
+    const result = heuristicTriage(
+      "I just need someone to tell me if my poem is good"
+    );
+    expect(result.tier).toBe("peer");
+  });
+
+  it("routes 'have somebody check this' to peer", () => {
+    const result = heuristicTriage("Can somebody check this for me");
+    expect(result.tier).toBe("peer");
+  });
+});
+
 describe("triageJob clarification cap", () => {
   it("forces a route after one clarification even if model would ask again", async () => {
     delete process.env.ANTHROPIC_API_KEY;
