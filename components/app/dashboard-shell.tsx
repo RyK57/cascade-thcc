@@ -3,18 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { LayoutDashboard, Menu, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BRAND } from "@/lib/constants/branding";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils";
-import { signOutAction } from "@/libs/auth/sign-out";
 
 interface DashboardShellProps {
-  email: string | null;
+  /** Email or verified phone — whoever the active session belongs to. */
+  identityLabel: string | null;
   showInternal: boolean;
+  /** Sign-out control from the server layout (email form or phone session). */
+  signOut?: ReactNode;
   children: React.ReactNode;
 }
 
@@ -82,8 +84,9 @@ function NavLink({
  * Replaces the lander-style single-column header used previously on `/main`.
  */
 export function DashboardShell({
-  email,
+  identityLabel,
   showInternal,
+  signOut,
   children,
 }: DashboardShellProps) {
   const pathname = usePathname();
@@ -110,20 +113,16 @@ export function DashboardShell({
           ))}
         </nav>
         <div className="space-y-3 border-t border-sidebar-border p-3">
-          {email ? (
+          {identityLabel ? (
             <p
-              title={email}
+              title={identityLabel}
               className="truncate px-1 text-xs text-muted-foreground"
             >
               <span className="sr-only">Signed in as </span>
-              {email}
+              {identityLabel}
             </p>
           ) : null}
-          <form action={signOutAction}>
-            <Button variant="outline" size="sm" type="submit" className="w-full">
-              Sign out
-            </Button>
-          </form>
+          {signOut}
         </div>
       </aside>
 
@@ -161,19 +160,15 @@ export function DashboardShell({
           </p>
 
           <div className="flex min-w-0 items-center gap-2">
-            {email ? (
+            {identityLabel ? (
               <p
-                title={email}
+                title={identityLabel}
                 className="hidden max-w-[14rem] truncate text-sm text-muted-foreground sm:block md:hidden"
               >
-                {email}
+                {identityLabel}
               </p>
             ) : null}
-            <form action={signOutAction} className="md:hidden">
-              <Button variant="outline" size="sm" type="submit">
-                Sign out
-              </Button>
-            </form>
+            <div className="md:hidden">{signOut}</div>
           </div>
         </header>
 
