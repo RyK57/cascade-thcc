@@ -35,8 +35,8 @@ const PEER_STAGE_ORDER = [
 ] as const;
 
 function jobRank(status: string, peer: boolean): number {
-  const order = peer ? PEER_STAGE_ORDER : EXPERT_STAGE_ORDER;
-  const index = order.indexOf(status as (typeof order)[number]);
+  const order: readonly string[] = peer ? PEER_STAGE_ORDER : EXPERT_STAGE_ORDER;
+  const index = order.indexOf(status);
   return index === -1 ? 0 : index;
 }
 
