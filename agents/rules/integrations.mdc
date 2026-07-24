@@ -1,0 +1,33 @@
+---
+description: Linq, Terac, and Dynamic integration conventions for this project
+globs:
+  - "libs/linq/**"
+  - "libs/terac/**"
+  - "libs/dynamic/**"
+  - "libs/agent/**"
+  - "app/api/linq/**"
+  - "app/api/terac/**"
+  - "components/dynamic/**"
+alwaysApply: false
+---
+
+# Integration Rules
+
+## Linq
+- Server-only SDK usage via `libs/linq/`
+- Webhooks are the primary inbound path for the agent
+- Conversational replies only — see `product.mdc`
+
+## Terac
+- Draft opportunities by default
+- Launch only after explicit user/operator confirmation
+- App runtime uses REST (`libs/terac/`), not Cursor MCP
+
+## Dynamic
+- Provider/widget in `components/dynamic/`
+- Payment coordination logic in `libs/dynamic/` + `db/payments/`
+- Never expose `DYNAMIC_API_KEY` to the client
+
+## Cross-cutting
+- Persist external IDs for chat, opportunity, submission, and payment
+- Mirror important state changes back to the Linq thread
