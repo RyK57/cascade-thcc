@@ -43,17 +43,13 @@ export function InternalEnvPanel() {
   const adminReady = isSupabaseAdminConfigured();
 
   return (
-    <section aria-labelledby="env-heading">
-      <p className="label-caps text-muted-foreground">Configuration</p>
-      <h2 id="env-heading" className="mt-6 font-secondary text-2xl sm:text-3xl">
-        Environment
-      </h2>
-      <p className="mt-3 max-w-[56ch] text-sm leading-relaxed text-muted-foreground">
+    <div className="space-y-4 pt-4">
+      <p className="text-sm text-muted-foreground">
         Presence only — no value is ever read into this page. A missing key
         disables its group; it doesn’t break the rest of the app.
       </p>
 
-      <div className="mt-8 overflow-x-auto rounded-xl border border-hairline">
+      <div className="overflow-x-auto rounded-lg border border-hairline">
         {/*
           A table, not two spans side by side: `scope="row"` binds the variable
           name to its status cell and `scope="rowgroup"` binds both to the
@@ -68,13 +64,13 @@ export function InternalEnvPanel() {
             <tr className="border-b border-hairline">
               <th
                 scope="col"
-                className="label-caps px-3 py-3.5 font-normal text-muted-foreground sm:px-5"
+                className="px-3 py-2.5 text-xs font-medium text-muted-foreground sm:px-4"
               >
                 Variable
               </th>
               <th
                 scope="col"
-                className="label-caps px-3 py-3.5 text-right font-normal text-muted-foreground sm:px-5"
+                className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground sm:px-4"
               >
                 Status
               </th>
@@ -86,7 +82,7 @@ export function InternalEnvPanel() {
                 <th
                   scope="rowgroup"
                   colSpan={2}
-                  className="label-caps border-b border-hairline bg-foreground/[0.03] px-3 py-3 text-left font-normal text-accent-ink sm:px-5"
+                  className="border-b border-hairline bg-foreground/[0.03] px-3 py-2 text-left text-xs font-medium text-accent-ink sm:px-4"
                 >
                   {group.name}
                 </th>
@@ -100,11 +96,11 @@ export function InternalEnvPanel() {
                   >
                     <th
                       scope="row"
-                      className="px-3 py-3 font-mono text-xs font-normal break-all text-foreground sm:px-5"
+                      className="px-3 py-2.5 font-mono text-xs font-normal break-all text-foreground sm:px-4"
                     >
                       {key}
                     </th>
-                    <td className="px-3 py-3 text-right text-sm whitespace-nowrap sm:px-5">
+                    <td className="px-3 py-2.5 text-right text-sm whitespace-nowrap sm:px-4">
                       <span
                         className={
                           set ? "text-accent-ink" : "text-muted-foreground"
@@ -121,12 +117,12 @@ export function InternalEnvPanel() {
         </table>
       </div>
 
-      <p className="mt-4 text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Supabase admin access, needed for seeding:{" "}
         <span className={adminReady ? "text-accent-ink" : "text-foreground"}>
           {adminReady ? "available" : "not available"}
         </span>
       </p>
-    </section>
+    </div>
   );
 }

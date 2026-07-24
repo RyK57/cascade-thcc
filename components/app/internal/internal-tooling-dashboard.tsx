@@ -1,4 +1,11 @@
-import { AppShell } from "@/components/app/app-shell";
+import { DashboardPageHeader } from "@/components/app/dashboard-page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { InternalEnvPanel } from "./internal-env-panel";
 import { InternalIntegrationsPanel } from "./internal-integrations-panel";
 import { InternalRunbookPanel } from "./internal-runbook-panel";
@@ -10,36 +17,59 @@ import { InternalSeedJobButton } from "./internal-seed-job-button";
  */
 export function InternalToolingDashboard() {
   return (
-    <AppShell className="py-12 sm:py-16">
-      <div className="max-w-[58ch]">
-        <h1 className="font-secondary text-4xl sm:text-5xl">Tooling</h1>
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          Operator view of this deployment. Secret values are never rendered —
-          only whether each integration is wired.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <DashboardPageHeader
+        title="Internal"
+        description="Operator view of this deployment. Secret values are never rendered — only whether each integration is wired."
+      />
 
-      <div className="mt-16 space-y-16 sm:mt-20 sm:space-y-20">
-        <InternalIntegrationsPanel />
-        <InternalEnvPanel />
-        <InternalRunbookPanel />
-        <section aria-labelledby="seed-heading">
-          <p className="label-caps text-muted-foreground">Demo</p>
-          <h2
-            id="seed-heading"
-            className="mt-6 font-secondary text-2xl sm:text-3xl"
-          >
-            Seed a checkout job
-          </h2>
-          <p className="mt-3 max-w-[56ch] text-sm leading-relaxed text-muted-foreground">
-            Creates a payment-ready job so you can exercise the customer pay
-            link without going through iMessage.
-          </p>
-          <div className="mt-6 max-w-xl">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+        <Card size="sm" className="lg:col-span-2">
+          <CardHeader className="border-b">
+            <CardTitle as="h2">Integrations</CardTitle>
+            <CardDescription>
+              Service readiness for the hiring loop.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <InternalIntegrationsPanel />
+          </CardContent>
+        </Card>
+
+        <Card size="sm" className="lg:col-span-2">
+          <CardHeader className="border-b">
+            <CardTitle as="h2">Environment</CardTitle>
+            <CardDescription>
+              Which keys are present — never the values.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <InternalEnvPanel />
+          </CardContent>
+        </Card>
+
+        <Card size="sm">
+          <CardHeader className="border-b">
+            <CardTitle as="h2">Runbook</CardTitle>
+            <CardDescription>Commands and checks operators run.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <InternalRunbookPanel />
+          </CardContent>
+        </Card>
+
+        <Card size="sm">
+          <CardHeader className="border-b">
+            <CardTitle as="h2">Demo checkout</CardTitle>
+            <CardDescription>
+              Seed a payment-ready job without going through iMessage.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
             <InternalSeedJobButton />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </div>
-    </AppShell>
+    </div>
   );
 }

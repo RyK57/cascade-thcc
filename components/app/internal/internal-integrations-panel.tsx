@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { isDynamicConfigured } from "@/libs/dynamic/config";
 import { isDynamicSandboxConfigured } from "@/libs/dynamic/sandbox";
 import { isLinqConfigured } from "@/libs/linq";
@@ -37,40 +38,26 @@ export function InternalIntegrationsPanel() {
   const integrations = getIntegrations();
 
   return (
-    <section aria-labelledby="integrations-heading">
-      <p className="label-caps text-muted-foreground">Services</p>
-      <h2
-        id="integrations-heading"
-        className="mt-6 font-secondary text-2xl sm:text-3xl"
-      >
-        Integrations
-      </h2>
-
-      <ul className="mt-8 border-t border-hairline">
-        {integrations.map((item) => (
-          <li
-            key={item.name}
-            className="grid gap-x-6 gap-y-2 border-b border-hairline py-5 sm:grid-cols-[9rem_1fr_auto]"
-          >
-            <div>
-              <p className="label-caps text-muted-foreground">{item.role}</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {item.name}
-              </p>
-            </div>
-            <p className="max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-              {item.note}
+    <ul className="divide-y divide-hairline">
+      {integrations.map((item) => (
+        <li
+          key={item.name}
+          className="grid gap-x-6 gap-y-2 py-4 sm:grid-cols-[8rem_1fr_auto] sm:items-start"
+        >
+          <div>
+            <p className="text-xs text-muted-foreground">{item.role}</p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {item.name}
             </p>
-            <p
-              className={`text-sm sm:text-right ${
-                item.ready ? "text-accent-ink" : "text-muted-foreground"
-              }`}
-            >
-              {item.ready ? "Ready" : "Not configured"}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </section>
+          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {item.note}
+          </p>
+          <Badge variant={item.ready ? "secondary" : "outline"}>
+            {item.ready ? "Ready" : "Missing"}
+          </Badge>
+        </li>
+      ))}
+    </ul>
   );
 }

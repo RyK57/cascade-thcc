@@ -1,9 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AppShell } from "@/components/app/app-shell";
+import { DashboardShell } from "@/components/app/dashboard-shell";
 import { isInternalOperator } from "@/libs/auth";
-import { Button } from "@/components/ui/button";
-import { ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/utils/supabase/server";
 
 /**
@@ -21,24 +18,15 @@ export default async function InternalLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const email = supabase ? (await supabase.auth.getUser()).data.user?.email : null;
+  const email = supabase
+    ? (await supabase.auth.getUser()).data.user?.email
+    : null;
 
   if (!isInternalOperator(email)) notFound();
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-hairline">
-        <AppShell className="flex h-16 items-center justify-between gap-4">
-          <p className="label-caps text-accent-ink">Internal</p>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ROUTES.main}>Back to workspace</Link>
-          </Button>
-        </AppShell>
-      </header>
-
-      <main id="main-content" className="flex-1">
-        {children}
-      </main>
-    </div>
+    <DashboardShell email={email ?? null} showInternal>
+      {children}
+    </DashboardShell>
   );
 }
