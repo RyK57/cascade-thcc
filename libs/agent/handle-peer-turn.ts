@@ -476,9 +476,7 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
       const explorerUrl = latest?.escrowTxHash
         ? explorerTxUrl(latest.escrowTxHash)
         : "sandbox payout already sent";
-      if (job.status !== JOB_STATUS.paid) {
-        await updateJob(job.id, { status: JOB_STATUS.paid }).catch(() => undefined);
-      }
+      await updateJob(job.id, { status: JOB_STATUS.paid }).catch(() => undefined);
       return {
         action: AGENT_ACTION.paid,
         reply: peerPaidReply(explorerUrl),
