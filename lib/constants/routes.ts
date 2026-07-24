@@ -14,6 +14,7 @@ export const ROUTES = {
     health: "/api/health",
     integrationsStatus: "/api/integrations/status",
     linqChats: "/api/linq/chats",
+    linqWebhook: "/api/linq/webhook",
     teracOpportunities: "/api/terac/opportunities",
   },
 } as const;

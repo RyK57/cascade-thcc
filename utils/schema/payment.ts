@@ -1,0 +1,42 @@
+import { z } from "zod";
+
+export const PAYMENT_STATUS = {
+  pending: "payment_pending",
+  walletConnected: "wallet_connected",
+  authorized: "authorized",
+  settled: "settled",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+export const paymentStatusSchema = z.enum([
+  PAYMENT_STATUS.pending,
+  PAYMENT_STATUS.walletConnected,
+  PAYMENT_STATUS.authorized,
+  PAYMENT_STATUS.settled,
+  PAYMENT_STATUS.failed,
+  PAYMENT_STATUS.cancelled,
+]);
+
+export const paymentSchema = z.object({
+  id: z.string().uuid(),
+  jobId: z.string().uuid(),
+  teracSubmissionId: z.string().optional(),
+  amountCents: z.number().int().positive(),
+  currency: z.string().min(1),
+  status: paymentStatusSchema,
+  dynamicWalletAddress: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const createPaymentSchema = paymentSchema.pick({
+  jobId: true,
+  teracSubmissionId: true,
+  amountCents: true,
+  currency: true,
+});
+
+export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
+export type Payment = z.infer<typeof paymentSchema>;
+export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;

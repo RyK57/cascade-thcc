@@ -1,3 +1,17 @@
+allowBuilds:
+  bufferutil: false
+  esbuild: true
+  protobufjs: false
+  sharp: false
+  unrs-resolver: false
+  utf-8-validate: false
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+# pnpm 11 blocks packages published <24h ago; these pinned versions shipped
+# today and are already committed in pnpm-lock.yaml.
+minimumReleaseAgeExclude:
+  - "@linqapp/sdk"
+  - undici-types
