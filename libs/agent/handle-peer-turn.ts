@@ -1,17 +1,24 @@
 import { listJobBids, secondPriceClear, upsertJobBid } from "@/db/bids";
-import { claimJob, clearAssigneeAndReopen, updateJob } from "@/db/jobs";
+import {
+  APPROVAL_SOURCE,
+  claimJob,
+  claimJobApproval,
+  clearAssigneeAndReopen,
+  updateJob,
+} from "@/db/jobs";
 import { createPayout, getPayoutByJobId } from "@/db/payouts";
 import { buildPaymentQuote, quoteLine } from "@/libs/chain";
-import { PAY_ASSET, type PayAsset } from "@/libs/dynamic/assets";
+import { assetSpec, PAY_ASSET, type PayAsset } from "@/libs/dynamic/assets";
 import {
   claimEscrowRelease,
   createPayment,
   getPaymentByJobId,
+  updatePayment,
+  updatePaymentStatus,
 } from "@/db/payments";
 import {
   adjustCredits,
   getUserByIdAdmin,
-  listPeers,
   upsertUserByPhone,
 } from "@/db/users";
 import {
@@ -32,12 +39,16 @@ import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import { PAYOUT_STATUS } from "@/utils/schema/payout";
 import { USER_ROLE } from "@/utils/schema/user";
 import { broadcastJobToPeers } from "./broadcast-peers";
+import { buildEscrowRequest } from "./escrow-request";
+import { interpretPayAsset } from "./interpret-message";
 import { isDerivedPlaceholder } from "./link-requester-wallet";
-import { getPayUrl } from "./pay-url";
+import { jobPayLink } from "@/libs/account/job-pay-link";
 import {
   agentPayOfferReply,
   alreadyHaveBalanceNudge,
-  claimEvLine,
+  approvalRecordedReply,
+  assetSwitchedReply,
+  escrowRequestReply,
   fallbackReply,
   fundedViaCreditsReply,
   peerClaimedPeerReply,
@@ -49,7 +60,6 @@ import {
   peerQuoteReply,
   paymentPendingReply,
 } from "./reply-templates";
-import { claimExpectedCredits } from "./routing-ev";
 import { HUD_STAGE, syncJobHud } from "./status-hud";
 import {
   countPeerDeliverables,
@@ -114,7 +124,10 @@ export async function quotePeerJob(
       peerQuoteReply({
         title: job.title,
         priceCents,
-        payUrl: getPayUrl(job.id),
+        payUrl: await jobPayLink({
+          jobId: job.id,
+          phone: job.requesterHandle,
+        }),
         quoteLine: quoteLine(quote),
       }) + nudge,
   };
@@ -145,6 +158,19 @@ export async function handlePeerTurn(turn: PeerTurn): Promise<PeerOutcome> {
 
 async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
   const { job, intent, text } = turn;
+
+  // "pay in eth" while already quoted: requote in that asset and hand back a
+  // payment request the person can actually execute.
+  const requestedAsset = interpretPayAsset(text);
+  if (requestedAsset) {
+    return requoteInAsset(job, requestedAsset);
+  }
+
+  // ❤️ on the quote is an approval, not a conversational nicety. Claim it
+  // once, then try to fund without another round trip.
+  if (intent === AGENT_INTENT.affirm) {
+    return approveAndFund(turn);
+  }
 
   if (WALLET_REFUSE_PATTERN.test(text)) {
     const count = (job.walletRefuseCount ?? 0) + 1;
@@ -182,7 +208,9 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
     }
     return {
       action: AGENT_ACTION.paymentPending,
-      reply: `Wallet is still the fastest path (escrow + instant payout). Refuse once more to fall back to Agent Pay. ${paymentPendingReply(getPayUrl(job.id))}`,
+      reply: `Wallet is still the fastest path (escrow + instant payout). Refuse once more to fall back to Agent Pay. ${paymentPendingReply(
+        await jobPayLink({ jobId: job.id, phone: job.requesterHandle })
+      )}`,
     };
   }
 
@@ -198,7 +226,9 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
     if (requester.creditBalance < priceCredits) {
       return {
         action: AGENT_ACTION.paymentPending,
-        reply: `Not enough balance (${requester.creditBalance}/${priceCredits}). ${paymentPendingReply(getPayUrl(job.id))}`,
+        reply: `Not enough balance (${requester.creditBalance}/${priceCredits}). ${paymentPendingReply(
+          await jobPayLink({ jobId: job.id, phone: job.requesterHandle })
+        )}`,
       };
     }
 
@@ -227,7 +257,124 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
 
   return {
     action: AGENT_ACTION.paymentPending,
-    reply: paymentPendingReply(getPayUrl(job.id)),
+    reply: paymentPendingReply(
+      await jobPayLink({ jobId: job.id, phone: job.requesterHandle })
+    ),
+  };
+}
+
+/** Restate the quote in the asset the requester asked for. */
+async function requoteInAsset(
+  job: Job,
+  asset: PayAsset
+): Promise<PeerOutcome> {
+  const amountCents = job.priceUsdCents || job.quotedTotalCents || 1200;
+
+  const payment = await getPaymentByJobId(job.id);
+  if (payment && payment.status !== PAYMENT_STATUS.settled) {
+    // The payment row is what the fund route settles against, so the asset the
+    // person agreed to has to live there — not just in the message.
+    await updatePayment(payment.id, { asset }).catch((error) => {
+      console.warn("[cascade] asset switch failed", error);
+    });
+  }
+
+  const request = await buildEscrowRequest({ job, asset, amountCents });
+
+  return {
+    action: AGENT_ACTION.paymentPending,
+    reply: `${assetSwitchedReply(assetSpec(asset).symbol)}\n${escrowRequestReply({
+      title: job.title,
+      quoteLine: request.quoteLine,
+      destination: request.destination,
+      network: request.network,
+      payUrl: request.payUrl,
+    })}`,
+  };
+}
+
+/**
+ * Heart-reaction approval. Records the decision, then funds it the only way
+ * Cascade can without a signature: from the requester's Cascade balance. A
+ * self-custodial wallet cannot be debited server-side, so when there is no
+ * balance to draw on this returns the concrete payment request instead of
+ * silently doing nothing.
+ */
+async function approveAndFund(turn: PeerTurn): Promise<PeerOutcome> {
+  const { job } = turn;
+
+  const approved = await claimJobApproval({
+    jobId: job.id,
+    source: APPROVAL_SOURCE.reaction,
+  });
+
+  if (!approved) {
+    // Already approved: a repeat heart must never charge twice. Report the
+    // state instead of re-running the funding path.
+    const payment = await getPaymentByJobId(job.id);
+    if (payment?.status === PAYMENT_STATUS.settled) {
+      return markPeerFunded(job);
+    }
+    return paymentRequestOutcome(job);
+  }
+
+  const requester = await upsertUserByPhone({
+    phone: job.requesterHandle,
+    role: USER_ROLE.both,
+  });
+  const priceCents = job.priceUsdCents || job.quotedTotalCents || 1200;
+  const priceCredits = Math.max(1, Math.ceil(priceCents / 100));
+
+  if (requester.creditBalance >= priceCredits) {
+    await adjustCredits({
+      userId: requester.id,
+      deltaCredits: -priceCredits,
+      jobId: job.id,
+      reason: "peer_job_payment",
+    });
+    const payment = await getPaymentByJobId(job.id);
+    if (payment) {
+      await updatePaymentStatus(payment.id, PAYMENT_STATUS.settled).catch(
+        (error) => console.warn("[cascade] settle after approval failed", error)
+      );
+    }
+    const funded = await updateJob(approved.id, {
+      status: JOB_STATUS.funded,
+      fundedVia: FUNDED_VIA.credits,
+    });
+    await syncJobHud(funded, HUD_STAGE.funded);
+    await broadcastJobToPeers(funded);
+    return {
+      action: AGENT_ACTION.funded,
+      reply: `${approvalRecordedReply()}\n${fundedViaCreditsReply(job.title)}`,
+    };
+  }
+
+  const request = await paymentRequestOutcome(approved);
+  return {
+    ...request,
+    reply: `${approvalRecordedReply()}\n${request.reply}`,
+  };
+}
+
+/** The concrete "send this, here, on this network" ask for a job. */
+async function paymentRequestOutcome(job: Job): Promise<PeerOutcome> {
+  const payment = await getPaymentByJobId(job.id);
+  const asset = (payment?.asset as PayAsset | undefined) ?? PAY_ASSET.usdc;
+  const amountCents =
+    payment?.amountCents || job.priceUsdCents || job.quotedTotalCents || 1200;
+
+  const request = await buildEscrowRequest({ job, asset, amountCents });
+
+  return {
+    action: AGENT_ACTION.paymentPending,
+    reply: escrowRequestReply({
+      title: job.title,
+      quoteLine: request.quoteLine,
+      destination: request.destination,
+      network: request.network,
+      payUrl: request.payUrl,
+    }),
   };
 }
 
@@ -256,17 +403,8 @@ export async function markPeerFunded(
   });
   funded = await syncJobHud(funded, HUD_STAGE.funded);
 
-  const peers = await listPeers();
-  const avgTrust =
-    peers.reduce((s, p) => s + p.trustScore, 0) / Math.max(1, peers.length);
-  const ev = claimExpectedCredits({
-    priceUsdCents: job.priceUsdCents || 1200,
-    trustScore: avgTrust,
-    competingPeers: Math.max(1, peers.length),
-  });
-
   await broadcastJobToPeers(funded);
-  const base = peerFundedReply(job.title, claimEvLine(ev));
+  const base = peerFundedReply(job.title);
   return {
     action: AGENT_ACTION.funded,
     reply: explorerUrl ? `${base}\n${explorerUrl}` : base,

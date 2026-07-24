@@ -9,6 +9,8 @@ import {
   recordJobMessage,
 } from "@/db/jobs";
 import { getUserByPhone } from "@/db/users";
+import { issueAccountLink } from "@/libs/account/issue-link";
+import { isPhoneVerified } from "@/libs/account/require-account";
 import { ensurePhoneWallet } from "@/libs/dynamic/phone-wallet";
 import {
   markChatRead,
@@ -28,7 +30,12 @@ import {
 } from "./handle-job-turn";
 import { handleStopTurn } from "./handle-stop";
 import { interpretMessage } from "./interpret-message";
-import { errorReply } from "./reply-templates";
+import {
+  accountLinkReply,
+  accountLinkUnavailableReply,
+  errorReply,
+  signupRequiredReply,
+} from "./reply-templates";
 import {
   formatTexterLocation,
   resolveTexterLocation,
@@ -188,6 +195,15 @@ export async function runAgentTurn(
           senderHandle,
           isNewJob: !resolved.job || resolved.created,
         }));
+      } else if (intent === AGENT_INTENT.accountLink) {
+        // A meta-command about the account, not a task: answer it without
+        // triaging, so "link" never becomes a job titled "link".
+        ({ action, reply } = await handleAccountLinkTurn(senderHandle));
+      } else if (!(await isPhoneVerified(senderHandle))) {
+        // No verified account yet. The thread and this message are already
+        // persisted, so the request is not lost — but nothing is triaged,
+        // quoted or charged until the person owns an account.
+        ({ action, reply } = await handleSignupRequired(senderHandle));
       } else {
         // Triage on the accumulated brief + thread history + a one-clarify cap.
         // Bare follow-ups ("https://…") must not lose the original request or
@@ -251,6 +267,63 @@ export async function runAgentTurn(
       }
     }
   }
+}
+
+/**
+ * First contact from an unverified number. Cascade is about to spend money on
+ * this person's behalf, so it needs an account behind the handle before it
+ * does any work — and the signup link is the same one-time, phone-verifying
+ * link the rest of the system uses.
+ */
+async function handleSignupRequired(
+  senderHandle: string
+): Promise<{ action: AgentAction; reply: string }> {
+  const issued = await issueAccountLink({ phone: senderHandle }).catch(
+    (error) => {
+      console.warn("[cascade] signup link issue failed", error);
+      return null;
+    }
+  );
+
+  if (!issued) {
+    return {
+      action: AGENT_ACTION.errored,
+      reply: accountLinkUnavailableReply(),
+    };
+  }
+
+  return {
+    action: AGENT_ACTION.signupRequired,
+    reply: signupRequiredReply(issued.url),
+  };
+}
+
+/**
+ * "LINK" / "show my jobs" — hand back a one-time sign-in URL for the phone
+ * that asked. The link is scoped to this handle, so the web app opens as them
+ * rather than as an anonymous holder of a job URL.
+ */
+async function handleAccountLinkTurn(
+  senderHandle: string
+): Promise<{ action: AgentAction; reply: string }> {
+  const issued = await issueAccountLink({ phone: senderHandle }).catch(
+    (error) => {
+      console.warn("[cascade] account link issue failed", error);
+      return null;
+    }
+  );
+
+  if (!issued) {
+    return {
+      action: AGENT_ACTION.fallback,
+      reply: accountLinkUnavailableReply(),
+    };
+  }
+
+  return {
+    action: AGENT_ACTION.accountLinked,
+    reply: accountLinkReply(issued.url),
+  };
 }
 
 /**

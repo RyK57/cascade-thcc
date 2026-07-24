@@ -1,0 +1,86 @@
+---
+description: Mandatory commit splitting for every PR — never squash teammate review history into one blob
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Git commit rules (mandatory for agents)
+
+Applies to **Cursor**, **Claude Code**, **Codex**, and any other agent opening a PR for teammates.
+
+## Never ship a squash blob
+
+- **Do not** land feature work as one fat commit (or a handful of "WIP" / "address feedback" squash commits).
+- **Do** split every PR into many small, reviewable commits before you push / open / update the PR.
+- If you already made a mega-commit: soft-reset to the base branch, then recommit in layers (preserve the working tree — never `reset --hard` with uncommitted feature work).
+
+## Granularity (this is the bar)
+
+For a medium/large PR, **default to one commit per file** (or one tiny cohesive pair: e.g. `db/foo.ts` + its `index.ts` export).
+
+| Smell | Action |
+|-------|--------|
+| 1 commit covers many unrelated paths | Resplit |
+| One commit is hundreds of lines across folders | Resplit |
+| ~3–4k line PR with only ~10–20 commits | **Too coarse** — go file-level |
+| Commit mixes migration + UI + agent + tests | Resplit |
+
+Rough check before push:
+
+```
+changed_lines / commit_count
+```
+
+If that average is **well over ~150–200 lines/commit** on a multi-file PR, keep splitting. A 3.8k-line PR should usually be **dozens** of commits, not a dozen.
+
+## Required commit message prefixes
+
+First token of the subject line must be one of:
+
+| Prefix | Use for |
+|--------|---------|
+| `(feature)` | New user-facing or API capability |
+| `(bug)` | Fix incorrect behavior |
+| `(cleanup)` | Dead code, formatting-only, remove cruft |
+| `(docs)` | Rules, skills, README, comments-only docs |
+| `(refactor)` | Restructure with no intended behavior change |
+| `(test)` | Tests only (no production code) |
+| `(chore)` | Tooling, deps, CI, env samples |
+| `(internal)` | Operator/internal tooling that is not product UX |
+
+Examples:
+
+```
+(feature) add account_links / account_sessions migration
+(feature) add createAccountLink db helper
+(feature) add hashed token helpers for account challenges
+(bug) use production site URL for pay links
+(test) cover verifyAccountLink single-use redeem
+(docs) require agents to split PR commits file-by-file
+```
+
+## How to split (dependency order)
+
+1. Docs / agent rules (if part of the same PR)
+2. Each migration file → its own commit
+3. Each schema / `db/` file → its own commit (index re-exports can ride with the new helper, or alone)
+4. Each `libs/` file → its own commit
+5. Each API route / page / component file → its own commit
+6. Each agent wiring file → its own commit
+7. Each test file → its own `(test)` commit
+
+Do **not** batch an entire domain folder into one commit just because files share a directory.
+
+## Workflow checklist (every PR)
+
+Before opening or updating a PR for teammates:
+
+1. `git log origin/<base>..HEAD --oneline` + `git diff --stat origin/<base>` — if commits ≪ files, **resplit**.
+2. Stage with pathspecs (`git add path1`), almost never `git add -A` for mixed work.
+3. Commit with a prefixed subject a reviewer can skim in `git log`.
+4. Prefer **merge commit** (or rebase+ff) into main — do not squash-merge away the split history when teammates asked for it.
+
+## What “done” looks like
+
+A teammate can walk `git log --oneline` file-by-file and review without opening a 3k-line blob. Each commit is one reviewable idea, usually one file.

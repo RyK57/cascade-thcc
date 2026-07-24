@@ -6,6 +6,7 @@ export { adjustCredits } from "./adjust-credits";
 export { getUserByIdAdmin } from "./get-user-by-id";
 export { getUserByPhone } from "./get-user-by-phone";
 export { listPeers } from "./list-peers";
+export { markPhoneVerified } from "./mark-phone-verified";
 export { upsertUserByPhone } from "./upsert-user-by-phone";
 
 /** Cookie-session path used by auth prototypes. */

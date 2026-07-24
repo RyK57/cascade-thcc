@@ -1,6 +1,8 @@
 import { updateJob } from "@/db/jobs";
 import { isLinqConfigured, sendStatusCard, updateStatusCard } from "@/libs/linq";
 import { generateCardImage, isRunwareConfigured } from "@/libs/runware";
+import { ROUTES } from "@/lib/constants/routes";
+import { getPublicSiteUrl } from "@/lib/constants/site";
 import type { Job } from "@/utils/schema/job";
 import { formatCents } from "./reply-templates";
 
@@ -19,9 +21,17 @@ export const HUD_STAGE = {
 export type HudStage = (typeof HUD_STAGE)[keyof typeof HUD_STAGE];
 
 function jobStatusUrl(jobId: string): string {
-  const site =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
-  return `${site.replace(/\/$/, "")}/job/${jobId}`;
+  return `${getPublicSiteUrl()}${ROUTES.job(jobId)}`;
+}
+
+/**
+ * A price a person could actually be charged. Quotes are clamped positive at
+ * source, but a stale or malformed row must still never render as "-$3.60".
+ */
+function displayPrice(job: Job): string {
+  const cents = job.priceUsdCents ?? job.quotedTotalCents;
+  if (cents === undefined || cents <= 0) return "quoting";
+  return formatCents(cents, job.quotedCurrency);
 }
 
 function stageCopy(job: Job, stage: HudStage): {
@@ -30,28 +40,26 @@ function stageCopy(job: Job, stage: HudStage): {
   trailingCaption: string;
   fallbackText: string;
 } {
-  const price =
-    job.priceUsdCents !== undefined
-      ? formatCents(job.priceUsdCents, job.quotedCurrency)
-      : job.quotedTotalCents !== undefined
-        ? formatCents(job.quotedTotalCents, job.quotedCurrency)
-        : "quoting";
-  const ev = job.evSummary ? ` · ${job.evSummary.replace(/^Cascade EV:\s*/i, "EV ")}` : "";
+  // Only ever a real, payable amount. Routing economics (expected value, peer
+  // vs expert comparisons) stay server-side: they are how Cascade decides, not
+  // something a requester is being asked to agree to, and rendering a negative
+  // EV next to a price reads as "the expert costs -$3.60".
+  const price = displayPrice(job);
 
   switch (stage) {
     case HUD_STAGE.quoted:
       return {
         caption: "Cascade · Quoted",
-        subcaption: `${job.title}${ev}`,
+        subcaption: job.title,
         trailingCaption: price,
-        fallbackText: `Quote ready — ❤️ approve / 👎 reject. ${price}.${ev}`,
+        fallbackText: `Quote ready — ❤️ approve / 👎 reject. ${price}.`,
       };
     case HUD_STAGE.funded:
       return {
         caption: "Cascade · Funded",
-        subcaption: `Agent wallet holding escrow${ev}`,
+        subcaption: "Escrow held until you approve",
         trailingCaption: price,
-        fallbackText: `Escrow held in Cascade agent wallet for "${job.title}". First peer ❤️ claims it.`,
+        fallbackText: `Escrow held for "${job.title}". Finding someone now.`,
       };
     case HUD_STAGE.claimed:
       return {
@@ -77,9 +85,9 @@ function stageCopy(job: Job, stage: HudStage): {
     case HUD_STAGE.launched:
       return {
         caption: "Cascade · Expert live",
-        subcaption: `${job.title}${ev}`,
+        subcaption: job.title,
         trailingCaption: price,
-        fallbackText: `Terac search live for "${job.title}".`,
+        fallbackText: `Your brief is live with verified experts for "${job.title}".`,
       };
     case HUD_STAGE.inReview:
       return {

@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/app/dashboard-shell";
+import { Button } from "@/components/ui/button";
 import { isInternalOperator } from "@/libs/auth";
+import { signOutAction } from "@/libs/auth/sign-out";
 import { createClient } from "@/utils/supabase/server";
 
 /**
@@ -24,8 +26,25 @@ export default async function InternalLayout({
 
   if (!isInternalOperator(email)) notFound();
 
+  const signOut = (
+    <form action={signOutAction}>
+      <Button
+        variant="outline"
+        size="sm"
+        type="submit"
+        className="w-full md:w-auto"
+      >
+        Sign out
+      </Button>
+    </form>
+  );
+
   return (
-    <DashboardShell email={email ?? null} showInternal>
+    <DashboardShell
+      identityLabel={email ?? null}
+      showInternal
+      signOut={signOut}
+    >
       {children}
     </DashboardShell>
   );

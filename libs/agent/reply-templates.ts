@@ -35,26 +35,29 @@ export function peerQuoteReply(params: {
   const trust = params.trustHint ? ` ${params.trustHint}` : "";
   return [
     `Quote for "${params.title}": ${price}.${trust}`,
-    `Fund escrow here: ${params.payUrl}`,
-    `Paying in ETH instead? Reply "pay in eth" and I'll requote at the live rate.`,
-    `Or reply "pay with balance" to use your Cascade balance.`,
-    `Nothing is paid out until you approve the work here with ❤️ — or text STOP to cancel.`,
+    `❤️ this message to approve and fund it, or pay here: ${params.payUrl}`,
+    `Prefer ETH? Reply "pay in eth". Have a balance? Reply "pay with balance".`,
+    `Nothing reaches the worker until you approve their work — or text STOP to cancel.`,
   ].join("\n");
 }
 
-export function peerFundedReply(title: string, evLine?: string): string {
-  void evLine;
-  return `Escrow held for "${title}". Sending it to peers now — first to claim gets it.`;
+export function peerFundedReply(title: string): string {
+  // The one place the web app gets mentioned unprompted: money just moved, so
+  // "where can I see this?" is a question the person is actually asking.
+  return `Escrow held for "${title}". Finding someone now — I'll bring their work back here.\n${accountLinkHint()}`;
 }
 
+/**
+ * The offer a peer sees. Their trust score and the auction mechanics decide
+ * who gets pinged first, but quoting either back at them is Cascade narrating
+ * its own scoring — what a worker needs is the task, the pay, and how to take
+ * it.
+ */
 export function peerClaimBroadcast(params: {
   title: string;
   priceCents: number;
-  trustScore: number;
-  priorityHint?: string;
 }): string {
-  const priority = params.priorityHint ? ` ${params.priorityHint}` : "";
-  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} USDC • your rating ${params.trustScore}.${priority} Tapback ❤️ / YES to claim, or text "bid N" for a second-price auction.`;
+  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} USDC. Tapback ❤️ or reply YES to claim, or text "bid N" to name your price.`;
 }
 
 export function peerClaimedRequesterReply(peerName: string): string {
@@ -183,6 +186,36 @@ export function paymentPendingReply(payUrl: string): string {
   return `Payment still pending: ${payUrl}`;
 }
 
+/**
+ * A payment request someone can act on. Naming the asset is not enough — the
+ * person needs the converted amount, the address it lands on, the network that
+ * address lives on, and a link that opens the transaction for this job.
+ */
+export function escrowRequestReply(params: {
+  title: string;
+  quoteLine: string;
+  destination: string;
+  network: string;
+  payUrl: string;
+}): string {
+  return [
+    `To start "${params.title}", send ${params.quoteLine}`,
+    `Network: ${params.network}`,
+    `Escrow address: ${params.destination}`,
+    `Pay here: ${params.payUrl}`,
+    `Held in escrow — released to the worker only when you approve here.`,
+  ].join("\n");
+}
+
+/** Confirms the switch and restates the request in the new asset. */
+export function assetSwitchedReply(symbol: string): string {
+  return `Switched to ${symbol} at the live rate.`;
+}
+
+export function approvalRecordedReply(): string {
+  return `Approved.`;
+}
+
 export function paidReply(explorerUrl?: string): string {
   const link = explorerUrl ? ` ${explorerUrl}` : "";
   return `Payment settled.${link} Text ${BRAND.name} another task anytime.`;
@@ -194,10 +227,6 @@ export function agentPayOfferReply(checkoutHint: string): string {
     `Fallback: Linq Agent Pay (Apple Pay in-thread). ${checkoutHint}`,
     `Note: wallet users skip fees and get escrow + instant payouts.`,
   ].join("\n");
-}
-
-export function claimEvLine(expectedValueCredits: number): string {
-  return `Claim EV now ≈ ${expectedValueCredits.toFixed(1)} (higher-rated workers see this first).`;
 }
 
 export function fundedViaCreditsReply(title: string): string {
@@ -252,6 +281,28 @@ export function peerJobCancelledNotice(title: string): string {
 /** A worker dropping a job they claimed. */
 export function peerDroppedJobReply(title: string): string {
   return `Dropped "${title}" — it's back in the pool for someone else. No hit to your rating.`;
+}
+
+export function accountLinkReply(url: string): string {
+  return `Here's your ${BRAND.name} account — jobs, payments and wallet in one place:\n${url}\n\nThe link signs you in and expires in 30 minutes.`;
+}
+
+export function signupRequiredReply(url: string): string {
+  return [
+    `Welcome to ${BRAND.name}. Before I take on work I need an account behind this number — it's where your jobs, escrow and receipts live.`,
+    `Set it up here (verifies this number, takes a few seconds):`,
+    url,
+    `Come straight back to this thread when you're done and I'll pick up your request.`,
+  ].join("\n");
+}
+
+export function accountLinkUnavailableReply(): string {
+  return `Can't open your ${BRAND.name} account right now. Everything still works here in the thread — text what you need done.`;
+}
+
+/** Shown once, on the first quote, so the web app is discoverable at all. */
+export function accountLinkHint(): string {
+  return `Reply LINK anytime to see your jobs and payments on the web.`;
 }
 
 export function alreadyHaveBalanceNudge(): string {

@@ -17,6 +17,8 @@ export const userSchema = z.object({
   email: z.string().email().optional(),
   fullName: z.string().min(1).optional(),
   phone: z.string().min(1).optional(),
+  /** Set when a texted link or code was redeemed — proof, not a typed claim. */
+  phoneVerifiedAt: z.string().optional(),
   role: userRoleSchema,
   creditBalance: z.number().int(),
   walletAddress: z.string().optional(),

@@ -20,6 +20,13 @@ const STATUS_PATTERN =
 const PAY_CREDITS_PATTERN =
   /\b(pay (with |in |from )?(credits?|balance)|use (credits?|balance)|(credits?|balance) please)\b/;
 
+/**
+ * "Show me my stuff on the web." Deliberately narrow: this short-circuits
+ * triage, so a task that merely mentions an account must still be triaged.
+ */
+const ACCOUNT_LINK_PATTERN =
+  /^(link|link (me|my account)|account|my (account|jobs|payments|receipts)|show (me )?my (jobs|account|payments|receipts)|dashboard|open (the )?(web|app|dashboard)|sign me in|log ?in)[.!\s]*$/;
+
 const PAY_IN_ETH_PATTERN = /\b(pay (with |in )?eth(er(eum)?)?|use eth(er(eum)?)?|in eth)\b/;
 const PAY_IN_USDC_PATTERN =
   /\b(pay (with |in )?(usdc|stablecoins?|stables?)|use (usdc|stablecoins?)|in usdc)\b/;
@@ -39,6 +46,7 @@ export function interpretPayAsset(text: string): "eth" | "usdc" | null {
 export function interpretMessage(text: string): AgentIntent {
   const normalized = text.trim().toLowerCase();
 
+  if (ACCOUNT_LINK_PATTERN.test(normalized)) return AGENT_INTENT.accountLink;
   if (PAY_CREDITS_PATTERN.test(normalized)) return AGENT_INTENT.payCredits;
   // Before affirm/decline: "stop" outranks whatever the thread was asking.
   if (STOP_PATTERN.test(normalized)) return AGENT_INTENT.stop;
