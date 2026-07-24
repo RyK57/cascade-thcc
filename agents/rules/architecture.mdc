@@ -1,15 +1,17 @@
 ---
-description: Core architecture and code organization rules for prototype-template
+description: Core architecture for the Linq + Terac + Dynamic iMessage expert agent
 globs:
   - "**/*"
 alwaysApply: true
 ---
 
-# Prototype Template Rules
+# Architecture Rules
 
 ## Goal
 
-Ship prototypes fast without creating unmaintainable code. Every feature should be easy to extend or delete.
+Ship a working **iMessage expert-hiring agent** without creating unmaintainable code. Every feature should be easy to extend or delete.
+
+Read `agents/rules/product.mdc` for product loop and channel constraints.
 
 ## File size
 
@@ -22,20 +24,32 @@ Ship prototypes fast without creating unmaintainable code. Every feature should 
 | Layer | Location | Responsibility |
 |-------|----------|----------------|
 | Routes | `app/` | Page composition, minimal logic |
-| API | `app/api/` | HTTP handlers, validation, call libs/db |
+| API / webhooks | `app/api/` | HTTP handlers, validation, call libs/db |
 | UI (lander) | `components/lander/` | Marketing UI, hardcoded data |
-| UI (app) | `components/app/` | Product UI |
+| UI (app) | `components/app/` | Operator / dashboard UI |
 | UI primitives | `components/ui/` | shadcn only |
+| Dynamic UI | `components/dynamic/` | Wallet provider + widget wrappers |
 | CRUD | `db/<domain>/index.ts` | Supabase reads/writes |
-| Logic | `libs/<domain>/` | Pure business functions |
+| Logic | `libs/<domain>/` | Business functions (Linq, Terac, Dynamic, agent) |
 | Schemas | `utils/schema/` | Zod schemas + inferred types |
 | Tests | `tests/` | Mirror source tree |
+
+## Domain folders (prefer these)
+
+| Domain | `libs/` | `db/` | Notes |
+|--------|---------|-------|-------|
+| Messaging | `libs/linq/` | `db/chats/` (when needed) | Webhook ingest → agent turn |
+| Agent | `libs/agent/` | — | Intent parsing, tool routing, reply drafting |
+| Experts | `libs/terac/` | `db/jobs/` / `db/opportunities/` | Never launch without explicit confirm |
+| Payments | `libs/dynamic/` | `db/payments/` | Coordinate escrow/payout state |
+| Auth (web) | `libs/auth/` | `db/users/` | Supabase and/or Dynamic |
 
 ## Data
 
 - **Landers**: hardcoded const data in component subdirs — no DB calls
-- **App**: fetch via server components, server actions, or API routes
+- **App / agent**: fetch via server components, server actions, or API routes
 - **Never** put CRUD in React components
+- **Never** call Linq/Terac/Dynamic SDKs from client components (except Dynamic React provider/widget)
 
 ## Types
 
@@ -46,17 +60,16 @@ Ship prototypes fast without creating unmaintainable code. Every feature should 
 ## Design system
 
 - Base theme: shadcn neutral black/white (light + `.dark`)
-- **Accent**: `--brand-accent` in `globals.css` — subagent must ask user and set
-- Accent drives: primary buttons, tabs, toggle groups, compact controls
+- **Accent**: `--brand-accent` in `globals.css` + `lib/constants/branding.ts`
 - Fonts: `.font-primary` (body/UI), `.font-secondary` (headlines/display) — two fonts only
 - **Styling**: read `styling.mdc` — props over `className`, global UI changes in `components/ui/`
 
 ## Testing
 
 - Add tests when implementing a feature
-- Mirror path: `libs/auth/foo.ts` → `tests/libs/auth/foo.test.ts`
+- Mirror path: `libs/linq/foo.ts` → `tests/libs/linq/foo.test.ts`
 
-## Dynamic design
+## Dynamic design (UI)
 
 - Build reusable layout primitives before page-specific UI
 - Prefer composition over one-off styles
