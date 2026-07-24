@@ -5,18 +5,28 @@ export interface FaqItem {
 
 export const FAQ_ITEMS: FaqItem[] = [
   {
-    question: "Do I need Supabase keys to run the app?",
+    question: "Do I hire people by texting?",
     answer:
-      "No. The app loads without keys and skips auth/database features until you add them.",
+      "Yes. You message the Linq Number, describe the job, and the agent runs the hiring loop in that same iMessage thread — with RCS/SMS fallback when needed.",
   },
   {
-    question: "Where does product UI live?",
+    question: "Where do the experts come from?",
     answer:
-      "Authenticated UI goes in components/app/ and routes under app/main/. Landers stay in components/lander/.",
+      "Terac. The agent drafts a verified-expert opportunity, shows estimated cost, and only launches after you confirm. You can approve or reject submissions from the conversation.",
   },
   {
-    question: "How does the prototype subagent work?",
+    question: "How do payments work?",
     answer:
-      "It reads agents/skills/prototype-subagent and asks branding and functionality questions before implementing features.",
+      "Dynamic coordinates wallets and settlement. After you accept work, payment is tied to that approval — not a separate back-office process.",
+  },
+  {
+    question: "Will this spam people cold?",
+    answer:
+      "No. Linq is built for two-way conversation. The product is inbound-first and opt-in — not blast lists or cold outreach.",
+  },
+  {
+    question: "What’s the operator app for?",
+    answer:
+      "The web app at /main shows integration status and Dynamic login while you build. The primary product surface is still the iMessage thread.",
   },
 ] as const;

@@ -6,9 +6,13 @@ interface FaqItemCardProps {
 
 export function FaqItemCard({ item }: FaqItemCardProps) {
   return (
-    <article className="rounded-xl border border-border/60 bg-card p-6">
-      <h3 className="text-base font-medium">{item.question}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
-    </article>
+    <div className="grid gap-3 border-b border-hairline py-8 last:border-b-0 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
+      <h3 className="text-lg font-medium tracking-tight text-foreground">
+        {item.question}
+      </h3>
+      <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+        {item.answer}
+      </p>
+    </div>
   );
 }
