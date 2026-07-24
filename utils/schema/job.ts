@@ -1,24 +1,45 @@
 import { z } from "zod";
+import { TIER_VALUES } from "./agent";
 
 export const JOB_STATUS = {
   intake: "intake",
-  draftReady: "draft_ready",
+  quoted: "quoted",
+  funded: "funded",
+  claimed: "claimed",
+  delivered: "delivered",
+  approved: "approved",
   launched: "launched",
   inReview: "in_review",
   paymentPending: "payment_pending",
   paid: "paid",
   cancelled: "cancelled",
+  /** @deprecated Use `quoted`. Kept for reading legacy rows mid-migration. */
+  draftReady: "draft_ready",
 } as const;
 
 export const jobStatusSchema = z.enum([
   JOB_STATUS.intake,
-  JOB_STATUS.draftReady,
+  JOB_STATUS.quoted,
+  JOB_STATUS.funded,
+  JOB_STATUS.claimed,
+  JOB_STATUS.delivered,
+  JOB_STATUS.approved,
   JOB_STATUS.launched,
   JOB_STATUS.inReview,
   JOB_STATUS.paymentPending,
   JOB_STATUS.paid,
   JOB_STATUS.cancelled,
+  JOB_STATUS.draftReady,
 ]);
+
+export const FUNDED_VIA = {
+  wallet: "wallet",
+  credits: "credits",
+} as const;
+
+export const fundedViaSchema = z.enum([FUNDED_VIA.wallet, FUNDED_VIA.credits]);
+
+export const jobTierSchema = z.enum(TIER_VALUES);
 
 export const jobSchema = z.object({
   id: z.string().uuid(),
@@ -27,10 +48,18 @@ export const jobSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   status: jobStatusSchema,
+  tier: jobTierSchema.optional(),
   teracOpportunityId: z.string().optional(),
   teracSubmissionId: z.string().optional(),
+  teracTaskUrl: z.string().optional(),
   quotedTotalCents: z.number().int().nonnegative().optional(),
   quotedCurrency: z.string().optional(),
+  priceUsdCents: z.number().int().nonnegative().optional(),
+  assigneeUserId: z.string().uuid().optional(),
+  statusCardMessageId: z.string().optional(),
+  fundedVia: fundedViaSchema.optional(),
+  claimChatId: z.string().optional(),
+  triageReason: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -47,10 +76,18 @@ export const updateJobSchema = jobSchema
     status: true,
     title: true,
     description: true,
+    tier: true,
     teracOpportunityId: true,
     teracSubmissionId: true,
+    teracTaskUrl: true,
     quotedTotalCents: true,
     quotedCurrency: true,
+    priceUsdCents: true,
+    assigneeUserId: true,
+    statusCardMessageId: true,
+    fundedVia: true,
+    claimChatId: true,
+    triageReason: true,
   })
   .partial();
 
@@ -58,3 +95,4 @@ export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type Job = z.infer<typeof jobSchema>;
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type UpdateJobInput = z.infer<typeof updateJobSchema>;
+export type FundedVia = z.infer<typeof fundedViaSchema>;
