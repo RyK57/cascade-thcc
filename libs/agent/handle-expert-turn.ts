@@ -18,7 +18,7 @@ import {
 import type { Job } from "@/utils/schema/job";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
-import { getPayUrl } from "./pay-url";
+import { jobPayLink } from "@/libs/account/job-pay-link";
 import { interpretPayAsset } from "./interpret-message";
 import {
   approvedWorkReply,
@@ -251,7 +251,7 @@ async function handleReview({ job, intent }: ExpertTurn): Promise<ExpertOutcome>
     return {
       action: AGENT_ACTION.approvedWork,
       reply: approvedWorkReply(
-        getPayUrl(pending.id),
+        await jobPayLink({ jobId: pending.id, phone: job.requesterHandle }),
         amountCents ? formatCents(amountCents, job.quotedCurrency) : undefined
       ),
     };
@@ -303,7 +303,9 @@ async function handlePaymentPending({ job }: ExpertTurn): Promise<ExpertOutcome>
 
   return {
     action: AGENT_ACTION.paymentPending,
-    reply: paymentPendingReply(getPayUrl(job.id)),
+    reply: paymentPendingReply(
+      await jobPayLink({ jobId: job.id, phone: job.requesterHandle })
+    ),
   };
 }
 
