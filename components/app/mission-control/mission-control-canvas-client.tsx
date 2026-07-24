@@ -80,7 +80,7 @@ export function MissionControlCanvasClient({
       <FlowCanvas nodes={flow.nodes} edges={flow.edges} />
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="inline-block size-2 animate-pulse rounded-full bg-[var(--brand-accent,#E8501F)]" />
-        live — balances read from Base Sepolia every {POLL_MS / 1000}s
+        Updating live
       </p>
     </div>
   );
