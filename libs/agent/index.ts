@@ -10,10 +10,14 @@ export {
 } from "./handle-peer-turn";
 export { interpretMessage } from "./interpret-message";
 export { getPayUrl } from "./pay-url";
+export { parseTrustRating } from "./parse-trust-rating";
+export { pollTrustAudits } from "./poll-trust-audits";
 export {
   bestEvLine,
   claimExpectedCredits,
+  comparePeerExpertEv,
   computeTierEv,
+  EV_TIEBREAK_GAP_USD,
 } from "./routing-ev";
 export { runAgentTurn } from "./run-agent-turn";
 export { settlePayment } from "./settle-payment";

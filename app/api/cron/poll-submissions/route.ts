@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { listJobsByStatus, MESSAGE_DIRECTION, recordJobMessage } from "@/db/jobs";
 import { pollExpertSubmissions } from "@/libs/agent";
+import { pollTrustAudits } from "@/libs/agent/poll-trust-audits";
 import { isLinqConfigured, sendChatMessage } from "@/libs/linq";
 import { JOB_STATUS } from "@/utils/schema/job";
 
 export const runtime = "nodejs";
 
 /**
- * Poll Terac submissions for expert jobs.
+ * Poll Terac submissions for expert jobs + close trust audits.
  * Vercel Hobby allows at most one cron run per day (`0 0 * * *` in vercel.json).
  * Hit this route manually (Authorization: Bearer CRON_SECRET) for faster demo polling.
  */
@@ -47,5 +48,17 @@ export async function GET(request: Request) {
     notified += 1;
   }
 
-  return NextResponse.json({ ok: true, checked: jobs.length, notified });
+  let trustAudits = { checked: 0, applied: 0 };
+  try {
+    trustAudits = await pollTrustAudits();
+  } catch (error) {
+    console.warn("[cascade] trust audit poll skipped", error);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    checked: jobs.length,
+    notified,
+    trustAudits,
+  });
 }
