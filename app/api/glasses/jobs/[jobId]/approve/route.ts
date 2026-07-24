@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJobById } from "@/db/jobs";
 import { runAgentTurn } from "@/libs/agent";
+import { isLinqConfigured } from "@/libs/linq";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -25,6 +26,15 @@ export async function POST(request: Request, context: RouteContext) {
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json({ error: "Not configured" }, { status: 503 });
   }
+  // runAgentTurn sends its reply through Linq unguarded, and by then the
+  // deliverable is approved and the payout released. Refuse up front rather
+  // than paying out and then throwing a 500 the HUD reads as failure.
+  if (!isLinqConfigured()) {
+    return NextResponse.json(
+      { error: "Linq is not configured. Set LINQ_API_V3_API_KEY." },
+      { status: 503 }
+    );
+  }
 
   const { jobId } = await context.params;
   const job = await getJobById(jobId);
@@ -32,16 +42,22 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  const result = await runAgentTurn({
-    kind: "reaction",
-    eventId: `glasses:${jobId}:${crypto.randomUUID()}`,
-    messageId: job.statusCardMessageId ?? `glasses-${jobId}`,
-    chatId: job.linqChatId,
-    senderHandle: job.requesterHandle,
-    reactionType: "love",
-    reactionId: `glasses:${jobId}:${crypto.randomUUID()}`,
-    isAffirm: true,
-  });
+  try {
+    const result = await runAgentTurn({
+      kind: "reaction",
+      eventId: `glasses:${jobId}:${crypto.randomUUID()}`,
+      messageId: job.statusCardMessageId ?? `glasses-${jobId}`,
+      chatId: job.linqChatId,
+      senderHandle: job.requesterHandle,
+      reactionType: "love",
+      reactionId: `glasses:${jobId}:${crypto.randomUUID()}`,
+      isAffirm: true,
+    });
 
-  return NextResponse.json({ ok: true, action: result.action });
+    return NextResponse.json({ ok: true, action: result.action });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Approve failed";
+    console.error("[cascade] glasses approve failed", jobId, error);
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 }

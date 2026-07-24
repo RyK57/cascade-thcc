@@ -3,7 +3,9 @@ import { listJobsByStatus, MESSAGE_DIRECTION, recordJobMessage } from "@/db/jobs
 import { pollExpertSubmissions } from "@/libs/agent";
 import { pollTrustAudits } from "@/libs/agent/poll-trust-audits";
 import { isLinqConfigured, sendChatMessage } from "@/libs/linq";
+import { isTeracConfigured } from "@/libs/terac";
 import { JOB_STATUS } from "@/utils/schema/job";
+import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -21,31 +23,53 @@ export async function GET(request: Request) {
     }
   }
 
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json(
+      { error: "Supabase admin is not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 503 }
+    );
+  }
+  if (!isTeracConfigured()) {
+    return NextResponse.json(
+      { error: "Terac is not configured. Set TERAC_API_KEY." },
+      { status: 503 }
+    );
+  }
+
   const jobs = await listJobsByStatus([
     JOB_STATUS.launched,
     JOB_STATUS.inReview,
   ]);
 
   let notified = 0;
+  let failed = 0;
   for (const job of jobs) {
     if (job.tier && job.tier !== "expert") continue;
-    const result = await pollExpertSubmissions(job);
-    if (!result.notified || !result.reply) continue;
+    // Per-job isolation: one Terac 404 or a failed send used to abort the
+    // whole run, so every later job went unpolled and its requester never
+    // heard that their work was ready.
+    try {
+      const result = await pollExpertSubmissions(job);
+      if (!result.notified || !result.reply) continue;
 
-    if (isLinqConfigured()) {
-      const sent = await sendChatMessage({
-        chatId: job.linqChatId,
-        text: result.reply,
-        idempotencyKey: `poll-${job.id}-${job.teracSubmissionId ?? "x"}`,
-      });
-      await recordJobMessage({
-        jobId: job.id,
-        linqMessageId: sent.message?.id ?? `out_${crypto.randomUUID()}`,
-        direction: MESSAGE_DIRECTION.outbound,
-        body: result.reply,
-      });
+      if (isLinqConfigured()) {
+        const sent = await sendChatMessage({
+          chatId: job.linqChatId,
+          text: result.reply,
+          idempotencyKey: `poll-${job.id}-${job.teracSubmissionId ?? "x"}`,
+        });
+        await recordJobMessage({
+          jobId: job.id,
+          linqMessageId: sent.message?.id ?? `out_${crypto.randomUUID()}`,
+          direction: MESSAGE_DIRECTION.outbound,
+          body: result.reply,
+        });
+      }
+      notified += 1;
+    } catch (error) {
+      failed += 1;
+      console.warn("[cascade] submission poll failed", job.id, error);
     }
-    notified += 1;
   }
 
   let trustAudits = { checked: 0, applied: 0 };
@@ -59,6 +83,7 @@ export async function GET(request: Request) {
     ok: true,
     checked: jobs.length,
     notified,
+    failed,
     trustAudits,
   });
 }
