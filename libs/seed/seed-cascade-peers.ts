@@ -38,10 +38,10 @@ async function retireEmail(
  * (unique email constraint) — migrates the email row onto the new phone, or
  * updates the phone row after freeing a colliding email.
  *
- * Balance and trust are written only on insert. Seeded peers carry a 0 balance
- * and a fixed starting trust score, so applying them to a peer that already
- * exists erases credits they earned and trust an audit adjusted — while the
- * ledger rows survive, leaving the two permanently inconsistent.
+ * Balance and trust are written only on insert. Seeded peers carry the sandbox
+ * starting balance and a fixed starting trust score, so applying them to a peer
+ * that already exists erases credits they earned and trust an audit adjusted —
+ * while the ledger rows survive, leaving the two permanently inconsistent.
  */
 export async function seedCascadePeers(): Promise<SeedCascadePeersResult> {
   const supabase = createAdminClient();
