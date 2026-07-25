@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isAgentWalletConfigured } from "@/libs/dynamic/agent-wallet";
+import {
+  getAgentWalletKeyShares,
+  isAgentWalletConfigured,
+} from "@/libs/dynamic/agent-wallet";
 
 const DEMO_METADATA = JSON.stringify({
   walletId: "w_1",
@@ -13,6 +16,7 @@ const ORIGINAL = {
   DYNAMIC_API_TOKEN: process.env.DYNAMIC_API_TOKEN,
   DYNAMIC_API_KEY: process.env.DYNAMIC_API_KEY,
   AGENT_WALLET_METADATA: process.env.AGENT_WALLET_METADATA,
+  AGENT_WALLET_KEY_SHARES: process.env.AGENT_WALLET_KEY_SHARES,
 };
 
 afterEach(() => {
@@ -55,5 +59,21 @@ describe("isAgentWalletConfigured", () => {
     process.env.DYNAMIC_API_KEY = "dyn_1";
     process.env.AGENT_WALLET_METADATA = DEMO_METADATA;
     expect(isAgentWalletConfigured()).toBe(true);
+  });
+});
+
+describe("getAgentWalletKeyShares", () => {
+  it("returns undefined when unset or invalid", () => {
+    delete process.env.AGENT_WALLET_KEY_SHARES;
+    expect(getAgentWalletKeyShares()).toBeUndefined();
+    process.env.AGENT_WALLET_KEY_SHARES = "not-json";
+    expect(getAgentWalletKeyShares()).toBeUndefined();
+    process.env.AGENT_WALLET_KEY_SHARES = '{"not":"an-array"}';
+    expect(getAgentWalletKeyShares()).toBeUndefined();
+  });
+
+  it("parses an array of shares from env", () => {
+    process.env.AGENT_WALLET_KEY_SHARES = '[{"id":1}]';
+    expect(getAgentWalletKeyShares()).toEqual([{ id: 1 }]);
   });
 });

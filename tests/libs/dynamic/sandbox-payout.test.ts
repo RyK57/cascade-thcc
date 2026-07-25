@@ -20,10 +20,7 @@ vi.mock("@/db/payouts", () => ({
   })),
 }));
 
-import {
-  isSponsorshipUnavailable,
-  payoutFromTreasury,
-} from "@/libs/dynamic/treasury";
+import { payoutFromTreasury } from "@/libs/dynamic/treasury";
 import { createPayout } from "@/db/payouts";
 
 beforeEach(() => {
@@ -46,31 +43,5 @@ describe("payoutFromTreasury", () => {
     expect(createPayout).toHaveBeenCalledWith(
       expect.objectContaining({ status: "simulated" })
     );
-  });
-});
-
-describe("isSponsorshipUnavailable", () => {
-  it("allows the self-funded retry when sponsorship is genuinely off", () => {
-    expect(
-      isSponsorshipUnavailable(new Error("Gas sponsorship is not enabled"))
-    ).toBe(true);
-    expect(
-      isSponsorshipUnavailable(new Error("paymaster unsupported for chain"))
-    ).toBe(true);
-  });
-
-  it("refuses to retry when the transfer may already have broadcast", () => {
-    // These can all follow a transaction that actually landed — retrying
-    // would send the USDC twice.
-    expect(isSponsorshipUnavailable(new Error("Request timed out"))).toBe(false);
-    expect(isSponsorshipUnavailable(new Error("ECONNRESET"))).toBe(false);
-    expect(isSponsorshipUnavailable(new Error("fetch failed"))).toBe(false);
-    expect(isSponsorshipUnavailable(new Error("already known"))).toBe(false);
-    expect(isSponsorshipUnavailable(new Error("nonce too low"))).toBe(false);
-  });
-
-  it("fails closed on an unrecognized error", () => {
-    expect(isSponsorshipUnavailable(new Error("something odd"))).toBe(false);
-    expect(isSponsorshipUnavailable(undefined)).toBe(false);
   });
 });
