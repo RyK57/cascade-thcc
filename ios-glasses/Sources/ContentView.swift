@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var speech = SpeechManager()
     @StateObject private var glasses = GlassesManager()
+    @StateObject private var location = LocationProvider()
 
     @AppStorage("cascadeBaseURL") private var baseURL = "https://YOUR-DEPLOY.vercel.app"
     @AppStorage("cascadeHandle") private var handle = "+1"
@@ -47,6 +48,7 @@ struct ContentView: View {
         .onAppear {
             speech.requestPermissions()
             glasses.configure()
+            location.start()
         }
         // Stream partial transcripts to the HUD live-caption bar (~2/sec).
         .onChange(of: speech.transcript) { _, transcript in
@@ -160,7 +162,9 @@ struct ContentView: View {
                 token: token.isEmpty ? nil : token,
                 handle: handle.trimmingCharacters(in: .whitespaces),
                 text: text,
-                image: image
+                image: image,
+                lat: location.lastCoordinate?.latitude,
+                lng: location.lastCoordinate?.longitude
             )
             let spoken = response.reply ?? response.error ?? "No reply."
             reply = spoken

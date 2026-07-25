@@ -35,6 +35,7 @@ targets:
         NSMicrophoneUsageDescription: Push-to-talk voice commands for Cascade.
         NSSpeechRecognitionUsageDescription: Transcribes your voice commands on-device.
         NSCameraUsageDescription: Phone-camera fallback when glasses are not connected.
+        NSLocationWhenInUseUsageDescription: Attaches your location to tasks so nearby peers get directions.
         NSBluetoothAlwaysUsageDescription: Needed to connect to Meta AI Glasses.
         NSLocalNetworkUsageDescription: This allows your phone to find and connect to your glasses over Wi-Fi.
         NSBonjourServices: [_bonjour._tcp]

@@ -34,6 +34,9 @@ const bodySchema = z.object({
   text: z.string().optional(),
   /** Glasses camera capture as a data URI (data:image/jpeg;base64,...). */
   imageDataUri: z.string().optional(),
+  /** Wearer's current location — flows into peer broadcasts + proximity. */
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
 });
 
 /**
@@ -61,7 +64,7 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const { handle, imageDataUri } = parsed.data;
+  const { handle, imageDataUri, lat, lng } = parsed.data;
   let text = parsed.data.text?.trim() ?? "";
 
   if (!text && !imageDataUri) {
@@ -119,6 +122,15 @@ export async function POST(request: Request) {
         title: clipTitle(text),
         description: text,
       });
+    }
+
+    // Persist wearer location so peer broadcasts carry a maps link and
+    // proximity sorting kicks in.
+    if (lat !== undefined && lng !== undefined) {
+      await updateJob(latestJob.id, {
+        requesterLat: lat,
+        requesterLng: lng,
+      }).catch(() => undefined);
     }
 
     const result = await runAgentTurn({

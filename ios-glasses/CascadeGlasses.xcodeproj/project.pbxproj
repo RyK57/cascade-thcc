@@ -14,6 +14,7 @@
 		9956424EB0DAD8538C6F900E /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1E56ADBFE2C3B451117574E9 /* MWDATCore */; };
 		A593F88C9673EBF0C6275674 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1350189FE1647DB0B9EE915B /* ContentView.swift */; };
 		B43F6C14623C73B65848C8D2 /* CascadeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B831961FFB3A4379C74C8 /* CascadeAPI.swift */; };
+		B74366D8FEECA3E643BE53AE /* LocationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85FE0A96CA9068503FB687E6 /* LocationProvider.swift */; };
 		C67F58D89E423975DC880801 /* GlassesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE27DBC8C240ECA98EFF047 /* GlassesManager.swift */; };
 /* End PBXBuildFile section */
 
@@ -22,6 +23,7 @@
 		19DA33AF1AAD33E1CA9E1CE7 /* CascadeGlasses.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CascadeGlasses.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C5DC89CE418DB1964CF8447 /* PhoneCameraFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCameraFallback.swift; sourceTree = "<group>"; };
 		376D0EA11BC314C429347C2C /* CascadeGlassesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CascadeGlassesApp.swift; sourceTree = "<group>"; };
+		85FE0A96CA9068503FB687E6 /* LocationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationProvider.swift; sourceTree = "<group>"; };
 		8EE27DBC8C240ECA98EFF047 /* GlassesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesManager.swift; sourceTree = "<group>"; };
 		A35B831961FFB3A4379C74C8 /* CascadeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CascadeAPI.swift; sourceTree = "<group>"; };
 		CFD750777C7183909D8BF586 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
@@ -55,6 +57,7 @@
 				376D0EA11BC314C429347C2C /* CascadeGlassesApp.swift */,
 				1350189FE1647DB0B9EE915B /* ContentView.swift */,
 				8EE27DBC8C240ECA98EFF047 /* GlassesManager.swift */,
+				85FE0A96CA9068503FB687E6 /* LocationProvider.swift */,
 				2C5DC89CE418DB1964CF8447 /* PhoneCameraFallback.swift */,
 				CFD750777C7183909D8BF586 /* SpeechManager.swift */,
 			);
@@ -134,6 +137,7 @@
 				651CF223916C184DB29CC88D /* CascadeGlassesApp.swift in Sources */,
 				A593F88C9673EBF0C6275674 /* ContentView.swift in Sources */,
 				C67F58D89E423975DC880801 /* GlassesManager.swift in Sources */,
+				B74366D8FEECA3E643BE53AE /* LocationProvider.swift in Sources */,
 				62DF9ABEE0FBDB1F8A0514B8 /* PhoneCameraFallback.swift in Sources */,
 				529AE6E7ADFF131FB65FE608 /* SpeechManager.swift in Sources */,
 			);

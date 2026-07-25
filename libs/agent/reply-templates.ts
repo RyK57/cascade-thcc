@@ -75,8 +75,19 @@ export function peerAlreadyInMotionReply(title: string): string {
 export function peerClaimBroadcast(params: {
   title: string;
   priceCents: number;
+  description?: string;
+  lat?: number;
+  lng?: number;
 }): string {
-  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} USDC. Tapback ❤️ or reply YES to claim, or text "bid N" to name your price.`;
+  const detail =
+    params.description && params.description.trim() !== params.title.trim()
+      ? ` Details: ${params.description.trim().slice(0, 220)}`
+      : "";
+  const where =
+    params.lat !== undefined && params.lng !== undefined
+      ? ` Location: https://maps.apple.com/?ll=${params.lat.toFixed(5)},${params.lng.toFixed(5)}`
+      : "";
+  return `Cascade job open: "${params.title}" • ${formatCents(params.priceCents)} USDC.${detail}${where} Tapback ❤️ or reply YES to claim, or text "bid N" to name your price.`;
 }
 
 export function peerClaimedRequesterReply(peerName: string): string {

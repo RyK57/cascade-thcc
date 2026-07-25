@@ -46,7 +46,13 @@ export async function broadcastJobToPeers(job: Job): Promise<number> {
 
     // Trust and proximity still order this loop; neither is quoted back to
     // the worker.
-    const text = peerClaimBroadcast({ title: job.title, priceCents });
+    const text = peerClaimBroadcast({
+      title: job.title,
+      priceCents,
+      description: job.description,
+      lat: job.requesterLat,
+      lng: job.requesterLng,
+    });
 
     try {
       if (from) {

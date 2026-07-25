@@ -54,6 +54,8 @@
 	<string>Phone-camera fallback when glasses are not connected.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>This allows your phone to find and connect to your glasses over Wi-Fi.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Attaches your location to tasks so nearby peers get directions.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Push-to-talk voice commands for Cascade.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

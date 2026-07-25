@@ -33,7 +33,9 @@ struct CascadeAPI {
         token: String?,
         handle: String,
         text: String?,
-        image: UIImage?
+        image: UIImage?,
+        lat: Double? = nil,
+        lng: Double? = nil
     ) async throws -> TurnResponse {
         var urlString = "\(baseURL)/api/glasses/turn"
         if let token, !token.isEmpty {
@@ -45,6 +47,10 @@ struct CascadeAPI {
 
         var body: [String: Any] = ["handle": handle]
         if let text, !text.isEmpty { body["text"] = text }
+        if let lat, let lng {
+            body["lat"] = lat
+            body["lng"] = lng
+        }
         if let image,
            let jpeg = image.jpegData(compressionQuality: 0.6) {
             body["imageDataUri"] =
