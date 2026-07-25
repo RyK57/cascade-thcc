@@ -22,7 +22,14 @@ vi.mock("@/db/payments", () => ({
 }));
 
 vi.mock("@/db/payouts", () => ({
-  createPayout: vi.fn(),
+  createPayout: vi.fn(async (input: { txHash: string }) => ({
+    id: "po_1",
+    jobId: "11111111-1111-4111-8111-111111111111",
+    txHash: input.txHash,
+    amountUsdcCents: 1200,
+    status: "broadcast",
+    createdAt: "t",
+  })),
   getPayoutByJobId: vi.fn(async () => null),
 }));
 
@@ -65,7 +72,13 @@ vi.mock("@/libs/agent/status-hud", () => ({
 }));
 
 import { claimEscrowRelease, getPaymentByJobId } from "@/db/payments";
-import { getPayoutByJobId } from "@/db/payouts";
+import { createPayout, getPayoutByJobId } from "@/db/payouts";
+import { getUserByIdAdmin } from "@/db/users";
+import {
+  getAgentWalletAddress,
+  isAgentWalletConfigured,
+} from "@/libs/dynamic/agent-wallet";
+import { payWorkerUsdc } from "@/libs/dynamic/pay-worker";
 import { payoutFromTreasury } from "@/libs/dynamic/treasury";
 
 function job(status: Job["status"]): Job {
@@ -86,6 +99,13 @@ function job(status: Job["status"]): Job {
 describe("finalizePeerPayout idempotency", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isAgentWalletConfigured).mockReturnValue(false);
+    vi.mocked(getAgentWalletAddress).mockReturnValue(undefined);
+    vi.mocked(payWorkerUsdc).mockResolvedValue({
+      txHash: "0xpay",
+      explorerUrl: "https://sepolia.basescan.org/tx/0xpay",
+    });
+    vi.mocked(getUserByIdAdmin).mockResolvedValue(null);
   });
 
   it("skips on-chain payout when job already paid", async () => {
@@ -180,5 +200,115 @@ describe("finalizePeerPayout idempotency", () => {
     expect(outcome.action).toBe(AGENT_ACTION.paid);
     expect(outcome.reply).toContain("0xpaid");
     expect(payoutFromTreasury).not.toHaveBeenCalled();
+  });
+
+  it("refuses unguarded payout when the payment row is missing", async () => {
+    vi.mocked(getPaymentByJobId).mockResolvedValue(null);
+
+    const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
+    expect(outcome.action).toBe(AGENT_ACTION.errored);
+    expect(claimEscrowRelease).not.toHaveBeenCalled();
+    expect(payWorkerUsdc).not.toHaveBeenCalled();
+    expect(payoutFromTreasury).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to treasury after an ambiguous agent-wallet failure", async () => {
+    vi.mocked(getPaymentByJobId).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      asset: "usdc" as const,
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(claimEscrowRelease).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      asset: "usdc" as const,
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      escrowReleasedAt: "2026-07-24T01:00:00Z",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(isAgentWalletConfigured).mockReturnValue(true);
+    vi.mocked(getAgentWalletAddress).mockReturnValue(
+      "0x3ab7A0d64774708478F5cD66a13078d00F493896"
+    );
+    vi.mocked(getUserByIdAdmin).mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      phone: "+15555550199",
+      role: "peer",
+      walletAddress: "0x8332f7007cd6082541b9e91d02470cfd3c8de2d6",
+      creditBalance: 0,
+      trustScore: 50,
+      createdAt: "t",
+    });
+    vi.mocked(payWorkerUsdc).mockRejectedValue(new Error("Request timed out"));
+
+    const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
+    expect(outcome.action).toBe(AGENT_ACTION.errored);
+    expect(payWorkerUsdc).toHaveBeenCalled();
+    expect(payoutFromTreasury).not.toHaveBeenCalled();
+    expect(createPayout).not.toHaveBeenCalled();
+  });
+
+  it("pays from the agent wallet and records a payout ledger row", async () => {
+    vi.mocked(getPaymentByJobId).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      asset: "usdc" as const,
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(claimEscrowRelease).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      asset: "usdc" as const,
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      escrowReleasedAt: "2026-07-24T01:00:00Z",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(isAgentWalletConfigured).mockReturnValue(true);
+    vi.mocked(getAgentWalletAddress).mockReturnValue(
+      "0x3ab7A0d64774708478F5cD66a13078d00F493896"
+    );
+    vi.mocked(getUserByIdAdmin).mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      phone: "+15555550199",
+      role: "peer",
+      walletAddress: "0x8332f7007cd6082541b9e91d02470cfd3c8de2d6",
+      creditBalance: 0,
+      trustScore: 50,
+      createdAt: "t",
+    });
+    vi.mocked(payWorkerUsdc).mockResolvedValue({
+      txHash: "0xagentpay",
+      explorerUrl: "https://sepolia.basescan.org/tx/0xagentpay",
+    });
+
+    const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
+    expect(outcome.action).toBe(AGENT_ACTION.paid);
+    expect(outcome.reply).toContain("0xagentpay");
+    expect(payoutFromTreasury).not.toHaveBeenCalled();
+    expect(createPayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txHash: "0xagentpay",
+        status: "broadcast",
+      })
+    );
   });
 });
