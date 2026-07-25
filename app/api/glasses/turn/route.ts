@@ -14,10 +14,16 @@ import { captionImage, isRunwareConfigured } from "@/libs/runware";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
-/** Pre-funding states a fresh voice request may safely replace. */
+/**
+ * States a fresh voice request may replace. DEMO MODE: includes funded/
+ * claimed so back-to-back voice tasks never wedge on "waiting for a peer" —
+ * sandbox escrow only, nothing real is stranded.
+ */
 const VOICE_REPLACEABLE = new Set<string>([
   JOB_STATUS.intake,
   JOB_STATUS.quoted,
+  JOB_STATUS.funded,
+  JOB_STATUS.claimed,
   JOB_STATUS.paid,
   JOB_STATUS.cancelled,
   JOB_STATUS.draftReady,
@@ -105,6 +111,17 @@ export async function POST(request: Request) {
     }
     if (!text) {
       text = "I sent a photo from my glasses — ask me what I need done.";
+    }
+
+    // Voice escape hatch: "Cascade, reset" cancels whatever is in flight so
+    // the next utterance starts clean — no DB surgery mid-demo.
+    if (/^\s*(reset|restart|start over|cancel (that|it|the task))\s*[.!]?\s*$/i.test(text)) {
+      await updateJob(latestJob.id, { status: JOB_STATUS.cancelled });
+      return NextResponse.json({
+        ok: true,
+        jobId: latestJob.id,
+        reply: "Fresh start — what do you need?",
+      });
     }
 
     // Voice from the glasses is almost always a NEW request. The iMessage
