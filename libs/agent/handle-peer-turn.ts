@@ -735,17 +735,25 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
     return paidOutcome(payoutUrl, true);
   }
 
+  // Without a payment row there is no CAS slot — refusing is safer than an
+  // unguarded on-chain send that concurrent approves can double.
+  if (!payment) {
+    console.error("[cascade] finalizePeerPayout missing payment row", job.id);
+    return {
+      action: AGENT_ACTION.errored,
+      reply: peerPayoutInFlightReply(),
+    };
+  }
+
   // Claim the release slot before any on-chain transfer (CAS on escrow_released_at).
-  if (payment) {
-    const claimed = await claimEscrowRelease(payment.id);
-    if (!claimed) {
-      // Another caller won the race and is mid-release. Don't claim success
-      // on their behalf — the confirmation follows from whoever is paying.
-      return {
-        action: AGENT_ACTION.errored,
-        reply: peerPayoutInFlightReply(),
-      };
-    }
+  const claimed = await claimEscrowRelease(payment.id);
+  if (!claimed) {
+    // Another caller won the race and is mid-release. Don't claim success
+    // on their behalf — the confirmation follows from whoever is paying.
+    return {
+      action: AGENT_ACTION.errored,
+      reply: peerPayoutInFlightReply(),
+    };
   }
 
   const amount = job.priceUsdCents || job.quotedTotalCents || 0;
@@ -762,7 +770,10 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
   // A derived address has no key holder — sending real USDC there burns it.
   const payoutIsRealAddress = !isDerivedPlaceholder(assignee?.phone, wallet);
 
-  // Prefer Cascade agent wallet release; fall back to treasury stack.
+  // Agent wallet holds escrow when configured — never fall back to treasury
+  // after an agent attempt. Ambiguous timeouts can mean the transfer already
+  // broadcast; a treasury retry would double-pay (or mark paid via 0xsim while
+  // USDC stays in the agent wallet).
   let explorerUrl: string;
   if (payoutIsRealAddress && isAgentWalletConfigured() && getAgentWalletAddress()) {
     try {
@@ -783,16 +794,15 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
         );
       });
     } catch (error) {
-      console.warn(
-        "[cascade] agent wallet payout failed; falling back to treasury",
+      console.error(
+        "[cascade] agent wallet payout failed; not falling back to treasury",
+        job.id,
         error
       );
-      const payout = await payoutFromTreasury({
-        jobId: job.id,
-        toAddress: wallet,
-        amountUsdcCents: amount,
-      });
-      explorerUrl = payout.explorerUrl;
+      return {
+        action: AGENT_ACTION.errored,
+        reply: peerPayoutInFlightReply(),
+      };
     }
   } else {
     const payout = await payoutFromTreasury({

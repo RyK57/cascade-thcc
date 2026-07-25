@@ -6,7 +6,9 @@ import { parseAbi } from "viem";
  */
 
 /** Circle's official USDC on Base Sepolia (6 decimals). */
-export const USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+export const USDC_BASE_SEPOLIA =
+  process.env.DYNAMIC_SANDBOX_USDC_ADDRESS?.trim() ||
+  "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 export const USDC_DECIMALS = 6;
 

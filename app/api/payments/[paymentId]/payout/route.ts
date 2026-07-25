@@ -3,13 +3,14 @@ import { z } from "zod";
 import { authorizeInternalRequest } from "@/components/app/internal/authorize-internal-request";
 import { getJobById } from "@/db/jobs";
 import { claimEscrowRelease, getPaymentByJobId } from "@/db/payments";
-import { finalizePeerPayout } from "@/libs/agent";
+import { createPayout } from "@/db/payouts";
+import { finalizePeerPayout, settlePayment } from "@/libs/agent";
 import { isAgentWalletConfigured } from "@/libs/dynamic/agent-wallet";
 import { payWorkerUsdc } from "@/libs/dynamic/pay-worker";
-import { settlePayment } from "@/libs/agent";
 import { JOB_TIER } from "@/utils/schema/agent";
 import { JOB_STATUS } from "@/utils/schema/job";
 import { PAYMENT_STATUS } from "@/utils/schema/payment";
+import { PAYOUT_STATUS } from "@/utils/schema/payout";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 const bodySchema = z.object({
@@ -101,7 +102,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "Agent wallet is not configured. Set DYNAMIC_API_TOKEN (or DYNAMIC_API_KEY), AGENT_WALLET_METADATA, and optionally AGENT_WALLET_PASSWORD.",
+            "Agent wallet is not configured. Set DYNAMIC_API_TOKEN (or DYNAMIC_API_KEY), AGENT_WALLET_METADATA, AGENT_WALLET_KEY_SHARES, and AGENT_WALLET_PASSWORD.",
         },
         { status: 503 }
       );
@@ -112,6 +113,8 @@ export async function POST(
     // atomically first, exactly as finalizePeerPayout does on the peer path.
     const claimed = await claimEscrowRelease(paymentId);
     if (!claimed) {
+      // Prefer evidence over a bare alreadyReleased: if the prior attempt
+      // broadcast but never settled the job, surface the payout hash.
       return NextResponse.json({ ok: true, alreadyReleased: true, payment });
     }
 
@@ -124,10 +127,24 @@ export async function POST(
       amountCents: payment.amountCents,
     });
 
+    await createPayout({
+      jobId: job.id,
+      txHash: payout.txHash,
+      amountUsdcCents: payment.amountCents,
+      status: PAYOUT_STATUS.broadcast,
+    }).catch((error) => {
+      console.error(
+        "[cascade] expert payout sent but not recorded",
+        payout.txHash,
+        error
+      );
+    });
+
     const settled = await settlePayment({
       paymentId,
       status: PAYMENT_STATUS.settled,
       dynamicWalletAddress: parsed.data.workerAddress,
+      workerTxHash: payout.txHash,
       // The transfer above is the actual worker payout, so this is the one
       // settle that may close the job as paid.
       workerPaid: true,

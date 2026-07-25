@@ -20,6 +20,11 @@ interface SettlePaymentInput {
   dynamicWalletAddress?: string;
   escrowTxHash?: string;
   /**
+   * On-chain hash of the worker payout transfer. Used for the paid reply
+   * receipt — never overwrite the escrow funding hash with this.
+   */
+  workerTxHash?: string;
+  /**
    * True only when the worker has actually been paid. Funding escrow is not
    * the same event: closing the job as `paid` at fund time makes the release
    * path unreachable (the payout route short-circuits on `paid`) and strands
@@ -42,6 +47,7 @@ export async function settlePayment({
   status,
   dynamicWalletAddress,
   escrowTxHash,
+  workerTxHash,
   workerPaid = false,
 }: SettlePaymentInput): Promise<Payment> {
   let payment = await updatePaymentStatus(
@@ -62,7 +68,10 @@ export async function settlePayment({
     });
   }
 
-  const explorerUrl = explorerTxUrl(hash);
+  // Paid replies should link the worker transfer, not the earlier escrow fund.
+  const explorerUrl = explorerTxUrl(
+    workerPaid && workerTxHash ? workerTxHash : hash
+  );
   const job = await getJobById(payment.jobId);
   if (!job) return payment;
 
