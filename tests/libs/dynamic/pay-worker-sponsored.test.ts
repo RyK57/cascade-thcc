@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendSponsoredTransaction = vi.fn();
 const sendTransaction = vi.fn();
@@ -23,14 +23,37 @@ const AGENT_META = {
   accountAddress: "0x3ab7A0d64774708478F5cD66a13078d00F493896",
 };
 
+const ORIGINAL_REAL = process.env.DYNAMIC_REAL_CHAIN_PAYMENTS;
+
 beforeEach(() => {
   vi.clearAllMocks();
   getAgentWalletMetadata.mockReturnValue(AGENT_META);
   getAgentWalletKeyShares.mockReturnValue([{ share: "demo" }]);
   process.env.AGENT_WALLET_PASSWORD = "demo-password";
+  delete process.env.DYNAMIC_REAL_CHAIN_PAYMENTS;
 });
 
-describe("payWorkerUsdc sponsored path", () => {
+afterEach(() => {
+  if (ORIGINAL_REAL === undefined) delete process.env.DYNAMIC_REAL_CHAIN_PAYMENTS;
+  else process.env.DYNAMIC_REAL_CHAIN_PAYMENTS = ORIGINAL_REAL;
+});
+
+describe("payWorkerUsdc sandbox default", () => {
+  it("simulates payouts by default without touching Dynamic", async () => {
+    const result = await payWorkerUsdc({ to: WORKER, amountCents: 1200 });
+
+    expect(result.simulated).toBe(true);
+    expect(result.txHash.startsWith("0xsim")).toBe(true);
+    expect(getAgentEvmClient).not.toHaveBeenCalled();
+    expect(sendSponsoredTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("payWorkerUsdc real-chain opt-in", () => {
+  beforeEach(() => {
+    process.env.DYNAMIC_REAL_CHAIN_PAYMENTS = "1";
+  });
+
   it("sends a sponsored USDC transfer when sponsorship works", async () => {
     sendSponsoredTransaction.mockResolvedValue({
       transactionHash: "0xsponsored",
@@ -80,7 +103,7 @@ describe("payWorkerUsdc sponsored path", () => {
     expect(getAgentWalletClient).not.toHaveBeenCalled();
   });
 
-  it("explains missing gas ETH after sponsorship fallback fails", async () => {
+  it("simulates when self-funded gas fails", async () => {
     sendSponsoredTransaction.mockRejectedValue(
       new Error("paymaster unsupported for chain")
     );
@@ -88,9 +111,9 @@ describe("payWorkerUsdc sponsored path", () => {
       new Error("gas required exceeds allowance (0)")
     );
 
-    await expect(
-      payWorkerUsdc({ to: WORKER, amountCents: 100 })
-    ).rejects.toThrow(/no Base Sepolia ETH for gas/i);
+    const result = await payWorkerUsdc({ to: WORKER, amountCents: 100 });
+    expect(result.simulated).toBe(true);
+    expect(result.txHash.startsWith("0xsim")).toBe(true);
   });
 
   it("rejects invalid worker addresses before touching the wallet", async () => {
