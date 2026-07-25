@@ -15,6 +15,7 @@ export {
   type RequestCodeError,
   type RequestCodeResult,
 } from "./request-code";
+export { accountIntroMessage, sendAccountIntro } from "./send-intro";
 export {
   endAccountSession,
   getAccountIdentity,
