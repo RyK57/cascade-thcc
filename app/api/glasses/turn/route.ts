@@ -135,6 +135,13 @@ export async function POST(request: Request) {
     const hadLink = /https?:\/\/\S+/.test(rawReply);
     let reply = rawReply
       .replace(/https?:\/\/\S+/g, "")
+      // Voice context: hands are busy, there is no message bubble to tapback.
+      .replace(/tapback\s*❤️?\s*\/?\s*(or\s+reply\s+)?YES/gi, "say yes")
+      .replace(/tapback\s+heart\s+to\s+approve/gi, "say yes to approve")
+      .replace(/tapback\s*❤️/gi, "say yes")
+      .replace(/thumbs-?down\s+to\s+reject/gi, "say no to reject")
+      .replace(/👎\s*to\s+hold/gi, "or say no to hold")
+      .replace(/first\s+tapback\s*❤️?\s+wins/gi, "first peer to claim wins")
       .replace(/[ \t]{2,}/g, " ")
       .replace(/\s+([.,!?])/g, "$1")
       .trim();
