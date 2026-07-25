@@ -19,6 +19,7 @@ import {
 import {
   adjustCredits,
   getUserByIdAdmin,
+  listPeers,
   upsertUserByPhone,
 } from "@/db/users";
 import {
@@ -51,13 +52,16 @@ import {
   escrowRequestReply,
   fallbackReply,
   fundedViaCreditsReply,
+  peerAlreadyInMotionReply,
   peerClaimedPeerReply,
   peerClaimedRequesterReply,
   peerDeliveredRequesterReply,
+  peerFundedNoPeersReply,
   peerFundedReply,
   peerPaidReply,
   peerPayoutInFlightReply,
   peerQuoteReply,
+  peerSearchIdleReply,
   paymentPendingReply,
 } from "./reply-templates";
 import { HUD_STAGE, syncJobHud } from "./status-hud";
@@ -243,10 +247,13 @@ async function handlePeerQuoted(turn: PeerTurn): Promise<PeerOutcome> {
       fundedVia: FUNDED_VIA.credits,
     });
     await syncJobHud(funded, HUD_STAGE.funded);
-    await broadcastJobToPeers(funded);
+    const pinged = await broadcastJobToPeers(funded);
     return {
       action: AGENT_ACTION.funded,
-      reply: fundedViaCreditsReply(job.title),
+      reply:
+        pinged > 0
+          ? fundedViaCreditsReply(job.title)
+          : peerFundedNoPeersReply(job.title),
     };
   }
 
@@ -343,10 +350,14 @@ async function approveAndFund(turn: PeerTurn): Promise<PeerOutcome> {
       fundedVia: FUNDED_VIA.credits,
     });
     await syncJobHud(funded, HUD_STAGE.funded);
-    await broadcastJobToPeers(funded);
+    const pinged = await broadcastJobToPeers(funded);
+    const fundedLine =
+      pinged > 0
+        ? fundedViaCreditsReply(job.title)
+        : peerFundedNoPeersReply(job.title);
     return {
       action: AGENT_ACTION.funded,
-      reply: `${approvalRecordedReply()}\n${fundedViaCreditsReply(job.title)}`,
+      reply: `${approvalRecordedReply()}\n${fundedLine}`,
     };
   }
 
@@ -382,15 +393,24 @@ export async function markPeerFunded(
   job: Job,
   explorerUrl?: string
 ): Promise<PeerOutcome> {
-  // Already past fund — do not rebroadcast or rewrite status.
+  // Already past fund — do not rebroadcast or rewrite status. "Finding
+  // someone now" is only true while the job is still in the search; once it
+  // is claimed or further along, a late settle must not talk the job
+  // backwards.
+  if (job.status === JOB_STATUS.funded) {
+    const base = peerFundedReply(job.title);
+    return {
+      action: AGENT_ACTION.funded,
+      reply: explorerUrl ? `${base}\n${explorerUrl}` : base,
+    };
+  }
   if (
-    job.status === JOB_STATUS.funded ||
     job.status === JOB_STATUS.claimed ||
     job.status === JOB_STATUS.delivered ||
     job.status === JOB_STATUS.approved ||
     job.status === JOB_STATUS.paid
   ) {
-    const base = peerFundedReply(job.title);
+    const base = peerAlreadyInMotionReply(job.title);
     return {
       action: AGENT_ACTION.funded,
       reply: explorerUrl ? `${base}\n${explorerUrl}` : base,
@@ -403,8 +423,9 @@ export async function markPeerFunded(
   });
   funded = await syncJobHud(funded, HUD_STAGE.funded);
 
-  await broadcastJobToPeers(funded);
-  const base = peerFundedReply(job.title);
+  const pinged = await broadcastJobToPeers(funded);
+  const base =
+    pinged > 0 ? peerFundedReply(job.title) : peerFundedNoPeersReply(job.title);
   return {
     action: AGENT_ACTION.funded,
     reply: explorerUrl ? `${base}\n${explorerUrl}` : base,
@@ -478,9 +499,17 @@ async function handlePeerFunded(turn: PeerTurn): Promise<PeerOutcome> {
   // threads, and this check has to come first or every freeform message from
   // the requester gets the race pitch instead.
   if (senderHandle === job.requesterHandle && chatId === job.linqChatId) {
+    // "Waiting for a peer" implies peers exist to wait on. With none seeded,
+    // the search will never resolve — say so instead of promising a ping.
+    const peers = await listPeers().catch(() => []);
+    const reachable = peers.some(
+      (peer) => peer.phone && peer.phone !== job.requesterHandle
+    );
     return {
       action: AGENT_ACTION.statusReported,
-      reply: `Waiting for a peer to claim. I'll text you when someone does.`,
+      reply: reachable
+        ? `Waiting for a peer to claim. I'll text you when someone does.`
+        : peerSearchIdleReply(),
     };
   }
 
@@ -596,9 +625,19 @@ async function handlePeerClaimed(turn: PeerTurn): Promise<PeerOutcome> {
     };
   }
 
+  // Only the assignee gets "you're on it" — this branch also catches other
+  // seeded peers answering the broadcast after someone already claimed, and
+  // telling them they're on the job sends them off to do unpaid work.
+  if (isAssignee) {
+    return {
+      action: AGENT_ACTION.statusReported,
+      reply: peerClaimedPeerReply(job.title),
+    };
+  }
+
   return {
     action: AGENT_ACTION.statusReported,
-    reply: peerClaimedPeerReply(job.title),
+    reply: `Someone else already claimed this one — thanks anyway.`,
   };
 }
 
@@ -615,10 +654,13 @@ async function handlePeerDelivered(turn: PeerTurn): Promise<PeerOutcome> {
   if (intent === AGENT_INTENT.decline) {
     const reopened = await clearAssigneeAndReopen(job.id);
     await syncJobHud(reopened, HUD_STAGE.funded);
-    await broadcastJobToPeers(reopened);
+    const pinged = await broadcastJobToPeers(reopened);
     return {
       action: AGENT_ACTION.rejectedWork,
-      reply: `Rejected — reopened for another peer.`,
+      reply:
+        pinged > 0
+          ? `Rejected — reopened for another peer.`
+          : `Rejected — reopened, but no peers are reachable right now. It stays open until one claims; text STOP anytime to cancel.`,
     };
   }
 
