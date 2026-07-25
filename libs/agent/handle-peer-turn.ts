@@ -472,17 +472,22 @@ async function handlePeerFunded(turn: PeerTurn): Promise<PeerOutcome> {
     };
   }
 
-  if (intent !== AGENT_INTENT.affirm) {
-    return {
-      action: AGENT_ACTION.statusReported,
-      reply: `Still open — first tapback ❤️ wins the race (or text "bid N").`,
-    };
-  }
-
+  // The requester is the customer, not a contestant in the claim race.
+  // Anything they say on their own thread while the search runs gets their
+  // job's status — the tapback/bid recruitment copy is for peers in claim
+  // threads, and this check has to come first or every freeform message from
+  // the requester gets the race pitch instead.
   if (senderHandle === job.requesterHandle && chatId === job.linqChatId) {
     return {
       action: AGENT_ACTION.statusReported,
       reply: `Waiting for a peer to claim. I'll text you when someone does.`,
+    };
+  }
+
+  if (intent !== AGENT_INTENT.affirm) {
+    return {
+      action: AGENT_ACTION.statusReported,
+      reply: `Still open — first tapback ❤️ wins the race (or text "bid N").`,
     };
   }
 
