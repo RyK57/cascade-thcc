@@ -138,14 +138,30 @@ final class GlassesManager: ObservableObject {
             }
 
             let session = try wearables.createSession(deviceSelector: selector)
-            // Capture the stream before start() — no replay on state events.
+            // Capture streams before start() — no replay on state events. The
+            // stop REASON arrives on the error publisher, not the state stream.
             let states = session.stateStream()
+            var lastError: DeviceSessionError?
+            tokens.append(
+                session.errorPublisher.listen { error in
+                    Task { @MainActor in lastError = error }
+                }
+            )
             try session.start()
             if session.state != .started {
                 for await state in states {
                     if state == .started { break }
                     if state == .stopped {
-                        statusText = "Glasses: session stopped — is a device paired?"
+                        // Give the error publisher a beat to deliver the reason.
+                        try? await Task.sleep(for: .milliseconds(400))
+                        if case .datAppOnTheGlassesUpdateRequired = lastError {
+                            statusText =
+                                "The glasses' DAT app needs an update — opening the update screen in Meta AI…"
+                            try? await Wearables.shared.openDATGlassesAppUpdate()
+                            return
+                        }
+                        statusText =
+                            "Session stopped: \(lastError.map { "\($0)" } ?? "no reason delivered")\n\(wearablesDeviceSummary())"
                         return
                     }
                 }
