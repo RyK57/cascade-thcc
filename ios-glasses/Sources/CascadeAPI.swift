@@ -12,6 +12,22 @@ struct CascadeAPI {
         let error: String?
     }
 
+    /// Raised when the server answers with something that isn't the turn
+    /// JSON — a Vercel auth page, a Next 404/500 page, a proxy error. The
+    /// status and body snippet are the diagnosis; JSONDecoder's own message
+    /// ("data isn't in the correct format") hides both.
+    enum APIError: LocalizedError {
+        case nonJSON(status: Int, body: String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .nonJSON(status, body):
+                let snippet = body.isEmpty ? "an empty body" : "“\(body)”"
+                return "Server replied \(status) with \(snippet) — check the base URL (and any Vercel protection on the deployment)."
+            }
+        }
+    }
+
     static func sendTurn(
         baseURL: String,
         token: String?,
@@ -41,8 +57,15 @@ struct CascadeAPI {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         request.timeoutInterval = 60
 
-        let (data, _) = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode(TurnResponse.self, from: data)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        do {
+            return try JSONDecoder().decode(TurnResponse.self, from: data)
+        } catch {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let snippet = String(decoding: data.prefix(200), as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            throw APIError.nonJSON(status: status, body: snippet)
+        }
     }
 
     /// Fire-and-forget partial transcript so the glasses HUD shows live
