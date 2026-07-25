@@ -1,6 +1,7 @@
 import { createDynamicClient, initializeClient } from "@dynamic-labs-sdk/client";
 import { addEvmExtension } from "@dynamic-labs-sdk/evm";
 import { BRAND } from "@/lib/constants/branding";
+import { withBaseSepoliaFirst } from "./base-sepolia-network";
 
 const environmentId =
   process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID?.trim() ?? "";
@@ -19,6 +20,12 @@ export const dynamicClient = createDynamicClient({
     name: BRAND.name,
     // IMPORTANT: the property is `universalLink`, not `url`
     universalLink: getUniversalLink(),
+  },
+  // Cascade is Base Sepolia sandbox-only. Inject + pin as default so WaaS
+  // wallets don't sit on an unconfigured mainnet and throw
+  // "No network data found for wallet account …".
+  transformers: {
+    networksData: withBaseSepoliaFirst,
   },
 });
 
