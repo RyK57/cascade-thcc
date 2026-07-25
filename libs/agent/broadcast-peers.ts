@@ -1,5 +1,6 @@
 import { listPeers } from "@/db/users";
 import {
+  getLinqFromNumber,
   haversineKm,
   isLinqConfigured,
   sendTextMessage,
@@ -37,9 +38,7 @@ export async function broadcastJobToPeers(job: Job): Promise<number> {
     });
   }
 
-  const from =
-    process.env.LINQ_FROM_NUMBER?.trim() ||
-    process.env.LINQ_PHONE_NUMBER?.trim();
+  const from = getLinqFromNumber();
 
   for (const peer of peers) {
     if (!peer.phone) continue;
