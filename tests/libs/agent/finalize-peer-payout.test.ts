@@ -311,4 +311,57 @@ describe("finalizePeerPayout idempotency", () => {
       })
     );
   });
+
+  it("records simulated payouts when the agent wallet returns a sandbox hash", async () => {
+    vi.mocked(getPaymentByJobId).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      asset: "usdc" as const,
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(claimEscrowRelease).mockResolvedValue({
+      id: "33333333-3333-4333-8333-333333333333",
+      jobId: job(JOB_STATUS.approved).id,
+      amountCents: 1200,
+      currency: "usd",
+      asset: "usdc" as const,
+      status: PAYMENT_STATUS.settled,
+      escrowTxHash: "0xesc",
+      escrowReleasedAt: "2026-07-24T01:00:00Z",
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    vi.mocked(isAgentWalletConfigured).mockReturnValue(true);
+    vi.mocked(getAgentWalletAddress).mockReturnValue(
+      "0x3ab7A0d64774708478F5cD66a13078d00F493896"
+    );
+    vi.mocked(getUserByIdAdmin).mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      phone: "+15555550199",
+      role: "peer",
+      walletAddress: "0x8332f7007cd6082541b9e91d02470cfd3c8de2d6",
+      creditBalance: 0,
+      trustScore: 50,
+      createdAt: "t",
+    });
+    vi.mocked(payWorkerUsdc).mockResolvedValue({
+      txHash: "0xsimdeadbeef",
+      explorerUrl: "https://sepolia.basescan.org/tx/0xsimdeadbeef",
+      simulated: true,
+    });
+
+    const outcome = await finalizePeerPayout(job(JOB_STATUS.approved));
+    expect(outcome.action).toBe(AGENT_ACTION.paid);
+    expect(createPayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txHash: "0xsimdeadbeef",
+        status: "simulated",
+      })
+    );
+  });
 });

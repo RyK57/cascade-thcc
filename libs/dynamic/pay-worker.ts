@@ -9,6 +9,10 @@ import {
 } from "./agent-wallet";
 import { isSponsorshipUnavailable } from "./is-sponsorship-unavailable";
 import {
+  shouldSimulateSandboxPayments,
+  simulatedSandboxTxHash,
+} from "./sandbox-payments";
+import {
   ERC20_TRANSFER_ABI,
   explorerTxUrl,
   USDC_BASE_SEPOLIA,
@@ -24,14 +28,17 @@ export interface PayWorkerInput {
 export interface PayWorkerResult {
   txHash: string;
   explorerUrl: string;
+  /** True when no on-chain transfer was broadcast (demo sandbox). */
+  simulated?: boolean;
 }
 
 /**
  * Autonomous payout: the agent's own wallet sends testnet USDC to the worker.
  *
- * Prefers Dynamic sponsored (gasless) txs so the agent wallet does not need
- * Base Sepolia ETH. Falls back to a self-funded send only when sponsorship is
- * clearly unavailable — that path still needs faucet ETH for gas.
+ * Default is simulated — Dynamic gas sponsorship is currently unusable here.
+ * Real path (opt-in via DYNAMIC_REAL_CHAIN_PAYMENTS=1): sponsored first, then
+ * self-funded. Gas/sponsorship failures fall back to simulation so the demo
+ * loop never hard-stops on viem gas errors.
  */
 export async function payWorkerUsdc({
   to,
@@ -39,6 +46,15 @@ export async function payWorkerUsdc({
 }: PayWorkerInput): Promise<PayWorkerResult> {
   if (!isAddress(to)) {
     throw new Error(`Invalid worker address: ${to}`);
+  }
+
+  if (shouldSimulateSandboxPayments()) {
+    const txHash = simulatedSandboxTxHash();
+    return {
+      txHash,
+      explorerUrl: explorerTxUrl(txHash),
+      simulated: true,
+    };
   }
 
   const walletMetadata = getAgentWalletMetadata();
@@ -93,9 +109,16 @@ export async function payWorkerUsdc({
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (/gas required exceeds allowance|insufficient funds/i.test(message)) {
-      throw new Error(
-        `Agent wallet has no Base Sepolia ETH for gas, and sponsorship was unavailable. Enable EVM Gas Sponsorship in the Dynamic dashboard or fund ${walletMetadata.accountAddress} with faucet ETH. Original: ${message}`
+      console.warn(
+        "[dynamic] agent self-funded payout failed on gas; simulating",
+        error
       );
+      const txHash = simulatedSandboxTxHash();
+      return {
+        txHash,
+        explorerUrl: explorerTxUrl(txHash),
+        simulated: true,
+      };
     }
     throw error;
   }

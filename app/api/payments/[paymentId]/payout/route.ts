@@ -131,7 +131,9 @@ export async function POST(
       jobId: job.id,
       txHash: payout.txHash,
       amountUsdcCents: payment.amountCents,
-      status: PAYOUT_STATUS.broadcast,
+      status: payout.simulated
+        ? PAYOUT_STATUS.simulated
+        : PAYOUT_STATUS.broadcast,
     }).catch((error) => {
       console.error(
         "[cascade] expert payout sent but not recorded",

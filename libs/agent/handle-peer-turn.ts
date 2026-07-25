@@ -785,7 +785,9 @@ export async function finalizePeerPayout(job: Job): Promise<PeerOutcome> {
         jobId: job.id,
         txHash: payout.txHash,
         amountUsdcCents: amount,
-        status: PAYOUT_STATUS.broadcast,
+        status: payout.simulated
+          ? PAYOUT_STATUS.simulated
+          : PAYOUT_STATUS.broadcast,
       }).catch((error) => {
         console.error(
           "[cascade] agent wallet payout sent but not recorded",
