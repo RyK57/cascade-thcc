@@ -12,6 +12,7 @@ import { getDynamicEnvironmentId } from "./config";
  * Env (all server-only):
  * - DYNAMIC_API_TOKEN / DYNAMIC_API_KEY   dashboard API token
  * - AGENT_WALLET_METADATA                 walletMetadata JSON printed by `pnpm agent:create-wallet`
+ * - AGENT_WALLET_KEY_SHARES               optional MPC shares for sponsored payouts
  * - AGENT_WALLET_PASSWORD                 password used when the wallet was created
  * - BASE_SEPOLIA_RPC_URL                  optional, defaults to the public Base Sepolia RPC
  */
@@ -33,11 +34,27 @@ type WalletMetadata = Parameters<
   DynamicEvmWalletClient["getWalletClient"]
 >[0]["walletMetadata"];
 
-function getAgentWalletMetadata(): WalletMetadata | undefined {
+export function getAgentWalletMetadata(): WalletMetadata | undefined {
   const raw = process.env.AGENT_WALLET_METADATA?.trim();
   if (!raw) return undefined;
   try {
     return JSON.parse(raw) as WalletMetadata;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Optional plaintext MPC shares for sponsored / server signing.
+ * Prefer this over round-tripping Dynamic backup recovery on every payout.
+ * Create via `pnpm agent:create-wallet` (prints AGENT_WALLET_KEY_SHARES).
+ */
+export function getAgentWalletKeyShares(): unknown[] | undefined {
+  const raw = process.env.AGENT_WALLET_KEY_SHARES?.trim();
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
