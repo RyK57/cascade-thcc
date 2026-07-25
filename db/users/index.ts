@@ -1,3 +1,4 @@
+import { SANDBOX_STARTING_CREDITS } from "@/libs/dynamic/sandbox";
 import { createClient } from "@/utils/supabase/server";
 import type { CreateUserInput, User } from "@/utils/schema/user";
 import { createUserSchema, USER_ROLE } from "@/utils/schema/user";
@@ -54,7 +55,7 @@ export async function createUser(input: CreateUserInput): Promise<User> {
       full_name: parsed.fullName,
       phone: parsed.phone,
       role: parsed.role ?? USER_ROLE.requester,
-      credit_balance: parsed.creditBalance ?? 0,
+      credit_balance: parsed.creditBalance ?? SANDBOX_STARTING_CREDITS,
       wallet_address: parsed.walletAddress,
       trust_score: parsed.trustScore ?? 50,
     })
