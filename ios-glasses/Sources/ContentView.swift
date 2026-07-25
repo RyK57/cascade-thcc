@@ -129,7 +129,11 @@ struct ContentView: View {
 
     private func finishVoiceTurn() async {
         let text = speech.stopRecording()
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else {
+            reply =
+                "Didn't catch any speech — check Settings → Cascade → Microphone & Speech Recognition are allowed, then hold the button while talking."
+            return
+        }
         await sendTurn(text: text, image: nil)
     }
 
@@ -142,6 +146,12 @@ struct ContentView: View {
     }
 
     private func sendTurn(text: String?, image: UIImage?) async {
+        let hasText = !(text ?? "").isEmpty
+        guard hasText || image != nil else {
+            reply =
+                "Nothing to send — no speech captured and no photo (camera permission?). Check Settings → Cascade permissions."
+            return
+        }
         busy = true
         defer { busy = false }
         do {

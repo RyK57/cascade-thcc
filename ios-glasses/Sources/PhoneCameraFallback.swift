@@ -25,7 +25,8 @@ final class PhoneCameraFallback: NSObject, AVCapturePhotoCaptureDelegate {
     }
 
     func capture() async -> UIImage? {
-        guard !session.inputs.isEmpty else { return nil }
+        let granted = await AVCaptureDevice.requestAccess(for: .video)
+        guard granted, !session.inputs.isEmpty else { return nil }
         if !session.isRunning {
             await withCheckedContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
