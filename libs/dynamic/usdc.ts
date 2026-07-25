@@ -1,4 +1,4 @@
-import { parseAbi } from "viem";
+import { parseAbi, type Address } from "viem";
 
 /**
  * Shared USDC-on-Base-Sepolia constants + pure helpers.
@@ -6,9 +6,10 @@ import { parseAbi } from "viem";
  */
 
 /** Circle's official USDC on Base Sepolia (6 decimals). */
-export const USDC_BASE_SEPOLIA =
+export const USDC_BASE_SEPOLIA = (
   process.env.DYNAMIC_SANDBOX_USDC_ADDRESS?.trim() ||
-  "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+) as Address;
 
 export const USDC_DECIMALS = 6;
 
