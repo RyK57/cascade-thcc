@@ -8,11 +8,10 @@ export const runtime = "nodejs";
 const bodySchema = z.object({ phone: z.string().min(6).max(40) });
 
 /**
- * Text a sign-in code to a number already in a thread with Cascade.
- *
- * Unknown numbers get the same 200 as known ones. Anything else turns this
- * endpoint into a "does this person use Cascade?" oracle, and the caller has
- * nothing useful to do with the difference anyway.
+ * Text a sign-in code to the number the person typed — a reply in their
+ * existing Cascade thread, or a fresh chat for a brand-new number (which also
+ * creates their account row). After the code is redeemed, the agent introduces
+ * itself on the new thread.
  */
 export async function POST(request: Request) {
   if (!isSupabaseAdminConfigured()) {
