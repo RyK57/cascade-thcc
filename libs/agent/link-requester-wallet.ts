@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getUserByPhone, upsertUserByPhone } from "@/db/users";
+import { ensureSandboxStartingBalance } from "@/libs/dynamic/sandbox-starting-balance";
 import { USER_ROLE } from "@/utils/schema/user";
 
 /**
@@ -44,6 +45,8 @@ export async function linkRequesterWallet(params: {
 
   const existing = await getUserByPhone(phone).catch(() => null);
   if (existing?.walletAddress?.toLowerCase() === walletAddress.toLowerCase()) {
+    // Already linked — still top up the one-time sandbox stipend if missing.
+    await ensureSandboxStartingBalance(existing);
     return;
   }
 
@@ -55,7 +58,7 @@ export async function linkRequesterWallet(params: {
     return;
   }
 
-  await upsertUserByPhone({
+  const linked = await upsertUserByPhone({
     phone,
     role: existing?.role ?? USER_ROLE.both,
     walletAddress,
@@ -64,4 +67,6 @@ export async function linkRequesterWallet(params: {
     fullName: existing?.fullName,
     email: existing?.email,
   });
+  // Dynamic web wallets are Cascade accounts too — give them the sandbox stipend.
+  await ensureSandboxStartingBalance(linked);
 }
