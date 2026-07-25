@@ -17,6 +17,7 @@ export {
   getSandboxRpcUrl,
   isDynamicSandboxConfigured,
   isServerWalletConfigured,
+  SANDBOX_STARTING_CREDITS,
 } from "./sandbox";
 export {
   ensureSandboxTreasury,
