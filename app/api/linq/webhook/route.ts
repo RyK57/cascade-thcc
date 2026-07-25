@@ -135,16 +135,39 @@ async function handleLocationShare(
   if (coords?.lat === undefined || coords?.lng === undefined) return;
 
   const job = await getJobByChatId(chatId);
-  if (job) {
-    await updateJob(job.id, {
-      requesterLat: coords.lat,
-      requesterLng: coords.lng,
+  if (!job) return;
+
+  await updateJob(job.id, {
+    requesterLat: coords.lat,
+    requesterLng: coords.lng,
+  });
+  await upsertUserByPhone({
+    phone: job.requesterHandle,
+    role: USER_ROLE.both,
+    lastLat: coords.lat,
+    lastLng: coords.lng,
+  });
+
+  // A share is often the whole reply: the agent asked, the person tapped
+  // Share in Messages, and no text will follow. If this share is what the job
+  // was missing, run a turn so the agent picks the thread back up instead of
+  // going silent. Repeat updates from a live share skip this — the job
+  // already carries coords by then, so one share continues at most one turn.
+  const hadCoords =
+    job.requesterLat !== undefined && job.requesterLng !== undefined;
+  if (hadCoords) return;
+
+  try {
+    await runAgentTurn({
+      kind: "text",
+      eventId: `location-share:${crypto.randomUUID()}`,
+      messageId: `location-share:${crypto.randomUUID()}`,
+      chatId,
+      senderHandle: job.requesterHandle,
+      text: "[Shared my location]",
     });
-    await upsertUserByPhone({
-      phone: job.requesterHandle,
-      role: USER_ROLE.both,
-      lastLat: coords.lat,
-      lastLng: coords.lng,
-    });
+  } catch (error) {
+    // Coords are already saved; a webhook retry cannot improve a failed turn.
+    console.error("[cascade] location follow-up turn failed", error);
   }
 }
