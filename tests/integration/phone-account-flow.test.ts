@@ -35,6 +35,9 @@ const links: StoredLink[] = [];
 const sessions: StoredSession[] = [];
 const cookieJar = new Map<string, string>();
 const sentMessages: { chatId: string; text: string }[] = [];
+const sentTexts: { from: string; to: string[]; text: string }[] = [];
+/** Every outbound in send order, whichever channel carried it. */
+const outbound: { text: string }[] = [];
 
 let jobForHandle: { linqChatId: string } | null = { linqChatId: "chat_1" };
 
@@ -129,10 +132,19 @@ vi.mock("@/db/jobs", () => ({
 
 vi.mock("@/libs/linq", () => ({
   isLinqConfigured: vi.fn(() => true),
+  getLinqFromNumber: vi.fn(() => "+15550004242"),
   sendChatMessage: vi.fn(async (params: { chatId: string; text: string }) => {
     sentMessages.push(params);
+    outbound.push(params);
     return { message: { id: "msg_1" } };
   }),
+  sendTextMessage: vi.fn(
+    async (params: { from: string; to: string[]; text: string }) => {
+      sentTexts.push(params);
+      outbound.push(params);
+      return { id: "chat_new" };
+    }
+  ),
 }));
 
 vi.mock("@/utils/supabase/admin", () => ({
@@ -167,12 +179,12 @@ function postJson(url: string, body: unknown): Request {
 
 /** Pull the code out of the message Cascade actually texted. */
 function textedCode(): string {
-  const match = sentMessages.at(-1)?.text.match(/(\d{6})/);
+  const match = outbound.at(-1)?.text.match(/(\d{6})/);
   return match?.[1] ?? "";
 }
 
 function textedToken(): string {
-  const match = sentMessages.at(-1)?.text.match(/\/l\/([A-Za-z0-9_-]+)/);
+  const match = outbound.at(-1)?.text.match(/\/l\/([A-Za-z0-9_-]+)/);
   return match?.[1] ?? "";
 }
 
@@ -180,6 +192,8 @@ beforeEach(() => {
   links.length = 0;
   sessions.length = 0;
   sentMessages.length = 0;
+  sentTexts.length = 0;
+  outbound.length = 0;
   cookieJar.clear();
   verifiedPhones.clear();
   jobForHandle = { linqChatId: "chat_1" };
@@ -212,6 +226,10 @@ describe("phone sign-in, end to end", () => {
 
     // The account is now verified, which is what unlocks the agent.
     expect(verifiedPhones.has(USER_ID)).toBe(true);
+
+    // First verification: the agent says hello in the same thread.
+    expect(sentMessages).toHaveLength(2);
+    expect(sentMessages[1].text).toContain("I'm Cascade");
   });
 
   it("leaves the phone unverified when the code is never redeemed", async () => {
@@ -276,19 +294,34 @@ describe("phone sign-in, end to end", () => {
     expect(sessions).toHaveLength(0);
   });
 
-  it("answers the same for a number that never texted Cascade", async () => {
+  it("signs up a brand-new number: first code, then the intro", async () => {
+    // The user's exact web flow: type a fresh number on the site, get the
+    // code in a new chat, verify — and the agent introduces itself there.
     jobForHandle = null;
 
-    const response = await requestCodeRoute(
+    const requested = await requestCodeRoute(
       postJson("https://cascade.test/api/account/code", {
         phone: "+15550001111",
       })
     );
+    expect(requested.status).toBe(200);
+    expect(sentTexts).toHaveLength(1);
+    expect(sentTexts[0].to).toEqual(["+15550001111"]);
+    expect(links).toHaveLength(1);
 
-    // No account-existence oracle, and no cold outbound text.
-    expect(response.status).toBe(200);
-    expect(sentMessages).toHaveLength(0);
-    expect(links).toHaveLength(0);
+    const verified = await verifyRoute(
+      postJson("https://cascade.test/api/account/verify", {
+        phone: "+15550001111",
+        code: textedCode(),
+      })
+    );
+    expect(verified.status).toBe(200);
+    expect(verifiedPhones.has(USER_ID)).toBe(true);
+
+    expect(sentTexts).toHaveLength(2);
+    expect(sentTexts[1].to).toEqual(["+15550001111"]);
+    expect(sentTexts[1].text).toContain("I'm Cascade");
+    expect(sentTexts[1].text).toMatch(/\?/);
   });
 });
 
