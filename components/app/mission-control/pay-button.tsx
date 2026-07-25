@@ -53,9 +53,8 @@ export function PayButton({
     setPhase("sending");
     try {
       let txHash = sentTxHash;
-      let simulated = true;
       if (!txHash) {
-        ({ txHash, simulated = true } = await payIntoEscrow({
+        ({ txHash } = await payIntoEscrow({
           walletAccount,
           agentAddress: agentAddress as `0x${string}`,
           amountCents,
@@ -71,7 +70,7 @@ export function PayButton({
           dynamicWalletAddress: walletAccount.address,
           txHash,
           escrowTxHash: txHash,
-          simulated,
+          simulated: false,
         }),
       });
       if (!response.ok) {
