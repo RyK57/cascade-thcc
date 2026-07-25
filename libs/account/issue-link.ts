@@ -24,12 +24,13 @@ export function siteUrl(): string {
 }
 
 /**
- * Mint a one-time login for a phone that is already in an iMessage thread with
- * Cascade. Returns both a tappable URL and a typed code: the link is the happy
- * path, the code is for "I'm on my laptop, not my phone".
+ * Mint a one-time login for a phone. Returns both a tappable URL and a typed
+ * code: the link is the happy path, the code is for "I'm on my laptop, not my
+ * phone".
  *
- * Only ever called for a handle we are already talking to — issuing these to an
- * arbitrary number would be exactly the cold outbound the channel forbids.
+ * The number does not need an existing thread — web sign-up types a fresh
+ * number and the code text it requested is solicited, not cold outbound. The
+ * upsert below is what creates that account row on first contact.
  */
 export async function issueAccountLink(params: {
   phone: string;
