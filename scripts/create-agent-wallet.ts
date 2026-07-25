@@ -10,13 +10,13 @@
  *
  * Then put the printed values in .env.local:
  * - AGENT_WALLET_METADATA='<one-line JSON>'
- * - AGENT_WALLET_KEY_SHARES='<one-line JSON>' (for sponsored / gasless payouts)
+ * - AGENT_WALLET_KEY_SHARES='<one-line JSON>' (for server-side signing)
  * - AGENT_WALLET_PASSWORD=...
  *
- * Prefer enabling EVM Gas Sponsorship in the Dynamic dashboard so the wallet
- * does not need faucet ETH. Fallback self-funded sends still need:
+ * Self-funded sends need:
  * - Gas: any Base Sepolia ETH faucet
  * - USDC arrives via escrow deposits (or https://faucet.circle.com)
+ * Run `pnpm agent:fund-gas` to check or top up the gas balance.
  */
 import type { DynamicEvmWalletClient } from "@dynamic-labs-wallet/node-evm";
 
@@ -64,7 +64,7 @@ async function main() {
     `AGENT_WALLET_KEY_SHARES='${JSON.stringify(externalServerKeyShares)}'`
   );
   console.log(
-    "\nEnable EVM Gas Sponsorship (Embedded Wallets) for Base Sepolia so payouts stay gasless. USDC arrives via escrow deposits."
+    "\nRun `pnpm agent:fund-gas` to fund Base Sepolia gas. USDC arrives via escrow deposits."
   );
 }
 
