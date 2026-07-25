@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ROUTES } from "@/lib/constants/routes";
+import { getLinqFromNumber } from "@/libs/linq/from-number";
 
 /**
  * The agent's number, if this deployment has one. Same variables the outbound
@@ -19,11 +20,7 @@ import { ROUTES } from "@/lib/constants/routes";
  * advertise a number the product can't actually answer on.
  */
 export function getAgentNumber(): string | null {
-  return (
-    process.env.LINQ_FROM_NUMBER?.trim() ||
-    process.env.LINQ_PHONE_NUMBER?.trim() ||
-    null
-  );
+  return getLinqFromNumber() ?? null;
 }
 
 function formatNumber(raw: string): string {
@@ -36,20 +33,34 @@ function formatNumber(raw: string): string {
 
 interface IMessageHandoffProps {
   number: string | null;
+  linkedPhone?: string;
+}
+
+export function getMessagesStatus(
+  number: string | null,
+  linkedPhone?: string
+): "Linked" | "Live" | "Unavailable" {
+  if (linkedPhone) return "Linked";
+  return number ? "Live" : "Unavailable";
 }
 
 /**
  * Messages channel panel. Jobs start when the person texts Cascade —
  * this is a handoff control, not a marketing CTA.
  */
-export function IMessageHandoff({ number }: IMessageHandoffProps) {
+export function IMessageHandoff({
+  number,
+  linkedPhone,
+}: IMessageHandoffProps) {
+  const status = getMessagesStatus(number, linkedPhone);
+
   return (
     <Card size="sm" className="h-full">
       <CardHeader className="border-b">
         <div className="flex items-center justify-between gap-3">
           <CardTitle as="h2">Messages</CardTitle>
-          <Badge variant={number ? "secondary" : "outline"}>
-            {number ? "Live" : "Unavailable"}
+          <Badge variant={status === "Unavailable" ? "outline" : "secondary"}>
+            {status}
           </Badge>
         </div>
         <CardDescription>
@@ -70,6 +81,13 @@ export function IMessageHandoff({ number }: IMessageHandoffProps) {
               wait for your explicit confirmation.
             </p>
           </>
+        ) : linkedPhone ? (
+          <div className="space-y-2">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Your verified phone, {formatNumber(linkedPhone)}, is linked.
+              Continue managing jobs in your existing Cascade thread.
+            </p>
+          </div>
         ) : (
           <p className="text-sm leading-relaxed text-muted-foreground">
             Texting isn’t wired in this environment. Open a payment link from
@@ -90,6 +108,13 @@ export function IMessageHandoff({ number }: IMessageHandoffProps) {
             </Button>
             <CopyButton value={number} label="Copy number" />
           </>
+        ) : linkedPhone ? (
+          <Button size="sm" asChild>
+            <a href="sms:">
+              <MessageSquare data-icon="inline-start" className="size-4" />
+              Open Messages
+            </a>
+          </Button>
         ) : (
           <Button variant="outline" size="sm" asChild>
             <Link href={`${ROUTES.home}#how-it-works`}>How it works</Link>
