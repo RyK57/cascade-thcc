@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getLatestJobByHandle } from "@/db/jobs";
-import { runAgentTurn } from "@/libs/agent";
+import { getLatestJobByHandle, updateJob } from "@/db/jobs";
+import {
+  AGENT_INTENT,
+  clipTitle,
+  interpretMessage,
+  runAgentTurn,
+} from "@/libs/agent";
 import { captionImage, isRunwareConfigured } from "@/libs/runware";
+import { JOB_STATUS } from "@/utils/schema/job";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
+
+/** Pre-funding states a fresh voice request may safely replace. */
+const VOICE_REPLACEABLE = new Set<string>([
+  JOB_STATUS.intake,
+  JOB_STATUS.quoted,
+  JOB_STATUS.paid,
+  JOB_STATUS.cancelled,
+  JOB_STATUS.draftReady,
+  "open",
+]);
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -83,6 +99,23 @@ export async function POST(request: Request) {
     }
     if (!text) {
       text = "I sent a photo from my glasses — ask me what I need done.";
+    }
+
+    // Voice from the glasses is almost always a NEW request. The iMessage
+    // flow keys turns to the chat's current job, so a freeform utterance
+    // while a job idles pre-funding reads as a status ping ("still open…").
+    // Reset such jobs to intake so the voice text triages fresh; funded or
+    // in-flight jobs are left untouched.
+    const intent = interpretMessage(text);
+    if (
+      intent === AGENT_INTENT.freeform &&
+      VOICE_REPLACEABLE.has(latestJob.status)
+    ) {
+      await updateJob(latestJob.id, {
+        status: JOB_STATUS.intake,
+        title: clipTitle(text),
+        description: text,
+      });
     }
 
     const result = await runAgentTurn({
