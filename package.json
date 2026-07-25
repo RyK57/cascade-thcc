@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:seed": "node --import tsx scripts/db-seed.ts",
+    "db:grant-sandbox-balance": "node --import tsx scripts/grant-sandbox-starting-balance.ts",
     "agent:create-wallet": "node --import tsx scripts/create-agent-wallet.ts"
   },
   "dependencies": {

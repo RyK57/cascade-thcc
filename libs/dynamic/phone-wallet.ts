@@ -1,25 +1,32 @@
 import { createHash } from "node:crypto";
 import { getUserByPhone, upsertUserByPhone } from "@/db/users";
 import { USER_ROLE, type User } from "@/utils/schema/user";
+import { SANDBOX_STARTING_CREDITS } from "./sandbox";
+import { ensureSandboxStartingBalance } from "./sandbox-starting-balance";
 
 /**
  * Ensure a sandbox wallet address exists for a phone-keyed user.
  * Dynamic pregen API when DYNAMIC_PREGEN_WALLETS=1; else deterministic placeholder.
+ * Also tops up the one-time $100 sandbox starting balance when missing.
  */
 export async function ensurePhoneWallet(phone: string): Promise<User> {
   const existing = await getUserByPhone(phone);
-  if (existing?.walletAddress) return existing;
+  if (existing?.walletAddress) {
+    return ensureSandboxStartingBalance(existing);
+  }
 
   const address = await createOrDeriveWalletAddress(phone);
-  return upsertUserByPhone({
+  const user = await upsertUserByPhone({
     phone,
     role: existing?.role ?? USER_ROLE.both,
     walletAddress: address,
-    creditBalance: existing?.creditBalance,
+    // New rows get the stipend; existing rows keep earned balance.
+    creditBalance: existing?.creditBalance ?? SANDBOX_STARTING_CREDITS,
     trustScore: existing?.trustScore,
     fullName: existing?.fullName,
     email: existing?.email,
   });
+  return ensureSandboxStartingBalance(user);
 }
 
 async function createOrDeriveWalletAddress(phone: string): Promise<string> {

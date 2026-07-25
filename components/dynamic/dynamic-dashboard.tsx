@@ -2,20 +2,14 @@
 
 import { useEffect } from "react";
 import type { EvmWalletAccount } from "@dynamic-labs-sdk/evm";
-import {
-  getActiveNetworkId,
-  switchActiveNetwork,
-} from "@dynamic-labs-sdk/client";
 import { useGetWalletAccounts, useUser } from "@dynamic-labs-sdk/react-hooks";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
-import { BASE_SEPOLIA_CHAIN_ID } from "@/libs/dynamic/sandbox";
+import { ensureBaseSepolia } from "@/libs/dynamic/ensure-base-sepolia";
 import { DynamicLogoutButton } from "./dynamic-logout-button";
 import { DynamicStatus } from "./dynamic-status";
 import { WalletAddress } from "./wallet-address";
-
-const BASE_SEPOLIA_NETWORK_ID = String(BASE_SEPOLIA_CHAIN_ID);
 
 interface WalletBalances {
   eth: string;
@@ -78,25 +72,10 @@ export function DynamicDashboard() {
   useEffect(() => {
     if (!evmAccount) return;
 
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const active = await getActiveNetworkId({ walletAccount: evmAccount });
-        if (cancelled || active.networkId === BASE_SEPOLIA_NETWORK_ID) return;
-        await switchActiveNetwork({
-          walletAccount: evmAccount,
-          networkId: BASE_SEPOLIA_NETWORK_ID,
-        });
-      } catch {
-        // Checkout still switches explicitly on pay; dashboard can show RPC
-        // balances even if the wallet network switch is blocked.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    void ensureBaseSepolia(evmAccount).catch(() => {
+      // Checkout still switches explicitly on pay; dashboard can show RPC
+      // balances even if the wallet network switch is blocked.
+    });
   }, [evmAccount]);
 
   const {

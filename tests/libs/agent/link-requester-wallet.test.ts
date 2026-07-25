@@ -2,10 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserByPhone = vi.fn();
 const upsertUserByPhone = vi.fn();
+const ensureSandboxStartingBalance = vi.fn(async (user: unknown) => user);
 
 vi.mock("@/db/users", () => ({
   getUserByPhone: (...args: unknown[]) => getUserByPhone(...args),
   upsertUserByPhone: (...args: unknown[]) => upsertUserByPhone(...args),
+}));
+
+vi.mock("@/libs/dynamic/sandbox-starting-balance", () => ({
+  ensureSandboxStartingBalance: (...args: unknown[]) =>
+    ensureSandboxStartingBalance(...args),
 }));
 
 import {
@@ -20,6 +26,11 @@ const REAL_WALLET = "0x1111111111111111111111111111111111111111";
 beforeEach(() => {
   vi.clearAllMocks();
   getUserByPhone.mockResolvedValue(null);
+  upsertUserByPhone.mockImplementation(async (input: { phone: string }) => ({
+    id: "user-1",
+    phone: input.phone,
+    creditBalance: 0,
+  }));
 });
 
 describe("isDerivedPlaceholder", () => {
@@ -52,12 +63,14 @@ describe("linkRequesterWallet", () => {
     expect(upsertUserByPhone).not.toHaveBeenCalled();
   });
 
-  it("skips a redundant write when already linked", async () => {
-    getUserByPhone.mockResolvedValue({ walletAddress: REAL_WALLET });
+  it("skips a redundant write when already linked but still grants stipend", async () => {
+    const existing = { id: "user-1", walletAddress: REAL_WALLET, creditBalance: 0 };
+    getUserByPhone.mockResolvedValue(existing);
 
     await linkRequesterWallet({ phone: PHONE, walletAddress: REAL_WALLET });
 
     expect(upsertUserByPhone).not.toHaveBeenCalled();
+    expect(ensureSandboxStartingBalance).toHaveBeenCalledWith(existing);
   });
 
   it("refuses to repoint an existing wallet without phone verification", async () => {

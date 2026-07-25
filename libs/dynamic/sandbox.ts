@@ -1,6 +1,12 @@
 /** Base Sepolia — Cascade never uses mainnet. */
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
+/**
+ * Closed-loop sandbox balance granted to every new account (credits ≈ USD).
+ * Not on-chain USDC — spendable via "pay with balance" / heart-approval.
+ */
+export const SANDBOX_STARTING_CREDITS = 100;
+
 /** Circle test USDC on Base Sepolia (public faucet token). */
 export const BASE_SEPOLIA_USDC_ADDRESS =
   process.env.DYNAMIC_SANDBOX_USDC_ADDRESS?.trim() ||
