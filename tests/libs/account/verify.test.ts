@@ -21,6 +21,12 @@ vi.mock("@/db/users", () => ({
   markPhoneVerified: (...args: unknown[]) => markPhoneVerified(...args),
 }));
 
+const sendAccountIntro = vi.fn();
+
+vi.mock("@/libs/account/send-intro", () => ({
+  sendAccountIntro: (...args: unknown[]) => sendAccountIntro(...args),
+}));
+
 import { hashCode, hashToken } from "@/libs/account/tokens";
 import {
   VERIFY_CODE_ERROR,
@@ -51,6 +57,7 @@ beforeEach(() => {
   recordCodeAttempt.mockResolvedValue(undefined);
   upsertUserByPhone.mockResolvedValue({ id: USER_ID });
   markPhoneVerified.mockResolvedValue({ id: USER_ID });
+  sendAccountIntro.mockResolvedValue(true);
 });
 
 describe("verifyLinkToken", () => {
@@ -147,6 +154,44 @@ describe("verifyPhoneCode", () => {
       phone: "+1 (512) 226-3512",
       code: "123456",
     });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("introduces the agent on the first verification only", async () => {
+    findLiveAccountLinkByPhone.mockResolvedValue({
+      link: link(),
+      codeHash: hashCode(PHONE, "123456"),
+    });
+
+    await verifyPhoneCode({ phone: PHONE, code: "123456" });
+
+    expect(sendAccountIntro).toHaveBeenCalledWith(PHONE);
+  });
+
+  it("stays quiet on a repeat sign-in", async () => {
+    // markPhoneVerified returns null when the stamp was already set — the
+    // greeting must ride that, not fire on every login.
+    markPhoneVerified.mockResolvedValue(null);
+    findLiveAccountLinkByPhone.mockResolvedValue({
+      link: link(),
+      codeHash: hashCode(PHONE, "123456"),
+    });
+
+    const result = await verifyPhoneCode({ phone: PHONE, code: "123456" });
+
+    expect(result.ok).toBe(true);
+    expect(sendAccountIntro).not.toHaveBeenCalled();
+  });
+
+  it("still signs in when the intro cannot be sent", async () => {
+    sendAccountIntro.mockRejectedValue(new Error("linq down"));
+    findLiveAccountLinkByPhone.mockResolvedValue({
+      link: link(),
+      codeHash: hashCode(PHONE, "123456"),
+    });
+
+    const result = await verifyPhoneCode({ phone: PHONE, code: "123456" });
 
     expect(result.ok).toBe(true);
   });
