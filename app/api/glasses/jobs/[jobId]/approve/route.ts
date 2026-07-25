@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getJobById } from "@/db/jobs";
-import { runAgentTurn } from "@/libs/agent";
+import { getPaymentByJobId } from "@/db/payments";
+import { runAgentTurn, settlePayment } from "@/libs/agent";
 import { isLinqConfigured } from "@/libs/linq";
+import { JOB_STATUS } from "@/utils/schema/job";
+import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import { isSupabaseAdminConfigured } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -53,6 +56,19 @@ export async function POST(request: Request, context: RouteContext) {
       reactionId: `glasses:${jobId}:${crypto.randomUUID()}`,
       isAffirm: true,
     });
+
+    // DEMO MODE: a pinch on the HUD shouldn't detour through the pay page —
+    // auto-settle sandbox escrow when the approve parks in payment_pending.
+    const after = await getJobById(jobId);
+    if (after?.status === JOB_STATUS.paymentPending) {
+      const payment = await getPaymentByJobId(jobId);
+      if (payment) {
+        await settlePayment({
+          paymentId: payment.id,
+          status: PAYMENT_STATUS.settled,
+        });
+      }
+    }
 
     return NextResponse.json({ ok: true, action: result.action });
   } catch (error) {

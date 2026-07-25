@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getLatestJobByHandle, updateJob } from "@/db/jobs";
+import { getJobById, getLatestJobByHandle, updateJob } from "@/db/jobs";
+import { getPaymentByJobId } from "@/db/payments";
+import { settlePayment } from "@/libs/agent";
+import { PAYMENT_STATUS } from "@/utils/schema/payment";
 import {
   AGENT_INTENT,
   clipTitle,
@@ -127,11 +130,31 @@ export async function POST(request: Request) {
       text,
     });
 
+    // DEMO MODE: hands-free flows shouldn't detour through the pay page —
+    // auto-settle sandbox escrow the moment a glasses turn parks a job in
+    // payment_pending. Peer jobs broadcast, expert jobs close paid, confetti
+    // lands in the thread.
+    let autoSettled = false;
+    if (result.jobId) {
+      const job = await getJobById(result.jobId);
+      if (job?.status === JOB_STATUS.paymentPending) {
+        const payment = await getPaymentByJobId(job.id);
+        if (payment) {
+          await settlePayment({
+            paymentId: payment.id,
+            status: PAYMENT_STATUS.settled,
+          });
+          autoSettled = true;
+        }
+      }
+    }
+
     // Voice-safe reply: TTS reading a URL (with a job UUID) is gibberish.
     // Strip links; the full link is already in the iMessage thread.
-    const rawReply =
-      result.reply ??
-      "Done — check your Cascade thread in Messages for the details.";
+    const rawReply = autoSettled
+      ? "Escrow settled in sandbox — you're all set. It's live now."
+      : result.reply ??
+        "Done — check your Cascade thread in Messages for the details.";
     const hadLink = /https?:\/\/\S+/.test(rawReply);
     let reply = rawReply
       .replace(/https?:\/\/\S+/g, "")
