@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import type { EvmWalletAccount } from "@dynamic-labs-sdk/evm";
 import { useGetWalletAccounts, useUser } from "@dynamic-labs-sdk/react-hooks";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants/routes";
 import { ensureBaseSepolia } from "@/libs/dynamic/ensure-base-sepolia";
 import { DynamicLogoutButton } from "./dynamic-logout-button";
@@ -15,6 +14,10 @@ interface WalletBalances {
   eth: string;
   usdc: string;
 }
+
+// Demo-only closed-loop balance. Keep this independent of faucet USDC while
+// the sandbox payout rail is being exercised.
+export const SANDBOX_DISPLAY_BALANCE_USDC = "100.00";
 
 async function fetchWalletBalances(address: string): Promise<WalletBalances> {
   const response = await fetch(
@@ -38,15 +41,6 @@ function formatEth(value: string): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
   return n.toFixed(4);
-}
-
-function formatUsdc(value: string): string {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return value;
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 /**
@@ -82,7 +76,6 @@ export function DynamicDashboard() {
     data: balances,
     isLoading: loadingBalance,
     isError: balanceFailed,
-    refetch: refetchBalance,
   } = useQuery({
     queryKey: ["wallet-balances", address],
     queryFn: () => fetchWalletBalances(address!),
@@ -137,36 +130,18 @@ export function DynamicDashboard() {
         <div className="space-y-1.5">
           <dt className="label-caps text-muted-foreground">Balance</dt>
           <dd className="text-sm">
-            {!address ? (
-              <span className="text-muted-foreground">
-                Available once the wallet exists
-              </span>
-            ) : balanceFailed ? (
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground">
-                  Couldn’t load balances just now
-                </span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => void refetchBalance()}
-                >
-                  Retry
-                </Button>
-              </span>
-            ) : loadingBalance ? (
-              <span
-                aria-hidden
-                className="block h-6 w-40 animate-pulse rounded-sm bg-foreground/10"
-              />
-            ) : (
-              <span className="font-mono text-base text-foreground">
-                {formatUsdc(balances?.usdc ?? "0")} USDC
+            <span className="font-mono text-base text-foreground">
+              {SANDBOX_DISPLAY_BALANCE_USDC} USDC
+              {address ? (
                 <span className="ml-2 text-sm text-muted-foreground">
-                  · {formatEth(balances?.eth ?? "0")} ETH
+                  {balanceFailed
+                    ? "· ETH unavailable"
+                    : loadingBalance
+                      ? "· ETH loading…"
+                      : `· ${formatEth(balances?.eth ?? "0")} ETH`}
                 </span>
-              </span>
-            )}
+              ) : null}
+            </span>
           </dd>
         </div>
       </dl>
