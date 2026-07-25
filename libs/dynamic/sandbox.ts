@@ -1,3 +1,5 @@
+import { USDC_BASE_SEPOLIA } from "./usdc";
+
 /** Base Sepolia — Cascade never uses mainnet. */
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
@@ -7,10 +9,8 @@ export const BASE_SEPOLIA_CHAIN_ID = 84532;
  */
 export const SANDBOX_STARTING_CREDITS = 100;
 
-/** Circle test USDC on Base Sepolia (public faucet token). */
-export const BASE_SEPOLIA_USDC_ADDRESS =
-  process.env.DYNAMIC_SANDBOX_USDC_ADDRESS?.trim() ||
-  "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+/** Circle test USDC on Base Sepolia — same source as client-safe `USDC_BASE_SEPOLIA`. */
+export const BASE_SEPOLIA_USDC_ADDRESS = USDC_BASE_SEPOLIA;
 
 export const BASE_SEPOLIA_EXPLORER = "https://sepolia.basescan.org";
 
