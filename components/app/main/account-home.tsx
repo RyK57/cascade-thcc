@@ -47,7 +47,10 @@ export async function AccountHome({ identity }: AccountHomeProps) {
         <AccountJobs jobs={jobs} payments={payments} />
       </section>
 
-      <IMessageHandoff number={number} />
+      <IMessageHandoff
+        number={number}
+        linkedPhone={identity.session.phone}
+      />
       <WalletSection />
     </div>
   );
