@@ -6,6 +6,7 @@ import {
 } from "@/db/accounts";
 import { markPhoneVerified, upsertUserByPhone } from "@/db/users";
 import type { AccountLink } from "@/utils/schema/account";
+import { sendAccountIntro } from "./send-intro";
 import { hashCode, hashesMatch, hashToken, normalizePhone } from "./tokens";
 
 export interface VerifiedChallenge {
@@ -23,9 +24,19 @@ async function resolveUserId(link: AccountLink): Promise<string> {
   const userId =
     link.userId ?? (await upsertUserByPhone({ phone: link.phone })).id;
 
-  await markPhoneVerified(userId).catch((error) => {
+  const firstVerification = await markPhoneVerified(userId).catch((error) => {
     console.warn("[cascade] marking phone verified failed", error);
+    return null;
   });
+
+  // markPhoneVerified returns a row only the first time a number verifies, so
+  // the greeting rides that: exactly one intro per account, never on re-login.
+  // Sign-in must never fail because a hello could not be sent.
+  if (firstVerification) {
+    await sendAccountIntro(link.phone).catch((error) => {
+      console.warn("[cascade] account intro failed", error);
+    });
+  }
 
   return userId;
 }

@@ -37,7 +37,7 @@ export function PhoneLoginForm({ nextPath, expired }: PhoneLoginFormProps) {
     setError(undefined);
 
     if (phone.replace(/[^\d]/g, "").length < 7) {
-      setError("Enter the phone number you text Cascade from.");
+      setError("Enter your phone number.");
       return;
     }
 
@@ -102,7 +102,7 @@ export function PhoneLoginForm({ nextPath, expired }: PhoneLoginFormProps) {
     return (
       <AuthCard
         title="Enter your code"
-        description={`We texted a 6-digit code to ${phone} in your Cascade thread.`}
+        description={`We texted a 6-digit code to ${phone}.`}
         footer={
           <button
             type="button"
@@ -144,7 +144,7 @@ export function PhoneLoginForm({ nextPath, expired }: PhoneLoginFormProps) {
   return (
     <AuthCard
       title="Sign in with your phone"
-      description="Cascade texts a code to the thread you already use. No password to remember."
+      description="Cascade texts you a code. No password to remember."
       footer={
         <>
           Running the operator console?{" "}
@@ -162,7 +162,8 @@ export function PhoneLoginForm({ nextPath, expired }: PhoneLoginFormProps) {
           </AuthNotice>
         ) : (
           <AuthNotice icon={MessageSquare}>
-            Use the number you text Cascade from — that thread is your account.
+            New here? Cascade will text your first code and introduce itself —
+            that thread becomes your account.
           </AuthNotice>
         )}
 

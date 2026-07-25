@@ -1,5 +1,6 @@
 export { checkIMessage } from "./check-imessage";
 export { createLinqClient, isLinqConfigured } from "./client";
+export { getLinqFromNumber } from "./from-number";
 export {
   haversineKm,
   needsLocationHint,
