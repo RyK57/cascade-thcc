@@ -8,10 +8,15 @@
  *   NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=... DYNAMIC_API_KEY=... \
  *   AGENT_WALLET_PASSWORD=... pnpm agent:create-wallet
  *
- * Then put the printed walletMetadata JSON in .env.local as
- * AGENT_WALLET_METADATA='<one-line JSON>' and fund the address:
+ * Then put the printed values in .env.local:
+ * - AGENT_WALLET_METADATA='<one-line JSON>'
+ * - AGENT_WALLET_KEY_SHARES='<one-line JSON>' (for sponsored / gasless payouts)
+ * - AGENT_WALLET_PASSWORD=...
+ *
+ * Prefer enabling EVM Gas Sponsorship in the Dynamic dashboard so the wallet
+ * does not need faucet ETH. Fallback self-funded sends still need:
  * - Gas: any Base Sepolia ETH faucet
- * - USDC: https://faucet.circle.com (Base Sepolia)
+ * - USDC arrives via escrow deposits (or https://faucet.circle.com)
  */
 import type { DynamicEvmWalletClient } from "@dynamic-labs-wallet/node-evm";
 
@@ -43,19 +48,23 @@ async function main() {
   const client = new Client({ environmentId });
   await client.authenticateApiToken(apiToken);
 
-  const { walletMetadata } = await client.createWalletAccount({
-    thresholdSignatureScheme:
-      "TWO_OF_TWO" as CreateWalletArgs["thresholdSignatureScheme"],
-    password,
-    backUpToDynamic: true,
-  });
+  const { walletMetadata, externalServerKeyShares } =
+    await client.createWalletAccount({
+      thresholdSignatureScheme:
+        "TWO_OF_TWO" as CreateWalletArgs["thresholdSignatureScheme"],
+      password,
+      backUpToDynamic: true,
+    });
 
   console.log("Agent wallet created.");
   console.log("Address:", walletMetadata.accountAddress);
-  console.log("\nAdd this line to .env.local (single line, single quotes):");
+  console.log("\nAdd these lines to .env.local (single line, single quotes):");
   console.log(`AGENT_WALLET_METADATA='${JSON.stringify(walletMetadata)}'`);
   console.log(
-    "\nThen fund the address above with Base Sepolia ETH (gas) — its USDC arrives via escrow deposits."
+    `AGENT_WALLET_KEY_SHARES='${JSON.stringify(externalServerKeyShares)}'`
+  );
+  console.log(
+    "\nEnable EVM Gas Sponsorship (Embedded Wallets) for Base Sepolia so payouts stay gasless. USDC arrives via escrow deposits."
   );
 }
 
