@@ -76,13 +76,33 @@ final class SpeechManager: NSObject, ObservableObject {
         request?.endAudio()
         task?.finish()
         isRecording = false
+        if !synthesizer.isSpeaking { deactivateSession() }
         return transcript
+    }
+
+    /// Ends HFP so iOS drops the call-style indicator when idle.
+    private func deactivateSession() {
+        try? AVAudioSession.sharedInstance().setActive(
+            false, options: .notifyOthersOnDeactivation
+        )
     }
 
     func speak(_ text: String) {
         try? activateSession()
+        synthesizer.delegate = self
         let utterance = AVSpeechUtterance(string: text)
         utterance.rate = 0.5
         synthesizer.speak(utterance)
+    }
+}
+
+extension SpeechManager: AVSpeechSynthesizerDelegate {
+    nonisolated func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        didFinish utterance: AVSpeechUtterance
+    ) {
+        Task { @MainActor in
+            if !self.isRecording { self.deactivateSession() }
+        }
     }
 }
