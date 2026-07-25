@@ -19,6 +19,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     glassesCard
+                    handsFreeCard
                     talkCard
                     if !speech.transcript.isEmpty {
                         Text("“\(speech.transcript)”")
@@ -91,6 +92,46 @@ struct ContentView: View {
         .padding()
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var handsFreeCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: Binding(
+                get: { speech.handsFree },
+                set: { enabled in
+                    speech.onUtterance = { heard in
+                        Task { await handleHandsFreeUtterance(heard) }
+                    }
+                    speech.setHandsFree(enabled)
+                }
+            )) {
+                Label("Hands-free — say “Cascade …”", systemImage: "ear")
+                    .font(.headline)
+            }
+            if speech.handsFree {
+                Text(
+                    "Phone can stay in your pocket. Say “Cascade, find someone to…” then pause. Say “Cascade, yes” to approve."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Wake-word gate: only utterances addressed to "Cascade" are sent.
+    private func handleHandsFreeUtterance(_ heard: String) async {
+        let lower = heard.lowercased()
+        guard let range = lower.range(of: "cascade") else {
+            speech.restartHandsFreeListening(after: 0.2)
+            return
+        }
+        var command = String(heard[range.upperBound...])
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ,.!?"))
+        if command.isEmpty { command = "What can you do?" }
+        await sendTurn(text: command, image: nil)
     }
 
     private var talkCard: some View {
