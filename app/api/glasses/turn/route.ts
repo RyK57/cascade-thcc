@@ -127,13 +127,26 @@ export async function POST(request: Request) {
       text,
     });
 
+    // Voice-safe reply: TTS reading a URL (with a job UUID) is gibberish.
+    // Strip links; the full link is already in the iMessage thread.
+    const rawReply =
+      result.reply ??
+      "Done — check your Cascade thread in Messages for the details.";
+    const hadLink = /https?:\/\/\S+/.test(rawReply);
+    let reply = rawReply
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+([.,!?])/g, "$1")
+      .trim();
+    if (hadLink) {
+      reply = `${reply} I put the link in your Messages thread.`;
+    }
+
     return NextResponse.json({
       ok: true,
       action: result.action,
       jobId: result.jobId,
-      reply:
-        result.reply ??
-        "Done — check your Cascade thread in Messages for the details.",
+      reply,
     });
   } catch (error) {
     console.error("[cascade] glasses turn failed", error);
