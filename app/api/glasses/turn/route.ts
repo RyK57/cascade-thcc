@@ -52,49 +52,66 @@ export async function POST(request: Request) {
     );
   }
 
-  // The wearer must have an existing Cascade thread (sandbox is inbound-first).
-  const latestJob = await getLatestJobByHandle(handle);
-  if (!latestJob) {
+  // Everything past validation can throw (Supabase, Runware, the agent's
+  // final Linq send — which fails outright when Linq is unconfigured or the
+  // sandbox daily cap trips). The glasses client can only speak JSON, so an
+  // escaped throw must not become Next's HTML 500 page.
+  try {
+    // The wearer must have an existing Cascade thread (sandbox is inbound-first).
+    const latestJob = await getLatestJobByHandle(handle);
+    if (!latestJob) {
+      return NextResponse.json(
+        {
+          reply:
+            "I don't have a Cascade thread for this number yet — text the Cascade number once first.",
+          ok: false,
+        },
+        { status: 404 }
+      );
+    }
+
+    if (imageDataUri && isRunwareConfigured()) {
+      const caption = await captionImage(
+        imageDataUri,
+        "Describe what the wearer of smart glasses is looking at, as context for a task request. Note objects, text, and problems visible."
+      );
+      if (caption) {
+        text = text
+          ? `${text}\n[Looking at: ${caption}]`
+          : `[Looking at: ${caption}] Figure out what task I need from this.`;
+      }
+    }
+    if (!text) {
+      text = "I sent a photo from my glasses — ask me what I need done.";
+    }
+
+    const result = await runAgentTurn({
+      kind: "text",
+      eventId: `glasses-turn:${crypto.randomUUID()}`,
+      messageId: `glasses-turn:${crypto.randomUUID()}`,
+      chatId: latestJob.linqChatId,
+      senderHandle: handle,
+      text,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      action: result.action,
+      jobId: result.jobId,
+      reply:
+        result.reply ??
+        "Done — check your Cascade thread in Messages for the details.",
+    });
+  } catch (error) {
+    console.error("[cascade] glasses turn failed", error);
     return NextResponse.json(
       {
-        reply:
-          "I don't have a Cascade thread for this number yet — text the Cascade number once first.",
         ok: false,
+        error: "Turn failed",
+        reply:
+          "Something went wrong handling that — try again in a moment, or text the Cascade number directly.",
       },
-      { status: 404 }
+      { status: 500 }
     );
   }
-
-  if (imageDataUri && isRunwareConfigured()) {
-    const caption = await captionImage(
-      imageDataUri,
-      "Describe what the wearer of smart glasses is looking at, as context for a task request. Note objects, text, and problems visible."
-    );
-    if (caption) {
-      text = text
-        ? `${text}\n[Looking at: ${caption}]`
-        : `[Looking at: ${caption}] Figure out what task I need from this.`;
-    }
-  }
-  if (!text) {
-    text = "I sent a photo from my glasses — ask me what I need done.";
-  }
-
-  const result = await runAgentTurn({
-    kind: "text",
-    eventId: `glasses-turn:${crypto.randomUUID()}`,
-    messageId: `glasses-turn:${crypto.randomUUID()}`,
-    chatId: latestJob.linqChatId,
-    senderHandle: handle,
-    text,
-  });
-
-  return NextResponse.json({
-    ok: true,
-    action: result.action,
-    jobId: result.jobId,
-    reply:
-      result.reply ??
-      "Done — check your Cascade thread in Messages for the details.",
-  });
 }
