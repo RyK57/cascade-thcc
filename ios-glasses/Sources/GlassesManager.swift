@@ -14,6 +14,7 @@ final class GlassesManager: ObservableObject {
     }
 
     private var session: DeviceSession?
+    private var selector: AutoDeviceSelector?
     private var stream: MWDATCamera.Stream?
     private var tokens: [any AnyListenerToken] = []
     private var photoContinuation: CheckedContinuation<UIImage?, Never>?
@@ -119,9 +120,24 @@ final class GlassesManager: ObservableObject {
                     return
                 }
             }
-            let session = try wearables.createSession(
-                deviceSelector: AutoDeviceSelector(wearables: wearables)
-            )
+            // The selector resolves its active device asynchronously — creating
+            // a session before it resolves throws noEligibleDevice (per Meta's
+            // sample, which monitors activeDeviceStream before getSession).
+            let selector = self.selector ?? AutoDeviceSelector(wearables: wearables)
+            self.selector = selector
+            var waited = 0
+            while selector.activeDevice == nil && waited < 24 {
+                statusText = "Waiting for glasses to become active… \(waited / 2)s"
+                try? await Task.sleep(for: .milliseconds(500))
+                waited += 1
+            }
+            guard selector.activeDevice != nil else {
+                statusText =
+                    "Glasses visible but never became the active device (10s). Close other glasses apps, toggle the glasses off/on in Meta AI, then retry.\n\(wearablesDeviceSummary())"
+                return
+            }
+
+            let session = try wearables.createSession(deviceSelector: selector)
             // Capture the stream before start() — no replay on state events.
             let states = session.stateStream()
             try session.start()
