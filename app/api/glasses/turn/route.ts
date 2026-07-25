@@ -184,6 +184,24 @@ export async function POST(request: Request) {
       reply = `${reply} I put the link in your Messages thread.`;
     }
 
+    // Mirror the reply onto the glasses HUD ("the real method": text on the
+    // display). Same upsert trick as live captions; HUD polls it every 1s.
+    if (result.jobId) {
+      const { createAdminClient } = await import("@/utils/supabase/admin");
+      await createAdminClient()
+        .from("job_messages")
+        .upsert(
+          {
+            job_id: result.jobId,
+            linq_message_id: `live-reply:${handle}`,
+            direction: "outbound",
+            body: reply,
+            created_at: new Date().toISOString(),
+          },
+          { onConflict: "linq_message_id" }
+        );
+    }
+
     return NextResponse.json({
       ok: true,
       action: result.action,

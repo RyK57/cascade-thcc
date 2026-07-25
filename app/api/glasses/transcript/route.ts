@@ -50,22 +50,34 @@ export async function POST(request: Request) {
 
 export async function GET() {
   if (!isSupabaseAdminConfigured()) {
-    return NextResponse.json({ text: null });
+    return NextResponse.json({ text: null, reply: null });
   }
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("job_messages")
-    .select("body, created_at")
-    .like("linq_message_id", `${LIVE_PREFIX}%`)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [caption, reply] = await Promise.all([
+    supabase
+      .from("job_messages")
+      .select("body, created_at")
+      .like("linq_message_id", `${LIVE_PREFIX}%`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("job_messages")
+      .select("body, created_at")
+      .like("linq_message_id", "live-reply:%")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-  if (!data) return NextResponse.json({ text: null });
-  const ageSeconds =
-    (Date.now() - new Date(data.created_at).getTime()) / 1000;
+  const fresh = (row: { body: string; created_at: string } | null, ttl: number) =>
+    row && (Date.now() - new Date(row.created_at).getTime()) / 1000 < ttl
+      ? row.body
+      : null;
+
   return NextResponse.json({
-    text: ageSeconds < 8 ? data.body : null,
-    ageSeconds,
+    text: fresh(caption.data, 8),
+    // Replies linger longer — they're the answer, not a live caption.
+    reply: fresh(reply.data, 25),
   });
 }
