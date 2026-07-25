@@ -5,6 +5,10 @@ import type { EvmWalletAccount } from "@dynamic-labs-sdk/evm";
 import { createWalletClientForWalletAccount } from "@dynamic-labs-sdk/evm/viem";
 import { ensureBaseSepolia } from "@/libs/dynamic/ensure-base-sepolia";
 import {
+  shouldSimulateSandboxPayments,
+  simulatedSandboxTxHash,
+} from "@/libs/dynamic/sandbox-payments";
+import {
   ERC20_TRANSFER_ABI,
   USDC_BASE_SEPOLIA,
   usdcUnitsFromCents,
@@ -17,15 +21,24 @@ export interface PayIntoEscrowInput {
   amountCents: number;
 }
 
+export interface PayIntoEscrowResult {
+  txHash: string;
+  simulated?: boolean;
+}
+
 /**
- * Requester → agent escrow: on-chain USDC transfer from the user's embedded
- * WaaS wallet on Base Sepolia. Runs entirely client-side via the Dynamic SDK.
+ * Requester → agent escrow. Default is simulated (no on-chain gas) until
+ * Dynamic sponsorship / faucet ETH is reliable again.
  */
 export async function payIntoEscrow({
   walletAccount,
   agentAddress,
   amountCents,
-}: PayIntoEscrowInput): Promise<{ txHash: string }> {
+}: PayIntoEscrowInput): Promise<PayIntoEscrowResult> {
+  if (shouldSimulateSandboxPayments()) {
+    return { txHash: simulatedSandboxTxHash(), simulated: true };
+  }
+
   await ensureBaseSepolia(walletAccount);
 
   const walletClient = await createWalletClientForWalletAccount({
