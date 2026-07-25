@@ -109,10 +109,12 @@ export async function getAgentWalletClient() {
     );
   }
   const client = await getAgentEvmClient();
+  const keyShares = getAgentWalletKeyShares();
   return client.getWalletClient({
     walletMetadata,
     chainId: BASE_SEPOLIA_CHAIN_ID,
     rpcUrl: getBaseSepoliaRpcUrl(),
+    ...(keyShares ? { externalServerKeyShares: keyShares } : {}),
     ...(process.env.AGENT_WALLET_PASSWORD?.trim()
       ? { password: process.env.AGENT_WALLET_PASSWORD.trim() }
       : {}),
