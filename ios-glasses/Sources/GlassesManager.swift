@@ -9,7 +9,9 @@ import UIKit
 @MainActor
 final class GlassesManager: ObservableObject {
     @Published var isConnected = false
-    @Published var statusText = "Glasses: not connected"
+    @Published var statusText = "Glasses: not connected" {
+        didSet { print("[cascade-glasses] \(statusText)") }
+    }
 
     private var session: DeviceSession?
     private var stream: MWDATCamera.Stream?
@@ -83,11 +85,37 @@ final class GlassesManager: ObservableObject {
 
             let wearables = Wearables.shared
             let deviceCount = wearables.devices.count
-            statusText = "Devices seen: \(deviceCount) — starting session…"
+            statusText = "Devices seen: \(deviceCount) — checking compatibility…"
             if deviceCount == 0 {
                 statusText =
                     "Devices seen: 0 — open Meta AI app, confirm glasses show Connected, and check Cascade's Bluetooth + Local Network toggles in iOS Settings."
                 return
+            }
+
+            // Diagnose each visible device before trying a session.
+            for identifier in wearables.devices {
+                guard let device = wearables.deviceForIdentifier(identifier)
+                else { continue }
+                let compat = device.compatibility()
+                let link = device.linkState
+                statusText =
+                    "\(device.nameOrId()): link=\(link), compat=\(compat.displayString)"
+                if compat == .deviceUpdateRequired {
+                    statusText =
+                        "\(device.nameOrId()) needs a glasses software update — opening Meta AI update screen…"
+                    try? await Wearables.shared.openFirmwareUpdate()
+                    return
+                }
+                if compat == .sdkUpdateRequired {
+                    statusText =
+                        "\(device.nameOrId()): app SDK too old for this device (sdkUpdateRequired)."
+                    return
+                }
+                if link == .disconnected {
+                    statusText =
+                        "\(device.nameOrId()) is paired but disconnected — wake the glasses (open hinges/wear them) and check Meta AI shows Connected."
+                    return
+                }
             }
             let session = try wearables.createSession(
                 deviceSelector: AutoDeviceSelector(wearables: wearables)

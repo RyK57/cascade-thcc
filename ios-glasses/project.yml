@@ -38,6 +38,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: Needed to connect to Meta AI Glasses.
         NSLocalNetworkUsageDescription: This allows your phone to find and connect to your glasses over Wi-Fi.
         NSBonjourServices: [_bonjour._tcp]
+        UISupportedExternalAccessoryProtocols: [com.meta.ar.wearable]
         UIBackgroundModes: [processing, bluetooth-central, bluetooth-peripheral]
         LSApplicationQueriesSchemes: [fb-viewapp]
         CFBundleURLTypes:
