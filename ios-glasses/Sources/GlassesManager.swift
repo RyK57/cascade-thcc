@@ -93,13 +93,15 @@ final class GlassesManager: ObservableObject {
             }
 
             // Diagnose each visible device before trying a session.
+            var deviceInfo = ""
             for identifier in wearables.devices {
                 guard let device = wearables.deviceForIdentifier(identifier)
                 else { continue }
                 let compat = device.compatibility()
                 let link = device.linkState
-                statusText =
+                deviceInfo =
                     "\(device.nameOrId()): link=\(link), compat=\(compat.displayString)"
+                statusText = deviceInfo
                 if compat == .deviceUpdateRequired {
                     statusText =
                         "\(device.nameOrId()) needs a glasses software update — opening Meta AI update screen…"
@@ -136,8 +138,20 @@ final class GlassesManager: ObservableObject {
             isConnected = true
             statusText = "Glasses: connected"
         } catch {
-            statusText = "Glasses: \(error.localizedDescription)"
+            // Keep the device diagnostics visible alongside the failure.
+            let info = wearablesDeviceSummary()
+            statusText = "Glasses: \(error.localizedDescription)\n\(info)"
         }
+    }
+
+    private func wearablesDeviceSummary() -> String {
+        let wearables = Wearables.shared
+        let parts = wearables.devices.compactMap { identifier -> String? in
+            guard let device = wearables.deviceForIdentifier(identifier)
+            else { return nil }
+            return "\(device.nameOrId()): link=\(device.linkState), compat=\(device.compatibility().displayString)"
+        }
+        return parts.isEmpty ? "(no devices visible)" : parts.joined(separator: " · ")
     }
 
     func disconnect() {
