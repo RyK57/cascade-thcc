@@ -43,8 +43,8 @@ function simulatedEscrowHash(paymentId: string): string {
 
 /**
  * Sandbox fund confirm — locks escrow in the Cascade agent wallet (or treasury
- * fallback). Peer → funded+broadcast (no worker pay). Expert → paid.
- * Accepts a real Base Sepolia `txHash` from Mission Control when available.
+ * fallback). Peer → funded+broadcast (no worker pay). Expert → payment_pending
+ * until release. Accepts a real Base Sepolia `txHash` from Mission Control.
  */
 export async function POST(request: Request, context: RouteContext) {
   const unavailable = guardConfigured();
