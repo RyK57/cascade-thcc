@@ -1,3 +1,4 @@
+import { SANDBOX_STARTING_CREDITS } from "@/libs/dynamic/sandbox";
 import { createAdminClient } from "@/utils/supabase/admin";
 import type { CreateUserInput, User } from "@/utils/schema/user";
 import { createUserSchema, USER_ROLE } from "@/utils/schema/user";
@@ -60,7 +61,7 @@ export async function upsertUserByPhone(
       full_name: parsed.fullName,
       phone,
       role: parsed.role ?? USER_ROLE.requester,
-      credit_balance: parsed.creditBalance ?? 0,
+      credit_balance: parsed.creditBalance ?? SANDBOX_STARTING_CREDITS,
       wallet_address: parsed.walletAddress,
       trust_score: parsed.trustScore ?? 50,
       last_lat: parsed.lastLat,
