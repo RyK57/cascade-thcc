@@ -48,6 +48,25 @@ export function peerFundedReply(title: string): string {
 }
 
 /**
+ * Fund succeeded but the broadcast reached nobody. "Finding someone now"
+ * would be a lie — there is no automatic re-broadcast when a peer later
+ * joins, so the person deserves the real state and a way out.
+ */
+export function peerFundedNoPeersReply(title: string): string {
+  return `Payment's locked in for "${title}" — but no peers are reachable right now, so nobody's been pinged yet. It stays open and your money stays put; text STOP anytime to cancel.\n${accountLinkHint()}`;
+}
+
+/** Status for a requester waiting on a claim while zero peers are reachable. */
+export function peerSearchIdleReply(): string {
+  return `Nobody's claimed this yet — no peers are reachable right now. It stays open with your payment held; text STOP anytime to cancel.`;
+}
+
+/** A fund settle that arrived after the job already moved past the search. */
+export function peerAlreadyInMotionReply(title: string): string {
+  return `Payment's locked in for "${title}" and it's already moving — updates land here.`;
+}
+
+/**
  * The offer a peer sees. Their trust score and the auction mechanics decide
  * who gets pinged first, but quoting either back at them is Cascade narrating
  * its own scoring — what a worker needs is the task, the pay, and how to take
