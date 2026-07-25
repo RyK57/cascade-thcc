@@ -30,7 +30,7 @@ export async function retrieveLocation(chatId: string): Promise<{
 }
 
 export function needsLocationHint(text: string): boolean {
-  return /\b(near|nearby|campus|location|local|around me|close by)\b/i.test(
+  return /\b(near(?:by|est)?|closest|campus|location|local(?:ly)?|around (?:me|here)|close by|in (?:my|the) area|my area|where i am|my address|my place|in town|downtown|walking distance)\b/i.test(
     text
   );
 }
