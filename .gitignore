@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Impeccable design-tool state (critique snapshots, hook cache)
 .impeccable/
+
+# Xcode user state
+xcuserdata/
